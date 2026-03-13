@@ -1,0 +1,7 @@
+{
+  "name": "AI를 활용한 운세상담",
+  "description": "한국 전통 명리학을 활용해 사용자의 사주팔자를 분석하고 대운 변동을 해설하여 인생의 가이드가 되도록 한다",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
