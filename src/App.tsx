@@ -335,17 +335,22 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // Fetch guidelines
+  // Fetch guidelines with retry logic
   useEffect(() => {
-    const fetchGuidelines = async () => {
+    const fetchGuidelines = async (retries = 3) => {
       try {
         const res = await fetch("/api/guidelines");
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         setGuidelines(data);
+        setGuidelinesError(null);
       } catch (err) {
-        console.error("Failed to fetch guidelines:", err);
-        setGuidelinesError("지침 파일을 불러오는 데 실패했습니다. 페이지를 새로고침해 주세요.");
+        console.error(`Failed to fetch guidelines (retries left: ${retries}):`, err);
+        if (retries > 0) {
+          setTimeout(() => fetchGuidelines(retries - 1), 1000);
+        } else {
+          setGuidelinesError("지침 파일을 불러오는 데 실패했습니다. 페이지를 새로고침해 주세요.");
+        }
       }
     };
     fetchGuidelines();

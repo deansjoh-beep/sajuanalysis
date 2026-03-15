@@ -14,12 +14,27 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      cwd: process.cwd(),
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // API to read guidelines
   app.get("/api/guidelines", (req, res) => {
     try {
-      const sajuPath = path.join(process.cwd(), "saju_guideline.txt");
-      const consultingPath = path.join(process.cwd(), "consulting_guideline.txt");
-      const reportPath = path.join(process.cwd(), "report_guideline.txt");
+      const cwd = process.cwd();
+      const sajuPath = path.resolve(cwd, "saju_guideline.txt");
+      const consultingPath = path.resolve(cwd, "consulting_guideline.txt");
+      const reportPath = path.resolve(cwd, "report_guideline.txt");
+
+      console.log(`[Guidelines API] CWD: ${cwd}`);
+      console.log(`[Guidelines API] __dirname: ${__dirname}`);
+      console.log(`[Guidelines API] Attempting to read: ${sajuPath}`);
 
       const sajuContent = fs.existsSync(sajuPath) 
         ? fs.readFileSync(sajuPath, "utf-8") 
@@ -33,13 +48,20 @@ async function startServer() {
         ? fs.readFileSync(reportPath, "utf-8")
         : "Report guideline not found.";
 
+      console.log(`[Guidelines API] Read success. Saju length: ${sajuContent.length}`);
+
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.json({
         saju: sajuContent,
         consulting: consultingContent,
         report: reportContent
       });
     } catch (error) {
-      res.status(500).json({ error: "Failed to read guidelines" });
+      console.error("[Guidelines API] Error:", error);
+      res.status(500).json({ 
+        error: "Failed to read guidelines server-side",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
