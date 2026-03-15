@@ -6,9 +6,31 @@
   --font-handwriting: "Nanum Pen Script", cursive;
   --font-serif: "Nanum Myeongjo", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-gothic: "Nanum Gothic", sans-serif;
+  --color-cobalt: #0047AB;
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
 }
 
 @layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
   .markdown-body h1, .markdown-body h2, .markdown-body h3 {
     font-weight: bold;
     margin-top: 1rem;
