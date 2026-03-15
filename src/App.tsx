@@ -347,6 +347,7 @@ const App: React.FC = () => {
   }, []);
 
   // Auto scroll
+  // Force rebuild
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -658,9 +659,10 @@ ${sajuContext}
           return newMessages;
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Chat error:", err);
-      setMessages(prev => [...prev, { role: "model", text: "상담 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." }]);
+      const errorMessage = err?.message || String(err);
+      setMessages(prev => [...prev, { role: "model", text: `상담 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.` }]);
     } finally {
       setLoading(false);
     }
@@ -778,9 +780,10 @@ ${daeunContext}
       const result = await chat.sendMessage({ message: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘." });
       const text = result.text || "리포트 생성 실패";
       setReportContent(text);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Report generation error:", err);
-      setReportContent("리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      const errorMessage = err?.message || String(err);
+      setReportContent(`리포트 생성 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.`);
     } finally {
       setLoading(false);
     }
