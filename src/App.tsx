@@ -43,9 +43,19 @@ interface Message {
 
 // Helper to get Gemini AI instance
 const getGeminiAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY || (window as any).GEMINI_API_KEY;
-  if (!apiKey || apiKey === "undefined") {
-    throw new Error("API 키가 설정되지 않았습니다. 설정 메뉴에서 API 키를 확인하거나 관리자에게 문의하세요.");
+  let apiKey = "";
+  try {
+    // Safely check for process.env.GEMINI_API_KEY
+    apiKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) 
+      ? process.env.GEMINI_API_KEY 
+      : (window as any).GEMINI_API_KEY;
+  } catch (e) {
+    apiKey = (window as any).GEMINI_API_KEY;
+  }
+
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    console.error("Gemini API Key is missing.");
+    throw new Error("API 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -309,6 +319,7 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
   const [guidelines, setGuidelines] = useState<Guidelines | null>(null);
+  const [guidelinesError, setGuidelinesError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -329,10 +340,12 @@ const App: React.FC = () => {
     const fetchGuidelines = async () => {
       try {
         const res = await fetch("/api/guidelines");
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         setGuidelines(data);
       } catch (err) {
         console.error("Failed to fetch guidelines:", err);
+        setGuidelinesError("지침 파일을 불러오는 데 실패했습니다. 페이지를 새로고침해 주세요.");
       }
     };
     fetchGuidelines();
@@ -587,7 +600,18 @@ JSON 형식 예시:
 
   const handleSend = async (overrideInput?: string) => {
     const userMessage = (overrideInput || input).trim();
-    if (!userMessage || loading || !guidelines || sajuResult.length === 0) return;
+    if (!userMessage || loading) return;
+
+    if (!guidelines) {
+      alert(guidelinesError || "지침 파일을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
+    if (sajuResult.length === 0) {
+      alert("먼저 사주 분석을 완료해 주세요.");
+      setActiveTab("welcome");
+      return;
+    }
 
     setInput("");
     setSuggestions([]);
@@ -648,7 +672,18 @@ ${sajuContext}
   };
 
   const handleGenerateReport = async () => {
-    if (loading || !guidelines || sajuResult.length === 0) return;
+    if (loading) return;
+
+    if (!guidelines) {
+      alert(guidelinesError || "지침 파일을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
+    if (sajuResult.length === 0) {
+      alert("먼저 사주 분석을 완료해 주세요.");
+      setActiveTab("welcome");
+      return;
+    }
 
     setLoading(true);
     setActiveTab("report");
