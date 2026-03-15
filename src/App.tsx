@@ -47,10 +47,8 @@ interface Message {
 const getGeminiAI = () => {
   let apiKey = "";
   try {
-    // Safely check for process.env.GEMINI_API_KEY
-    apiKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) 
-      ? process.env.GEMINI_API_KEY 
-      : (window as any).GEMINI_API_KEY;
+    // Prioritize window.GEMINI_API_KEY injected by server
+    apiKey = (window as any).GEMINI_API_KEY || (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY);
   } catch (e) {
     apiKey = (window as any).GEMINI_API_KEY;
   }
