@@ -153,51 +153,80 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean }> = ({ c
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   // Parse the content into sections
-  // Format: N. Title [키워드] Keyword [🔽 내용 보기]\n(상세 확장 내용) Content
-  const sections = useMemo(() => {
-    const regex = /(\d\.\s.*?\s\[키워드\]\s.*?\s\[🔽\s내용\s보기\])\n\((?:상세\s)?확장\s내용\)\s([\s\S]*?)(?=\n\d\.\s|$)/g;
+  const { greeting, sections } = useMemo(() => {
+    // Extract greeting (everything before categories or specifically tagged)
+    const greetingMatch = content.match(/\[인사말\]\s*([\s\S]*?)(?=\n.*?\s\[키워드\]|$)/);
+    const greetingText = greetingMatch ? greetingMatch[1].trim() : "";
+
+    // Extract sections
+    // Format: Title [키워드] Keyword [🔽 내용 보기]\n(상세 확장 내용) Content
+    const sectionRegex = /(.*?\s\[키워드\]\s.*?\s\[🔽\s내용\s보기\])\n\((?:상세\s)?확장\s내용\)\s*([\s\S]*?)(?=\n.*?\s\[키워드\]|$)/g;
     const matches = [];
     let match;
-    while ((match = regex.exec(content)) !== null) {
+    while ((match = sectionRegex.exec(content)) !== null) {
       matches.push({
-        header: match[1].replace(/\[🔽\s내용\s보기\]/, '').trim(),
+        header: match[1].replace(/\[키워드\]/, '').replace(/\[🔽\s내용\s보기\]/, '').trim(),
         body: match[2].trim()
       });
     }
-    return matches;
+    
+    // Fallback if regex fails (sometimes AI might miss the exact tags)
+    if (matches.length === 0 && content.includes('[키워드]')) {
+      const lines = content.split('\n');
+      let currentSection: { header: string; body: string } | null = null;
+      
+      lines.forEach(line => {
+        if (line.includes('[키워드]')) {
+          if (currentSection) matches.push(currentSection);
+          currentSection = {
+            header: line.replace(/\[키워드\]/, '').replace(/\[🔽\s내용\s보기\]/, '').trim(),
+            body: ''
+          };
+        } else if (currentSection && !line.includes('[인사말]') && !line.includes('(상세 확장 내용)')) {
+          currentSection.body += line + '\n';
+        }
+      });
+      if (currentSection) matches.push(currentSection);
+    }
+
+    return { greeting: greetingText, sections: matches };
   }, [content]);
 
-  if (sections.length === 0) {
+  if (sections.length === 0 && !greeting) {
     return (
-      <div className="markdown-body prose dark:prose-invert max-w-none">
+      <div className="markdown-body prose dark:prose-invert max-w-none text-[11px]">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {greeting && (
+        <div className={`p-5 rounded-2xl ${isDarkMode ? 'bg-indigo-500/10 text-indigo-200' : 'bg-indigo-50 text-indigo-900'} font-handwriting text-lg leading-relaxed mb-4 shadow-sm`}>
+          <ReactMarkdown>{greeting}</ReactMarkdown>
+        </div>
+      )}
       {sections.map((section, index) => (
         <div 
           key={index} 
-          className={`rounded-2xl border transition-all overflow-hidden ${
+          className={`rounded-xl border transition-all overflow-hidden ${
             isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-sm'
           }`}
         >
           <button
             onClick={() => setOpenIndex(openIndex === index ? null : index)}
-            className="w-full px-6 py-5 flex items-center justify-between text-left group"
+            className="w-full px-4 py-3.5 flex items-center justify-between text-left group"
           >
             <div className="flex-1 pr-4">
-              <span className="text-sm font-bold text-indigo-500 block mb-1">CATEGORY {index + 1}</span>
-              <h3 className="text-base font-bold leading-tight group-hover:text-indigo-400 transition-colors">
+              <h3 className="text-[12px] font-bold leading-tight group-hover:text-indigo-400 transition-colors">
                 {section.header}
               </h3>
             </div>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
               openIndex === index ? 'bg-indigo-500 text-white rotate-180' : 'bg-zinc-100 dark:bg-white/10 text-zinc-500'
             }`}>
-              <ChevronDown className="w-5 h-5" />
+              <ChevronDown className="w-3.5 h-3.5" />
             </div>
           </button>
           
@@ -207,11 +236,13 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean }> = ({ c
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
               >
-                <div className={`px-6 pb-6 pt-2 text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-4" />
-                  <ReactMarkdown>{section.body}</ReactMarkdown>
+                <div className={`px-4 pb-4 pt-0 text-[11px] leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-3" />
+                  <div className="markdown-body">
+                    <ReactMarkdown>{section.body}</ReactMarkdown>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -352,27 +383,20 @@ const App: React.FC = () => {
       setVoiceText("");
       setCountdown(15);
       
-      timerRef.current = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      // 15초 후 자동 종료
       autoStopRef.current = setTimeout(() => {
-        recognition.stop();
+        if (recognitionRef.current) recognitionRef.current.stop();
       }, 15000);
+
+      timerRef.current = setInterval(() => {
+        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
     };
 
     recognition.onend = () => {
       setIsListening(false);
       clearInterval(timerRef.current);
       clearTimeout(autoStopRef.current);
-      if (finalTranscript) {
+      if (finalTranscript.trim()) {
         parseVoiceInput(finalTranscript);
       }
     };
@@ -428,28 +452,34 @@ JSON 형식 예시:
 
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
-
-      const parsed = JSON.parse(result.text || "{}");
-      setUserData(prev => ({
-        ...prev,
-        name: parsed.name || prev.name,
-        birthYear: parsed.year || prev.birthYear,
-        birthMonth: parsed.month || prev.birthMonth,
-        birthDay: parsed.day || prev.birthDay,
-        birthHour: parsed.hour || prev.birthHour,
-        birthMinute: parsed.minute || prev.birthMinute,
-        calendarType: parsed.calendarType || prev.calendarType,
-        gender: parsed.gender || prev.gender,
-        unknownTime: parsed.unknownTime !== undefined ? parsed.unknownTime : prev.unknownTime
-      }));
+      
+      const jsonStr = result.text?.replace(/```json|```/g, "").trim();
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
+        setUserData(prev => ({
+          ...prev,
+          name: parsed.name || prev.name,
+          birthYear: parsed.year || prev.birthYear,
+          birthMonth: parsed.month || prev.birthMonth,
+          birthDay: parsed.day || prev.birthDay,
+          birthHour: parsed.hour || prev.birthHour,
+          birthMinute: parsed.minute || prev.birthMinute,
+          calendarType: parsed.calendarType || prev.calendarType,
+          gender: parsed.gender || prev.gender,
+          unknownTime: parsed.unknownTime !== undefined ? parsed.unknownTime : prev.unknownTime
+        }));
+      }
     } catch (err) {
       console.error("Voice parsing error:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    handleSend(suggestion);
   };
 
   const handleSend = async (overrideInput?: string) => {
@@ -482,69 +512,36 @@ JSON 형식 예시:
 
 2. 법적/윤리적 가이드라인 (필수 준수):
 - 의료 진단, 범죄 공모, 도박 조장, 생사(生死) 판별, 구체적인 주식/코인 종목 추천 등 법적/윤리적 위험이 있는 질문에는 답변을 거부하십시오.
-- 이러한 질문 감지 시: "죄송합니다. 해당 내용은 전문 영역(의사, 법률가, 금융 전문가 등)의 상담이 필요하며, 사주 분석으로 확답을 드릴 수 없습니다."라고 정중히 안내하십시오.
+- 이러한 질문 감지 시: "죄송합니다. 해당 내용은 전문 영역(의료, 법률 등)에 해당하여 답변이 어렵습니다." 라고 정중히 거절하십시오.
 
-3. 사용자 정보:
-이름: ${userData.name || '사용자'}
-성별: ${userData.gender === 'M' ? '남성' : '여성'}
-사주 원국:
+[사용자 사주 정보]
 ${sajuContext}
-
-3. 출력 형식 (필수):
-답변의 맨 마지막에 사용자가 이어서 질문할 만한 '연속 질문' 3개를 반드시 포함하십시오.
-형식:
-[연속 질문]
-1. 질문 내용 1
-2. 질문 내용 2
-3. 질문 내용 3
-
-4. 참조 데이터:
-<saju_guideline.txt>
-${guidelines.saju}
-
-<consulting_guideline.txt>
-${guidelines.consulting}
-      `;
+`;
 
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
-        config: { systemInstruction },
-        history: messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }))
+        config: { systemInstruction }
       });
 
-      const result = await chat.sendMessage({ message: userMessage });
-      let fullText = result.text || "죄송합니다. 다시 시도해 주세요.";
-      
-      // Parse suggestions
-      const suggestionRegex = /\[연속 질문\]\s*[\n\r]+1\.\s*(.*)[\n\r]+2\.\s*(.*)[\n\r]+3\.\s*(.*)/i;
-      const suggestionMatch = fullText.match(suggestionRegex);
-      if (suggestionMatch) {
-        const newSuggestions = [suggestionMatch[1].trim(), suggestionMatch[2].trim(), suggestionMatch[3].trim()];
-        setSuggestions(newSuggestions);
-        fullText = fullText.replace(suggestionRegex, "").trim();
-      } else {
-        // Fallback for different formats
-        const altRegex = /1\.\s*(.*)[\n\r]+2\.\s*(.*)[\n\r]+3\.\s*(.*)/;
-        const altMatch = fullText.match(altRegex);
-        if (altMatch && fullText.includes('질문')) {
-          const newSuggestions = [altMatch[1].trim(), altMatch[2].trim(), altMatch[3].trim()];
-          setSuggestions(newSuggestions);
-          fullText = fullText.replace(altRegex, "").trim();
-        } else {
-          setSuggestions(INITIAL_QUESTIONS);
-        }
-      }
+      const response = await chat.sendMessageStream({ message: userMessage });
+      let fullText = "";
+      setMessages(prev => [...prev, { role: "model", text: "" }]);
 
-      setMessages(prev => [...prev, { role: "model", text: fullText }]);
+      for await (const chunk of response) {
+        const text = chunk.text;
+        fullText += text;
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1].text = fullText;
+          return newMessages;
+        });
+      }
     } catch (err) {
-      setMessages(prev => [...prev, { role: "model", text: "상담 중 오류가 발생했습니다." }]);
+      console.error("Chat error:", err);
+      setMessages(prev => [...prev, { role: "model", text: "상담 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." }]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSuggestionClick = (text: string) => {
-    handleSend(text);
   };
 
   const handleGenerateReport = async () => {
@@ -561,14 +558,18 @@ ${guidelines.consulting}
       const currentAge = 2026 - parseInt(userData.birthYear) + 1;
       const daeunContext = daeunResult.map((dy, i) => {
         const isCurrent = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
-        return `${dy.startAge}세~${daeunResult[i+1]?.startAge || dy.startAge + 9}세: ${hanjaToHangul[dy.stem]}${hanjaToHangul[dy.branch]}(${dy.stem}${dy.branch})${isCurrent ? ' [현재 대운]' : ''}`;
+        return `${dy.startAge}세~${daeunResult[i+1]?.startAge || dy.startAge + 9}세: ${hanjaToHangul[dy.stem.hanja]}${hanjaToHangul[dy.branch.hanja]}${isCurrent ? ' (현재 대운)' : ''}`;
       }).join('\n');
 
-      const systemInstruction = `
-[System Role & Instruction]
-당신은 명리학적 데이터를 분석하여 사용자에게 깊이 있고 전문적인 조언을 제공하는 **'수석 사주 분석가'**입니다. 제공된 사용자의 사주 데이터를 바탕으로 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오.
+      const systemInstruction = `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다. 제공된 사용자의 사주 데이터를 바탕으로 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오.
 
 작성 시 반드시 시스템에 사전 입력된 report_guideline.txt의 지침(단정적/극단적 표현 금지, 생사 및 질병 확정 금지, 객관적이고 따뜻한 조언 유지 등)을 엄격하게 준수해야 합니다.
+
+[중요 요청 사항]
+1. 전체적으로 폰트 크기를 적절히 조절하고 문단을 깔끔하게 정리하여 가독성을 높여주십시오.
+2. 문단 사이에는 반드시 한 칸의 공백을 두어 시각적 피로도를 줄여주십시오.
+3. 각 카테고리의 제목이나 키워드 앞에 번호를 붙이지 마십시오.
+4. 처음에는 [인사말]과 각 카테고리의 [키워드]만 보이도록 구성하며, 상세 내용은 확장 버튼을 눌러야 보이도록 구조화하십시오.
 
 [Output Structure: 확장형 UI 포맷]
 리포트는 앱 화면에서 사용자가 키워드를 누르면 상세 내용이 펼쳐지는 '아코디언 UI'에 적용될 예정입니다. 따라서 각 카테고리는 시선을 사로잡는 **[핵심 키워드]**와 클릭 시 나타나는 **[상세 확장 내용]**으로 명확히 구분하여 작성하십시오. 키워드 우측에는 [🔽 내용 보기]라는 버튼 표시를 달아주십시오.
@@ -619,14 +620,23 @@ ${daeunContext}
 
 [출력 예시 (포맷을 정확히 지킬 것)]
 
-1. 본질적 기질과 성격, 사회성 [키워드] 부드러운 외면 속, 누구보다 단단한 원칙주의자 [🔽 내용 보기]
-(상세 확장 내용) 당신은 겉보기에 유연하고 사람들과 잘 어울리지만, 내면에는 자신만의 확고한 기준(정관)이 자리 잡고 있습니다. 사회생활에서는 다툼을 피하는 평화주의자 역할을 자처하지만...
+[인사말]
+안녕하세요, ${userData.name}님. 당신의 삶의 지도를 함께 그려볼 사주명리 상담가 유아이입니다. 당신의 사주 데이터를 정밀 분석한 결과, 다음과 같은 흐름이 포착되었습니다.
 
-2. 용신 분석 및 결핍 보완 [키워드] 삶의 엔진을 식혀줄 '물(水)'의 지혜와 쉼표 [🔽 내용 보기]
-(상세 확장 내용) 현재 사주에 화(火) 기운이 강해 목표를 향해 달려가는 추진력은 좋으나, 번아웃이 오기 쉽습니다. 당신에게 필요한 것은 유연함과 휴식을 상징하는 수(水) 기운입니다...
+본질적 기질과 성격, 사회성 [키워드] 부드러운 외면 속, 누구보다 단단한 원칙주의자 [🔽 내용 보기]
+(상세 확장 내용) 
+당신은 겉보기에 유연하고 사람들과 잘 어울리지만, 내면에는 자신만의 확고한 기준(정관)이 자리 잡고 있습니다. 
 
-(... 3~8번 항목도 동일한 포맷으로 작성)
-      `;
+사회생활에서는 다툼을 피하는 평화주의자 역할을 자처하지만, 결정적인 순간에는 자신의 신념을 굽히지 않는 강인함을 보여줍니다.
+
+용신 분석 및 결핍 보완 [키워드] 삶의 엔진을 식혀줄 '물(水)'의 지혜와 쉼표 [🔽 내용 보기]
+(상세 확장 내용) 
+현재 사주에 화(火) 기운이 강해 목표를 향해 달려가는 추진력은 좋으나, 번아웃이 오기 쉽습니다. 
+
+당신에게 필요한 것은 유연함과 휴식을 상징하는 수(水) 기운입니다.
+
+(... 나머지 항목도 동일한 포맷으로 작성)
+`;
 
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
@@ -645,7 +655,6 @@ ${daeunContext}
     }
   };
 
-  // Chart Data
   const getChartData = () => {
     const counts: Record<string, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
     sajuResult.filter(p => !userData.unknownTime || p.title !== '시주').forEach(p => {
@@ -1628,8 +1637,8 @@ ${daeunContext}
         </AnimatePresence>
       </main>
 
-      <nav className={`px-4 pt-3 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl safe-bottom z-30`}>
-        <div className="max-w-md mx-auto flex items-center justify-around">
+      <nav className={`px-4 pt-3 pb-8 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30`}>
+        <div className="max-w-md mx-auto flex items-center justify-around pb-safe">
           {[
             { id: "welcome", icon: User, label: "내정보" },
             { id: "dashboard", icon: LayoutDashboard, label: "대시보드" },
