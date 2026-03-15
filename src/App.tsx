@@ -56,7 +56,7 @@ const getGeminiAI = () => {
   }
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    console.error("Gemini API Key is missing.");
+    console.error("Gemini API Key is missing. process.env.GEMINI_API_KEY:", !!process.env.GEMINI_API_KEY, "window.GEMINI_API_KEY:", !!(window as any).GEMINI_API_KEY);
     throw new Error("API 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
   }
   return new GoogleGenAI({ apiKey });
@@ -662,7 +662,8 @@ ${sajuContext}
     } catch (err: any) {
       console.error("Chat error:", err);
       const errorMessage = err?.message || String(err);
-      setMessages(prev => [...prev, { role: "model", text: `상담 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.` }]);
+      // UI에 직접 에러 메시지를 표시하도록 수정
+      setMessages(prev => [...prev, { role: "model", text: `[상담 오류] ${errorMessage}` }]);
     } finally {
       setLoading(false);
     }
