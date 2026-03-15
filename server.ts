@@ -24,47 +24,6 @@ async function startServer() {
     });
   });
 
-  // API to read guidelines
-  app.get("/api/guidelines", (req, res) => {
-    try {
-      const cwd = process.cwd();
-      const sajuPath = path.resolve(cwd, "saju_guideline.txt");
-      const consultingPath = path.resolve(cwd, "consulting_guideline.txt");
-      const reportPath = path.resolve(cwd, "report_guideline.txt");
-
-      console.log(`[Guidelines API] CWD: ${cwd}`);
-      console.log(`[Guidelines API] __dirname: ${__dirname}`);
-      console.log(`[Guidelines API] Attempting to read: ${sajuPath}`);
-
-      const sajuContent = fs.existsSync(sajuPath) 
-        ? fs.readFileSync(sajuPath, "utf-8") 
-        : "Saju guideline not found.";
-      
-      const consultingContent = fs.existsSync(consultingPath)
-        ? fs.readFileSync(consultingPath, "utf-8")
-        : "Consulting guideline not found.";
-
-      const reportContent = fs.existsSync(reportPath)
-        ? fs.readFileSync(reportPath, "utf-8")
-        : "Report guideline not found.";
-
-      console.log(`[Guidelines API] Read success. Saju length: ${sajuContent.length}`);
-
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.json({
-        saju: sajuContent,
-        consulting: consultingContent,
-        report: reportContent
-      });
-    } catch (error) {
-      console.error("[Guidelines API] Error:", error);
-      res.status(500).json({ 
-        error: "Failed to read guidelines server-side",
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
