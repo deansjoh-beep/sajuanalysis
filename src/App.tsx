@@ -45,16 +45,19 @@ interface Message {
 
 // Helper to get Gemini AI instance
 const getGeminiAI = () => {
-  let apiKey = "";
-  try {
-    // Use VITE_GEMINI_API_KEY for client-side access
-    apiKey = import.meta.env.VITE_GEMINI_API_KEY || (window as any).GEMINI_API_KEY || (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY);
-  } catch (e) {
-    apiKey = (window as any).GEMINI_API_KEY;
-  }
+  const windowKey = (window as any).GEMINI_API_KEY;
+  const viteKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const processKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY);
+
+  console.log("[DEBUG] API Key Retrieval Attempt:");
+  console.log("  window.GEMINI_API_KEY:", !!windowKey);
+  console.log("  import.meta.env.VITE_GEMINI_API_KEY:", !!viteKey);
+  console.log("  process.env.GEMINI_API_KEY:", !!processKey);
+
+  const apiKey = windowKey || viteKey || processKey;
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    console.error("Gemini API Key is missing. process.env.GEMINI_API_KEY:", !!process.env.GEMINI_API_KEY, "window.GEMINI_API_KEY:", !!(window as any).GEMINI_API_KEY);
+    console.error("[ERROR] Gemini API Key is missing.");
     throw new Error("API 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
   }
   return new GoogleGenAI({ apiKey });
