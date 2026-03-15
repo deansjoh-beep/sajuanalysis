@@ -146,9 +146,7 @@ const HanjaBox: React.FC<{ hanja: string, size?: 'sm' | 'md' | 'lg', isDarkMode?
 const INITIAL_QUESTIONS = [
   "나의 전반적인 타고난 성격과 기질은 어떤가요?",
   "올해의 전반적인 운세 흐름이 궁금합니다.",
-  "나에게 가장 잘 맞는 직업이나 진로는 무엇인가요?",
-  "재물운을 높이기 위해 주의해야 할 점이 있을까요?",
-  "건강상 특별히 조심해야 할 부분이나 보완할 기운은 무엇인가요?"
+  "나에게 가장 잘 맞는 직업이나 진로는 무엇인가요?"
 ];
 
 const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpen?: boolean }> = ({ content, isDarkMode, forceOpen }) => {
