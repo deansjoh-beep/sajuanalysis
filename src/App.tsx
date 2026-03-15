@@ -31,6 +31,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { jsPDF } from "jspdf";
+import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap } from "./utils/saju";
 
 // Types
@@ -149,7 +151,7 @@ const INITIAL_QUESTIONS = [
   "건강상 특별히 조심해야 할 부분이나 보완할 기운은 무엇인가요?"
 ];
 
-const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean }> = ({ content, isDarkMode }) => {
+const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpen?: boolean }> = ({ content, isDarkMode, forceOpen }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   // Parse the content into sections
@@ -194,7 +196,7 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean }> = ({ c
 
   if (sections.length === 0 && !greeting) {
     return (
-      <div className="markdown-body prose dark:prose-invert max-w-none text-[11px]">
+      <div className="markdown-body prose dark:prose-invert max-w-none text-sm">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
@@ -203,52 +205,61 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean }> = ({ c
   return (
     <div className="space-y-3">
       {greeting && (
-        <div className={`p-5 rounded-2xl ${isDarkMode ? 'bg-indigo-500/10 text-indigo-200' : 'bg-indigo-50 text-indigo-900'} font-handwriting text-lg leading-relaxed mb-4 shadow-sm`}>
+        <div className={`p-8 rounded-[2.5rem] ${
+          isDarkMode 
+            ? 'bg-indigo-950/60 text-white border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]' 
+            : 'bg-indigo-50 text-indigo-950 border-indigo-100'
+        } font-handwriting text-3xl leading-relaxed mb-8 shadow-sm border`}>
           <ReactMarkdown>{greeting}</ReactMarkdown>
         </div>
       )}
-      {sections.map((section, index) => (
-        <div 
-          key={index} 
-          className={`rounded-xl border transition-all overflow-hidden ${
-            isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-sm'
-          }`}
-        >
-          <button
-            onClick={() => setOpenIndex(openIndex === index ? null : index)}
-            className="w-full px-4 py-3.5 flex items-center justify-between text-left group"
+      {sections.map((section, index) => {
+        const isOpen = forceOpen || openIndex === index;
+        return (
+          <div 
+            key={index} 
+            className={`rounded-2xl border transition-all overflow-hidden ${
+              isDarkMode ? 'bg-zinc-900/50 border-white/10' : 'bg-white border-black/5 shadow-sm'
+            }`}
           >
-            <div className="flex-1 pr-4">
-              <h3 className="text-[12px] font-bold leading-tight group-hover:text-indigo-400 transition-colors">
-                {section.header}
-              </h3>
-            </div>
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-              openIndex === index ? 'bg-indigo-500 text-white rotate-180' : 'bg-zinc-100 dark:bg-white/10 text-zinc-500'
-            }`}>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
-          </button>
-          
-          <AnimatePresence>
-            {openIndex === index && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-              >
-                <div className={`px-4 pb-4 pt-0 text-[11px] leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-3" />
-                  <div className="markdown-body">
-                    <ReactMarkdown>{section.body}</ReactMarkdown>
-                  </div>
+            <button
+              onClick={() => setOpenIndex(openIndex === index ? null : index)}
+              className="w-full px-5 py-4 flex items-center justify-between text-left group"
+            >
+              <div className="flex-1 pr-4">
+                <h3 className={`text-sm font-bold leading-tight transition-colors ${isDarkMode ? 'text-zinc-200 group-hover:text-indigo-400' : 'text-zinc-800 group-hover:text-indigo-600'}`}>
+                  {section.header}
+                </h3>
+              </div>
+              {!forceOpen && (
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  isOpen ? 'bg-indigo-500 text-white rotate-180 shadow-lg shadow-indigo-500/20' : 'bg-zinc-100 dark:bg-white/10 text-zinc-500'
+                }`}>
+                  <ChevronDown className="w-4 h-4" />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      ))}
+              )}
+            </button>
+            
+            <AnimatePresence initial={!forceOpen}>
+              {isOpen && (
+                <motion.div
+                  initial={forceOpen ? { opacity: 1, height: 'auto' } : { height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                >
+                  <div className={`px-5 pb-5 pt-0 text-sm leading-relaxed ${isDarkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                    <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-4" />
+                    <div className="markdown-body prose dark:prose-invert max-w-none">
+                      <ReactMarkdown>{section.body}</ReactMarkdown>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -291,9 +302,20 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
   const [guidelines, setGuidelines] = useState<Guidelines | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  // Handle Dark Mode Class
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   // Fetch guidelines
   useEffect(() => {
@@ -358,7 +380,7 @@ const App: React.FC = () => {
     ]);
   };
 
-  const handleVoiceInput = () => {
+  const startVoiceRecognition = (onComplete: (text: string) => void) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
@@ -397,7 +419,7 @@ const App: React.FC = () => {
       clearInterval(timerRef.current);
       clearTimeout(autoStopRef.current);
       if (finalTranscript.trim()) {
-        parseVoiceInput(finalTranscript);
+        onComplete(finalTranscript);
       }
     };
 
@@ -419,6 +441,17 @@ const App: React.FC = () => {
     };
 
     recognition.start();
+  };
+
+  const handleVoiceInput = () => {
+    startVoiceRecognition(parseVoiceInput);
+  };
+
+  const handleChatVoiceInput = () => {
+    startVoiceRecognition((text) => {
+      setInput(text);
+      handleSend(text);
+    });
   };
 
   const parseVoiceInput = async (text: string) => {
@@ -480,6 +513,71 @@ JSON 형식 예시:
 
   const handleSuggestionClick = (suggestion: string) => {
     handleSend(suggestion);
+  };
+
+  const handleDownloadChat = () => {
+    if (messages.length === 0) return;
+    
+    const chatContent = messages.map(msg => {
+      const role = msg.role === 'user' ? '나' : '유아이';
+      return `[${role}]\n${msg.text}\n`;
+    }).join('\n---\n\n');
+    
+    const blob = new Blob([`유아이 사주상담 내역\n날짜: ${new Date().toLocaleString()}\n\n${chatContent}`], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `유아이_상담내역_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current || !reportContent) return;
+    
+    setLoading(true);
+    setIsPrinting(true);
+    
+    // Wait for state update and potential re-renders
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    try {
+      const dataUrl = await htmlToImage.toPng(reportRef.current, {
+        backgroundColor: isDarkMode ? '#000000' : '#f9fafb',
+        quality: 1,
+        pixelRatio: 2
+      });
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Handle multi-page if height exceeds A4
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`유아이_운세리포트_${userData.name}_${new Date().toISOString().slice(0,10)}.pdf`);
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      alert("PDF 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsPrinting(false);
+      setLoading(false);
+    }
   };
 
   const handleSend = async (overrideInput?: string) => {
@@ -826,16 +924,16 @@ ${daeunContext}
               exit={{ opacity: 0, x: 20 }}
               className="absolute inset-0 flex flex-col overflow-hidden"
             >
-              <div className="flex-1 overflow-y-auto p-5 space-y-6 hide-scrollbar">
-                <div className="text-center space-y-2 py-2">
-                  <h2 className="text-2xl font-handwriting leading-tight text-cobalt">안녕하세요.<br/>유아이 사주상담입니다.</h2>
-                  <p className="text-[10px] opacity-60 leading-relaxed px-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
+                <div className="text-center space-y-1 py-1">
+                  <h2 className="text-3xl font-handwriting leading-tight text-cobalt">안녕하세요.<br/>유아이 사주상담입니다.</h2>
+                  <p className="text-xs opacity-60 leading-relaxed px-4">
                     음성으로 말하거나 정보를 입력하여<br/>당신의 삶을 분석해 보세요.
                   </p>
                 </div>
 
                 {/* Voice Input Block */}
-                <div className={`p-4 rounded-3xl border ${isDarkMode ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-indigo-50 border-indigo-200 shadow-md'} flex flex-row items-center gap-4`}>
+                <div className={`p-3 rounded-3xl border ${isDarkMode ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-indigo-50 border-indigo-200 shadow-md'} flex flex-row items-center gap-4`}>
                   <button 
                     onClick={handleVoiceInput}
                     className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-rose-500 animate-pulse' : 'bg-indigo-600 shadow-lg shadow-indigo-500/30'}`}
@@ -843,36 +941,36 @@ ${daeunContext}
                     <Mic className={`w-6 h-6 text-white ${isListening ? 'scale-110' : ''}`} />
                   </button>
                   <div className="text-left flex-1">
-                    <p className="text-xs font-bold mb-0.5">{isListening ? `말씀해 주세요... (${countdown}초)` : "음성으로 입력하기"}</p>
+                    <p className="text-sm font-bold mb-0.5">{isListening ? `말씀해 주세요... (${countdown}초)` : "음성으로 입력하기"}</p>
                     {isListening && voiceText ? (
-                      <p className="text-[10px] text-indigo-400 font-medium animate-pulse line-clamp-2">{voiceText}</p>
+                      <p className="text-xs text-indigo-400 font-medium animate-pulse line-clamp-2">{voiceText}</p>
                     ) : (
                       <p className="text-[9px] opacity-50">예: "내 이름은 김유아이, 90년 5월 15일 오후 2시 양력 남자야"</p>
                     )}
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-3xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-4`}>
+                <div className={`p-3 rounded-3xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-3`}>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold uppercase tracking-widest opacity-40 ml-1">사용자 이름</label>
+                    <label className="text-[11px] font-bold uppercase tracking-widest opacity-40 ml-1">사용자 이름</label>
                     <input 
                       type="text" 
                       placeholder="이름을 입력하세요"
                       value={userData.name}
                       onChange={(e) => setUserData({...userData, name: e.target.value})}
-                      className={`w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                      className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
                     />
                   </div>
 
                   {/* Dropdown Inputs */}
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold opacity-40 ml-1">년도</label>
+                        <label className="text-[11px] font-bold opacity-40 ml-1">년도</label>
                         <select 
                           value={userData.birthYear}
                           onChange={(e) => setUserData({...userData, birthYear: e.target.value})}
-                          className={`w-full px-2 py-2 rounded-xl border text-xs outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                          className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
                         >
                           {Array.from({length: 100}, (_, i) => 2026 - i).map(y => (
                             <option key={y} value={y}>{y}년</option>
@@ -880,11 +978,11 @@ ${daeunContext}
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold opacity-40 ml-1">월</label>
+                        <label className="text-[11px] font-bold opacity-40 ml-1">월</label>
                         <select 
                           value={userData.birthMonth}
                           onChange={(e) => setUserData({...userData, birthMonth: e.target.value})}
-                          className={`w-full px-2 py-2 rounded-xl border text-xs outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                          className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
                         >
                           {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                             <option key={m} value={m}>{m}월</option>
@@ -892,11 +990,11 @@ ${daeunContext}
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold opacity-40 ml-1">일</label>
+                        <label className="text-[11px] font-bold opacity-40 ml-1">일</label>
                         <select 
                           value={userData.birthDay}
                           onChange={(e) => setUserData({...userData, birthDay: e.target.value})}
-                          className={`w-full px-2 py-2 rounded-xl border text-xs outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                          className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
                         >
                           {Array.from({length: 31}, (_, i) => i + 1).map(d => (
                             <option key={d} value={d}>{d}일</option>
@@ -908,11 +1006,11 @@ ${daeunContext}
                     {!userData.unknownTime && (
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold opacity-40 ml-1">시</label>
+                          <label className="text-[11px] font-bold opacity-40 ml-1">시</label>
                           <select 
                             value={userData.birthHour}
                             onChange={(e) => setUserData({...userData, birthHour: e.target.value})}
-                            className={`w-full px-2 py-2 rounded-xl border text-xs outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                            className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
                           >
                             {Array.from({length: 24}, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}시</option>
@@ -920,11 +1018,11 @@ ${daeunContext}
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold opacity-40 ml-1">분</label>
+                          <label className="text-[11px] font-bold opacity-40 ml-1">분</label>
                           <select 
                             value={userData.birthMinute}
                             onChange={(e) => setUserData({...userData, birthMinute: e.target.value})}
-                            className={`w-full px-2 py-2 rounded-xl border text-xs outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                            className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
                           >
                             {Array.from({length: 60}, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m}분</option>
@@ -942,48 +1040,48 @@ ${daeunContext}
                         onChange={(e) => setUserData({...userData, unknownTime: e.target.checked})}
                         className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
-                      <label htmlFor="unknownTime" className="text-[11px] font-medium opacity-70">생시를 몰라요</label>
+                      <label htmlFor="unknownTime" className="text-sm font-medium opacity-70">생시를 몰라요</label>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between p-2 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
                       <div className="flex items-center gap-1.5 bg-black/10 p-1 rounded-xl w-full">
                         <button 
                           onClick={() => setUserData({...userData, calendarType: 'solar'})}
-                          className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
                         >
                           양력
                         </button>
                         <button 
                           onClick={() => setUserData({...userData, calendarType: 'lunar'})}
-                          className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
                         >
                           음력(평)
                         </button>
                         <button 
                           onClick={() => setUserData({...userData, calendarType: 'leap'})}
-                          className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
                         >
                           음력(윤)
                         </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                    <div className="flex items-center justify-between p-2 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
                       <div className="flex items-center gap-1.5 bg-black/10 p-1 rounded-xl w-full">
-                        <button onClick={() => setUserData({...userData, gender: 'M'})} className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}>남자</button>
-                        <button onClick={() => setUserData({...userData, gender: 'F'})} className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${userData.gender === 'F' ? 'bg-rose-600 text-white shadow-md' : 'opacity-40'}`}>여자</button>
+                        <button onClick={() => setUserData({...userData, gender: 'M'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}>남자</button>
+                        <button onClick={() => setUserData({...userData, gender: 'F'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-rose-600 text-white shadow-md' : 'opacity-40'}`}>여자</button>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <p className="text-center text-[10px] opacity-30 tracking-tight pb-4">정확한 분석을 위해 태어난 시간을 꼭 확인해 주세요.</p>
+                <p className="text-center text-xs opacity-30 tracking-tight pb-2">정확한 분석을 위해 태어난 시간을 꼭 확인해 주세요.</p>
               </div>
 
               {/* Sticky Bottom Button */}
-              <div className={`p-5 border-t ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white/80 border-black/5'} backdrop-blur-lg`}>
+              <div className={`p-4 border-t ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white/80 border-black/5'} backdrop-blur-lg`}>
                 <button 
                   onClick={handleStart}
                   className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform"
@@ -1263,10 +1361,26 @@ ${daeunContext}
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col overflow-hidden"
             >
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-5 hide-scrollbar">
+              {/* Chat Header */}
+              <div className={`px-4 py-2 border-b flex items-center justify-between ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-gray-100'}`}>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold opacity-60">실시간 상담 중</span>
+                </div>
+                <button 
+                  onClick={handleDownloadChat}
+                  disabled={messages.length === 0}
+                  className="p-2 rounded-xl hover:bg-indigo-500/10 text-indigo-500 transition-colors disabled:opacity-30"
+                  title="상담 내용 저장"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-3 hide-scrollbar">
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-4 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
+                    <div className={`max-w-[85%] p-3 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
                       msg.role === 'user' 
                         ? 'bg-indigo-600 text-white rounded-tr-none' 
                         : isDarkMode 
@@ -1278,7 +1392,7 @@ ${daeunContext}
                   </div>
                 ))}
                 {loading && (
-                  <div className={`flex items-center gap-2 px-4 py-2 rounded-full w-fit border ${
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full w-fit border ${
                     isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100 border-gray-200'
                   }`}>
                     <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
@@ -1286,19 +1400,19 @@ ${daeunContext}
                   </div>
                 )}
               </div>
-              <div className={`p-4 border-t safe-bottom ${
+              <div className={`p-2 border-t safe-bottom ${
                 isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-gray-50/80'
               }`}>
                 {suggestions.length > 0 && (
-                  <div className="flex flex-col gap-2 mb-4">
+                  <div className="flex flex-col gap-1 mb-2">
                     {suggestions.map((s, i) => (
                       <button
                         key={i}
                         onClick={() => handleSuggestionClick(s)}
-                        className={`w-full text-left px-4 py-2.5 rounded-xl border text-[12px] transition-all ${
+                        className={`w-full text-left px-3 py-1.5 rounded-xl border text-[12px] transition-all ${
                           isDarkMode 
                             ? 'bg-white/5 border-white/10 text-gray-300 opacity-70 hover:opacity-100 hover:bg-white/10'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 shadow-sm'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-100 hover:border-gray-300 shadow-sm'
                         }`}
                       >
                         {s}
@@ -1311,16 +1425,26 @@ ${daeunContext}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="상담사에게 물어보세요..."
-                    className={`w-full border rounded-2xl py-3.5 pl-5 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                    placeholder={isListening ? `듣고 있어요... (${countdown}초)` : "상담사에게 물어보세요..."}
+                    className={`w-full border rounded-2xl py-2.5 pl-4 pr-24 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
                       isDarkMode 
                         ? 'bg-white/5 border-white/10 text-white' 
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                    } ${isListening ? 'animate-pulse border-rose-500/50' : ''}`}
                   />
-                  <button onClick={() => handleSend()} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
-                    <Send className="w-4 h-4" />
-                  </button>
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button 
+                      onClick={handleChatVoiceInput} 
+                      className={`p-2 rounded-xl transition-all ${
+                        isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-gray-400 hover:text-indigo-500'
+                      }`}
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleSend()} className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1347,8 +1471,9 @@ ${daeunContext}
 
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => alert("PDF 저장 기능은 준비 중입니다.")}
-                      className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 text-zinc-600 dark:text-zinc-400 hover:text-indigo-500 transition-colors shadow-sm"
+                      onClick={handleDownloadPDF}
+                      disabled={loading || !reportContent}
+                      className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 text-zinc-600 dark:text-zinc-400 hover:text-indigo-500 transition-colors shadow-sm disabled:opacity-50"
                       title="PDF 저장"
                     >
                       <Download className="w-5 h-5" />
@@ -1388,8 +1513,9 @@ ${daeunContext}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="space-y-6"
+                      ref={reportRef}
                     >
-                      <ReportAccordion content={reportContent} isDarkMode={isDarkMode} />
+                      <ReportAccordion content={reportContent} isDarkMode={isDarkMode} forceOpen={isPrinting} />
                       
                       <div className="mt-10 pt-6 border-t border-black/5 dark:border-white/5">
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
