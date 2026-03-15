@@ -41,6 +41,15 @@ interface Message {
   text: string;
 }
 
+// Helper to get Gemini AI instance
+const getGeminiAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY || (window as any).GEMINI_API_KEY;
+  if (!apiKey || apiKey === "undefined") {
+    throw new Error("API 키가 설정되지 않았습니다. 설정 메뉴에서 API 키를 확인하거나 관리자에게 문의하세요.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
 interface Guidelines {
   saju: string;
   consulting: string;
@@ -455,7 +464,7 @@ const App: React.FC = () => {
   const parseVoiceInput = async (text: string) => {
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = getGeminiAI();
       const prompt = `
 사용자의 음성 입력에서 이름, 생년월일시 정보를 추출하여 JSON 형식으로 반환해줘.
 입력: "${text}"
@@ -533,9 +542,8 @@ JSON 형식 예시:
   };
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current || !reportContent) return;
+    if (!reportRef.current || !reportContent || isPrinting) return;
     
-    setLoading(true);
     setIsPrinting(true);
     
     // Wait for state update and potential re-renders
@@ -574,7 +582,6 @@ JSON 형식 예시:
       alert("PDF 생성 중 오류가 발생했습니다.");
     } finally {
       setIsPrinting(false);
-      setLoading(false);
     }
   };
 
@@ -588,7 +595,7 @@ JSON 형식 예시:
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = getGeminiAI();
       
       const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`).join('\n');
 
@@ -645,10 +652,9 @@ ${sajuContext}
 
     setLoading(true);
     setActiveTab("report");
-    setMessages(prev => [...prev, { role: "user", text: "나의 운세 종합 리포트를 작성해줘." }]);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = getGeminiAI();
       const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja})`).join('\n');
       
       const currentAge = 2026 - parseInt(userData.birthYear) + 1;
@@ -741,7 +747,6 @@ ${daeunContext}
 
       const result = await chat.sendMessage({ message: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘." });
       const text = result.text || "리포트 생성 실패";
-      setMessages(prev => [...prev, { role: "model", text }]);
       setReportContent(text);
     } catch (err) {
       console.error("Report generation error:", err);
@@ -1470,11 +1475,11 @@ ${daeunContext}
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleDownloadPDF}
-                      disabled={loading || !reportContent}
+                      disabled={loading || isPrinting || !reportContent}
                       className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 text-zinc-600 dark:text-zinc-400 hover:text-indigo-500 transition-colors shadow-sm disabled:opacity-50"
                       title="PDF 저장"
                     >
-                      <Download className="w-5 h-5" />
+                      <Download className={`w-5 h-5 ${isPrinting ? 'animate-bounce' : ''}`} />
                     </button>
                     <button 
                       onClick={() => alert("이메일 전송 기능은 준비 중입니다.")}

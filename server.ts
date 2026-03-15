@@ -51,7 +51,16 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        let html = fs.readFileSync(indexPath, "utf-8");
+        // Inject API Key into the HTML so the frontend can access it even if build-time injection failed
+        const apiKeyScript = `<script>window.GEMINI_API_KEY = "${process.env.GEMINI_API_KEY || ''}";</script>`;
+        html = html.replace("<head>", `<head>${apiKeyScript}`);
+        res.send(html);
+      } else {
+        res.status(404).send("Not Found");
+      }
     });
   }
 
