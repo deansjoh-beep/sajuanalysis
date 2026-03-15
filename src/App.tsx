@@ -1628,8 +1628,7 @@ ${daeunContext}
         </AnimatePresence>
       </main>
 
-      {/* Tab Navigation - Mobile App Style */}
-      <nav className={`px-4 pt-3 pb-8 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl safe-bottom z-30`}>
+      <nav className={`px-4 pt-3 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl safe-bottom z-30`}>
         <div className="max-w-md mx-auto flex items-center justify-around">
           {[
             { id: "welcome", icon: User, label: "내정보" },
@@ -1647,7 +1646,7 @@ ${daeunContext}
                 <motion.div layoutId="activeTab" className="absolute -top-3 w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
               )}
               <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'scale-110' : ''} transition-transform`} />
-              <span className="text-[9px] font-bold tracking-tighter">{tab.label}</span>
+              <span className="text-[10px] font-bold tracking-tighter">{tab.label}</span>
             </button>
           ))}
         </div>
