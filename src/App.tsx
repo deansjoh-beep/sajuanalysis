@@ -732,7 +732,7 @@ ${daeunContext}
   }
 
   return (
-    <div className={`h-screen ${isDarkMode ? 'bg-zinc-900' : 'bg-zinc-200'} flex items-center justify-center p-0 md:p-4 overflow-hidden`}>
+    <div className={`h-dvh ${isDarkMode ? 'bg-zinc-900' : 'bg-zinc-200'} flex items-center justify-center p-0 md:p-4 overflow-hidden`}>
       {/* Analysis Progress Overlay */}
       <AnimatePresence>
         {isAnalyzing && (
@@ -1629,7 +1629,7 @@ ${daeunContext}
       </main>
 
       {/* Tab Navigation - Mobile App Style */}
-      <nav className={`px-4 pt-3 pb-6 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl safe-bottom z-30`}>
+      <nav className={`px-4 pt-3 pb-8 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl safe-bottom z-30`}>
         <div className="max-w-md mx-auto flex items-center justify-around">
           {[
             { id: "welcome", icon: User, label: "내정보" },
