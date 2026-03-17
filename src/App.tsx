@@ -33,7 +33,7 @@ import ReactMarkdown from "react-markdown";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
-import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap } from "./utils/saju";
+import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity } from "./utils/saju";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
 
@@ -46,7 +46,7 @@ interface Message {
 // Helper to get Gemini AI instance
 const getGeminiAI = () => {
   const windowKey = (window as any).GEMINI_API_KEY;
-  const viteKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const viteKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
   const processKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY);
 
   console.log("[DEBUG] API Key Retrieval Attempt:");
@@ -81,7 +81,13 @@ interface UserData {
   unknownTime: boolean;
 }
 
-const HanjaBox: React.FC<{ hanja: string, size?: 'sm' | 'md' | 'lg', isDarkMode?: boolean }> = ({ hanja, size = 'md', isDarkMode = true }) => {
+const HanjaBox: React.FC<{ 
+  hanja: string, 
+  size?: 'sm' | 'md' | 'lg', 
+  isDarkMode?: boolean,
+  deity?: string,
+  deityPosition?: 'top' | 'bottom'
+}> = ({ hanja, size = 'md', isDarkMode = true, deity, deityPosition }) => {
   const element = elementMap[hanja];
   const isYang = yinYangMap[hanja] === '+';
   
@@ -91,10 +97,20 @@ const HanjaBox: React.FC<{ hanja: string, size?: 'sm' | 'md' | 'lg', isDarkMode?
     lg: 'w-12 h-12 text-2xl rounded-xl'
   };
 
+  const deityEl = deity ? (
+    <span className={`text-[9px] font-bold ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'} absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
+      {deity}
+    </span>
+  ) : null;
+
   if (hanja === '?' || !element) {
     return (
-      <div className={`${sizeClasses[size]} border-2 border-zinc-500/30 flex items-center justify-center opacity-30`}>
-        {hanja}
+      <div className="relative">
+        {deityPosition === 'top' && deityEl}
+        <div className={`${sizeClasses[size]} border-2 border-zinc-500/30 flex items-center justify-center opacity-30`}>
+          {hanja}
+        </div>
+        {deityPosition === 'bottom' && deityEl}
       </div>
     );
   }
@@ -107,15 +123,23 @@ const HanjaBox: React.FC<{ hanja: string, size?: 'sm' | 'md' | 'lg', isDarkMode?
     if (isYang) {
       // Yang Metal: White background, Silver text
       return (
-        <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-500'} border-2 flex items-center justify-center font-bold`}>
-          {hanja}
+        <div className="relative">
+          {deityPosition === 'top' && deityEl}
+          <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-500'} border-2 flex items-center justify-center font-bold`}>
+            {hanja}
+          </div>
+          {deityPosition === 'bottom' && deityEl}
         </div>
       );
     } else {
       // Yin Metal: Silver background, White text
       return (
-        <div className={`${sizeClasses[size]} ${silverColor} text-white border-2 flex items-center justify-center font-bold`}>
-          {hanja}
+        <div className="relative">
+          {deityPosition === 'top' && deityEl}
+          <div className={`${sizeClasses[size]} ${silverColor} text-white border-2 flex items-center justify-center font-bold`}>
+            {hanja}
+          </div>
+          {deityPosition === 'bottom' && deityEl}
         </div>
       );
     }
@@ -152,14 +176,22 @@ const HanjaBox: React.FC<{ hanja: string, size?: 'sm' | 'md' | 'lg', isDarkMode?
 
   if (isYang) {
     return (
-      <div className={`${sizeClasses[size]} bg-transparent border-2 ${style.border} ${style.text} flex items-center justify-center font-bold`}>
-        {hanja}
+      <div className="relative">
+        {deityPosition === 'top' && deityEl}
+        <div className={`${sizeClasses[size]} bg-transparent border-2 ${style.border} ${style.text} flex items-center justify-center font-bold`}>
+          {hanja}
+        </div>
+        {deityPosition === 'bottom' && deityEl}
       </div>
     );
   } else {
     return (
-      <div className={`${sizeClasses[size]} ${style.bg} border-2 ${style.border} ${style.yinText} flex items-center justify-center font-bold`}>
-        {hanja}
+      <div className="relative">
+        {deityPosition === 'top' && deityEl}
+        <div className={`${sizeClasses[size]} ${style.bg} border-2 ${style.border} ${style.yinText} flex items-center justify-center font-bold`}>
+          {hanja}
+        </div>
+        {deityPosition === 'bottom' && deityEl}
       </div>
     );
   }
@@ -1149,9 +1181,15 @@ ${daeunContext}
                       return (
                         <div key={i} className={`p-2 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-sm'} flex flex-col items-center gap-1`}>
                           <span className="text-[10px] font-bold opacity-50">{p.title}</span>
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-3 py-2">
                             {[p.stem, p.branch].map((item, j) => (
-                              <HanjaBox key={j} hanja={item.hanja} isDarkMode={isDarkMode} />
+                              <HanjaBox 
+                                key={j} 
+                                hanja={item.hanja} 
+                                isDarkMode={isDarkMode} 
+                                deity={item.deity}
+                                deityPosition={j === 0 ? 'top' : 'bottom'}
+                              />
                             ))}
                           </div>
                         </div>
@@ -1161,8 +1199,8 @@ ${daeunContext}
                 </div>
 
                 {/* Disclaimer */}
-                <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900/50 border border-black/5 dark:border-white/5">
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
+                <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/5">
+                  <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-relaxed text-center font-medium">
                     본 분석 결과는 인공지능의 해석이며, 과학적 사실이 아닌 참고 용도로만 사용해 주세요. 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                   </p>
                 </div>
@@ -1171,8 +1209,8 @@ ${daeunContext}
                 <div className="space-y-2">
                   <h3 className="text-sm font-bold opacity-60">오행분포</h3>
                   <div className="flex gap-4">
-                    <div className={`flex-1 p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-sm'}`}>
-                      <p className="text-xs opacity-70 leading-relaxed">
+                    <div className={`flex-1 p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-zinc-200 shadow-sm'}`}>
+                      <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600 font-medium'}`}>
                         사용자의 오행 분포는 {getChartData().map(d => `${d.name}${d.value}개`).join(', ')}으로 구성되어 있습니다.
                       </p>
                     </div>
@@ -1202,28 +1240,33 @@ ${daeunContext}
                   <div className="grid grid-cols-4 gap-2">
                     {sajuResult.map((p, i) => {
                       if (userData.unknownTime && p.title === '시주') return null;
-                      const isYang = yinYangMap[p.branch.hanja] === '+';
-                      const elementColor = 
-                        p.branch.element === 'wood' ? 'text-emerald-500' :
-                        p.branch.element === 'fire' ? 'text-red-500' :
-                        p.branch.element === 'earth' ? 'text-amber-700' :
-                        p.branch.element === 'metal' ? 'text-zinc-400' :
-                        'text-black';
-                      const bgColor = 
-                        p.branch.element === 'wood' ? 'bg-emerald-500' :
-                        p.branch.element === 'fire' ? 'bg-red-500' :
-                        p.branch.element === 'earth' ? 'bg-amber-700' :
-                        p.branch.element === 'metal' ? 'bg-zinc-400' :
-                        'bg-black';
-
+                      const dayStem = sajuResult.find(p => p.title === '일주')?.stem.hanja || '';
+                      
                       return (
                         <div key={i} className={`p-2 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-sm'} flex flex-col items-center gap-1`}>
-                          <HanjaBox hanja={p.branch.hanja} isDarkMode={isDarkMode} />
-                          <span className="text-[10px] font-bold opacity-70">{p.branch.hangul}({p.branch.hanja})</span>
-                          <div className="flex gap-0.5 mt-1">
+                          <div className="py-2">
+                            <HanjaBox 
+                              hanja={p.branch.hanja} 
+                              isDarkMode={isDarkMode} 
+                              deity={p.branch.deity}
+                              deityPosition="bottom"
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold opacity-70 mt-2">{p.branch.hangul}({p.branch.hanja})</span>
+                          <div className="flex gap-0.5 mt-4 pb-2">
                             {p.branch.hidden.split(', ').map((h, k) => {
                               const hanja = Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '';
-                              return <HanjaBox key={k} hanja={hanja} size="sm" isDarkMode={isDarkMode} />;
+                              const deity = calculateDeity(dayStem, hanja);
+                              return (
+                                <HanjaBox 
+                                  key={k} 
+                                  hanja={hanja} 
+                                  size="sm" 
+                                  isDarkMode={isDarkMode} 
+                                  deity={deity}
+                                  deityPosition="bottom"
+                                />
+                              );
                             })}
                           </div>
                         </div>
@@ -1263,10 +1306,20 @@ ${daeunContext}
                               : 'border-transparent bg-black/5 opacity-60'
                           }`}>
                             <div className="text-[10px] font-bold">{dy.startAge}세</div>
-                            <div className="flex flex-col gap-1">
-                              {[dy.stem, dy.branch].map((hanja, j) => (
-                                <HanjaBox key={j} hanja={hanja} isDarkMode={isDarkMode} />
-                              ))}
+                            <div className="flex flex-col gap-3 py-2">
+                              {daeunResult.length > 0 && [dy.stem, dy.branch].map((hanja, j) => {
+                                const dayStem = sajuResult.find(p => p.title === '일주')?.stem.hanja || '';
+                                const deity = calculateDeity(dayStem, hanja);
+                                return (
+                                  <HanjaBox 
+                                    key={j} 
+                                    hanja={hanja} 
+                                    isDarkMode={isDarkMode} 
+                                    deity={deity}
+                                    deityPosition={j === 0 ? 'top' : 'bottom'}
+                                  />
+                                );
+                              })}
                             </div>
                             <div className="text-[9px] font-bold opacity-70">{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
                             {isCurrentDaeun && isTransitioning && (
@@ -1653,21 +1706,21 @@ ${daeunContext}
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">개인정보 로컬 처리 방침</p>
+                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">철저한 프라이버시 보호</p>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                          로그인 없이 사용자 정보를 서버에 저장하지 않습니다. 모든 데이터는 기기에만 임시 저장됩니다.
+                          사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-6">
                       <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
-                        <Puzzle className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                        <Zap className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">완벽한 데이터 파기</p>
+                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">정밀한 사주 데이터 학습</p>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                          앱을 삭제하거나 브라우저 캐시를 삭제하면 모든 상담 내역과 정보가 즉시 영구적으로 사라집니다.
+                          AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
                         </p>
                       </div>
                     </div>
@@ -1680,9 +1733,9 @@ ${daeunContext}
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">안전한 AI 가이드라인</p>
+                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">맞춤형 인생 가이드 제공</p>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                          의료, 법률 등 전문 영역은 AI가 답변을 거부하며, 전문가 상담을 권장하는 안전 장치가 마련되어 있습니다.
+                          사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
                         </p>
                       </div>
                     </div>
