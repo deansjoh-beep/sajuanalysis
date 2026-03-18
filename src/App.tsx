@@ -26,7 +26,8 @@ import {
   Cpu,
   Waves,
   Download,
-  Mail
+  Mail,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
@@ -445,15 +446,16 @@ const App: React.FC = () => {
     recognition.continuous = true;
 
     let finalTranscript = "";
+    let silenceTimer: any = null;
 
     recognition.onstart = () => {
       setIsListening(true);
       setVoiceText("");
-      setCountdown(15);
+      setCountdown(30);
       
       autoStopRef.current = setTimeout(() => {
         if (recognitionRef.current) recognitionRef.current.stop();
-      }, 15000);
+      }, 30000);
 
       timerRef.current = setInterval(() => {
         setCountdown(prev => (prev > 0 ? prev - 1 : 0));
@@ -464,6 +466,7 @@ const App: React.FC = () => {
       setIsListening(false);
       clearInterval(timerRef.current);
       clearTimeout(autoStopRef.current);
+      clearTimeout(silenceTimer);
       if (finalTranscript.trim()) {
         onComplete(finalTranscript);
       }
@@ -472,6 +475,19 @@ const App: React.FC = () => {
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       setIsListening(false);
+      clearTimeout(silenceTimer);
+      clearInterval(timerRef.current);
+      clearTimeout(autoStopRef.current);
+      
+      if (event.error === 'not-allowed') {
+        alert("마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해 주세요.");
+      } else if (event.error === 'network') {
+        alert("네트워크 연결에 문제가 있어 음성 인식을 시작할 수 없습니다.");
+      } else if (event.error === 'no-speech') {
+        // Just stop silently if no speech detected
+      } else {
+        alert(`음성 인식 중 오류가 발생했습니다: ${event.error}`);
+      }
     };
 
     recognition.onresult = (event: any) => {
@@ -484,6 +500,14 @@ const App: React.FC = () => {
         }
       }
       setVoiceText(finalTranscript + interimTranscript);
+
+      // Silence detection: if we have a final result, wait 1.5s and stop if no more speech
+      if (event.results[event.results.length - 1].isFinal) {
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          if (recognitionRef.current) recognitionRef.current.stop();
+        }, 1500);
+      }
     };
 
     recognition.start();
@@ -1040,7 +1064,17 @@ ${daeunContext}
                     <Mic className={`w-6 h-6 text-white ${isListening ? 'scale-110' : ''}`} />
                   </button>
                   <div className="text-left flex-1">
-                    <p className="text-sm font-bold mb-0.5">{isListening ? `말씀해 주세요... (${countdown}초)` : "음성으로 입력하기"}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold mb-0.5">{isListening ? `말씀해 주세요... (${countdown}초)` : "음성으로 입력하기"}</p>
+                      {isListening && (
+                        <button 
+                          onClick={() => recognitionRef.current?.stop()}
+                          className="px-2 py-1 bg-indigo-600 text-white text-[10px] rounded-lg font-bold shadow-sm active:scale-95 transition-transform"
+                        >
+                          입력
+                        </button>
+                      )}
+                    </div>
                     {isListening && voiceText ? (
                       <p className="text-xs text-indigo-400 font-medium animate-pulse line-clamp-2">{voiceText}</p>
                     ) : (
@@ -1553,6 +1587,15 @@ ${daeunContext}
                     } ${isListening ? 'animate-pulse border-rose-500/50' : ''}`}
                   />
                   <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {isListening && (
+                      <button 
+                        onClick={() => recognitionRef.current?.stop()}
+                        className="p-2 bg-emerald-500 text-white rounded-xl shadow-lg active:scale-90 transition-transform"
+                        title="입력 완료"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                    )}
                     <button 
                       onClick={handleChatVoiceInput} 
                       className={`p-2 rounded-xl transition-all ${
