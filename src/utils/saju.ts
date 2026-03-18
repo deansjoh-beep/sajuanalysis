@@ -193,14 +193,47 @@ export const calculateYongshin = (sajuData: any[]) => {
   };
 };
 
+const getAdjustedTime = (year: number, month: number, day: number, hour: number, minute: number) => {
+  let offsetMinutes = 0;
+  const dateNum = year * 10000 + month * 100 + day;
+
+  // 1. Timezone Offset (South Korea)
+  // 1908.04.01 ~ 1911.12.31: UTC+8:30
+  // 1912.01.01 ~ 1954.03.20: UTC+9:00 (Needs -30m correction)
+  // 1954.03.21 ~ 1961.08.09: UTC+8:30 (No correction needed for solar time)
+  // 1961.08.10 ~ Present: UTC+9:00 (Needs -30m correction)
+  
+  if ((dateNum >= 19120101 && dateNum <= 19540320) || dateNum >= 19610810) {
+    offsetMinutes -= 30;
+  }
+
+  // 2. Daylight Saving Time (DST) in South Korea
+  // 1948~1951: May to Sept
+  // 1955~1960: May to Sept
+  // 1987~1988: May to Oct
+  const isDST = (y: number, m: number, d: number) => {
+    if (y >= 1948 && y <= 1951) return m >= 5 && m <= 9;
+    if (y >= 1955 && y <= 1960) return m >= 5 && m <= 9;
+    if (y >= 1987 && y <= 1988) return m >= 5 && m <= 10;
+    return false;
+  };
+
+  if (isDST(year, month, day)) {
+    offsetMinutes -= 60;
+  }
+
+  return offsetMinutes;
+};
+
 export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, isLeap: boolean, unknownTime: boolean = false) => {
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = unknownTime ? [12, 0] : timeStr.split(':').map(Number);
 
-  // Apply 30-minute offset for Korea (UTC+9 -> Solar Time approx UTC+8.5)
+  // Apply historical timezone and DST corrections
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
   if (!unknownTime) {
-    date.setUTCMinutes(date.getUTCMinutes() - 30);
+    const offset = getAdjustedTime(year, month, day, hour, minute);
+    date.setUTCMinutes(date.getUTCMinutes() + offset);
   }
   
   const adjY = date.getUTCFullYear();
@@ -218,9 +251,7 @@ export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, 
   }
 
   const eightChar = lunar.getEightChar();
-  // setDayZero(2): Day changes at 23:00 (Ja-si), and 23:00-00:00 is Jo-ja-si of the NEXT day.
-  // This is the standard for most Korean Saju practitioners.
-  eightChar.setDayZero(2);
+  eightChar.setDayZero(2); // Day changes at 23:00 (after solar correction, this aligns with 23:30 standard)
   
   const pillars = [
     { title: '년주', char: eightChar.getYear() },
@@ -279,9 +310,10 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = timeStr.split(':').map(Number);
 
-  // Apply 30-minute offset for Korea
+  // Apply historical timezone and DST corrections
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  date.setUTCMinutes(date.getUTCMinutes() - 30);
+  const offset = getAdjustedTime(year, month, day, hour, minute);
+  date.setUTCMinutes(date.getUTCMinutes() + offset);
   
   const adjY = date.getUTCFullYear();
   const adjM = date.getUTCMonth() + 1;
@@ -305,12 +337,9 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
   const isYangYear = yinYangMap[yearStem] === '+';
   
   // Determine direction
-  // Male + Yang = Forward, Male + Yin = Backward
-  // Female + Yang = Backward, Female + Yin = Forward
   const isForward = gender === 'M' ? isYangYear : !isYangYear;
 
   // Calculate Daeun-su (Major Fortune Number)
-  // Find the nearest Jie (Sectional Term)
   const targetJie = isForward ? lunar.getNextJie() : lunar.getPrevJie();
   const targetSolar = targetJie.getSolar();
   
@@ -322,12 +351,8 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
   // Convert to days (precise)
   const diffDays = diffSeconds / (24 * 3600);
   
-  // Daeun-su calculation: days / 3
-  // Rounding: remainder 1 -> down, remainder 2 -> up
-  const wholeDays = Math.floor(diffDays);
-  const remainder = wholeDays % 3;
-  let daeunSu = Math.floor(wholeDays / 3);
-  if (remainder === 2) daeunSu += 1;
+  // Daeun-su calculation: round(days / 3)
+  let daeunSu = Math.round(diffDays / 3);
   if (daeunSu === 0) daeunSu = 1; // Minimum Daeun-su is 1
 
   // Generate 10 Daeun Pillars starting from Month Pillar
