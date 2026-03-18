@@ -34,6 +34,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity } from "./utils/saju";
+import { QUESTIONS_DATA, CATEGORIES, type Category } from "./constants/questions";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
 
@@ -98,7 +99,7 @@ const HanjaBox: React.FC<{
   };
 
   const deityEl = deity ? (
-    <span className={`text-[9px] font-bold ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'} absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
+    <span className={`text-[9px] font-title font-bold ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'} absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
       {deity}
     </span>
   ) : null;
@@ -196,12 +197,6 @@ const HanjaBox: React.FC<{
     );
   }
 };
-
-const INITIAL_QUESTIONS = [
-  "나의 전반적인 타고난 성격과 기질은 어떤가요?",
-  "올해의 전반적인 운세 흐름이 궁금합니다.",
-  "나에게 가장 잘 맞는 직업이나 진로는 무엇인가요?"
-];
 
 const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpen?: boolean }> = ({ content, isDarkMode, forceOpen }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -348,7 +343,9 @@ const App: React.FC = () => {
   const [daeunResult, setDaeunResult] = useState<any[]>([]);
   const [yongshinResult, setYongshinResult] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>(INITIAL_QUESTIONS);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category>('사람관계');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -627,6 +624,35 @@ JSON 형식 예시:
     }
   };
 
+  // Update suggestions based on user profile and selected category
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      const currentYear = new Date().getFullYear();
+      const birthYear = parseInt(userData.birthYear);
+      const age = currentYear - birthYear + 1;
+      
+      let ageGroup = '10';
+      if (age >= 60) ageGroup = '60';
+      else if (age >= 50) ageGroup = '50';
+      else if (age >= 40) ageGroup = '40';
+      else if (age >= 30) ageGroup = '30';
+      else if (age >= 20) ageGroup = '20';
+      else ageGroup = '10';
+
+      const genderKey = userData.gender === 'M' ? 'male' : 'female';
+      const groupData = QUESTIONS_DATA[ageGroup];
+      
+      if (groupData && groupData[genderKey]) {
+        const categoryQuestions = groupData[genderKey][selectedCategory];
+        if (categoryQuestions) {
+          // Shuffle and pick 3 questions
+          const shuffled = [...categoryQuestions].sort(() => 0.5 - Math.random());
+          setSuggestions(shuffled.slice(0, 3));
+        }
+      }
+    }
+  }, [activeTab, selectedCategory, userData.birthYear, userData.gender, refreshKey]);
+
   const handleSend = async (overrideInput?: string) => {
     const userMessage = (overrideInput || input).trim();
     if (!userMessage || loading) return;
@@ -643,7 +669,7 @@ JSON 형식 예시:
     }
 
     setInput("");
-    setSuggestions([]);
+    setRefreshKey(prev => prev + 1);
     setMessages(prev => [...prev, { role: "user", text: userMessage }]);
     setLoading(true);
 
@@ -652,6 +678,7 @@ JSON 형식 예시:
       
       const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`).join('\n');
 
+      const isFirstMessage = messages.length === 0;
       const systemInstruction = `
 [Role: UI Premium 1:1 Spiritual Counselor]
 당신은 '유아이(UI) 사주상담'의 전문 상담가입니다.
@@ -664,7 +691,9 @@ JSON 형식 예시:
 - 분석 시 반드시 '지침'에 따른 분석 단계(음양 -> 조후 -> 구조 -> 십성)를 순서대로 고려하여 명리학적 근거를 제시하십시오.
 - 전문 용어 사용 시 현대적인 비유를 곁들여 친절하게 설명하십시오.
 - 사용자의 이전 대화 맥락을 기억하고 초개인화된 상담을 제공하십시오.
-- 상담 마무리는 항상 사용자를 응원하는 따뜻한 메시지와 함께 다음 질문을 유도하며 끝맺음하십시오.
+${isFirstMessage 
+  ? "- 상담 마무리는 항상 사용자를 응원하는 따뜻한 메시지와 함께 다음 질문을 유도하며 끝맺음하십시오."
+  : "- **중요**: 두 번째 질문부터는 불필요한 인사말이나 반복적인 응원 문구, 다음 질문 유도 등을 생략하고 사용자의 질문 내용에 대해서만 핵심적으로 답변하십시오. 답변을 간결하게 유지하십시오."}
 
 2. 법적/윤리적 가이드라인 (필수 준수):
 - 의료 진단, 범죄 공모, 도박 조장, 생사(生死) 판별, 구체적인 주식/코인 종목 추천 등 법적/윤리적 위험이 있는 질문에는 답변을 거부하십시오.
@@ -973,7 +1002,7 @@ ${daeunContext}
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg">
               <Sparkles className="text-white w-4 h-4" />
             </div>
-            <h1 className="text-base font-bold tracking-tight">유아이 사주상담</h1>
+            <h1 className="text-base font-title font-bold tracking-tight">유아이 사주상담</h1>
           </div>
           
           <div className="flex items-center gap-1">
@@ -1174,7 +1203,7 @@ ${daeunContext}
               <div className="space-y-6">
                 {/* Saju Grid - 2x4 Layout */}
                 <div className="space-y-2">
-                  <h3 className="text-sm font-bold opacity-60">사주팔자</h3>
+                  <h3 className="text-sm font-title font-bold opacity-60">사주팔자</h3>
                   <div className="grid grid-cols-4 gap-2">
                     {sajuResult.map((p, i) => {
                       if (userData.unknownTime && p.title === '시주') return null;
@@ -1207,7 +1236,7 @@ ${daeunContext}
 
                 {/* Five Elements Distribution */}
                 <div className="space-y-2">
-                  <h3 className="text-sm font-bold opacity-60">오행분포</h3>
+                  <h3 className="text-sm font-title font-bold opacity-60">오행분포</h3>
                   <div className="flex gap-4">
                     <div className={`flex-1 p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-zinc-200 shadow-sm'}`}>
                       <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600 font-medium'}`}>
@@ -1236,7 +1265,7 @@ ${daeunContext}
 
                 {/* Jiji and Jijangan */}
                 <div className="space-y-2">
-                  <h3 className="text-sm font-bold opacity-60">지지와 지장간</h3>
+                  <h3 className="text-sm font-title font-bold opacity-60">지지와 지장간</h3>
                   <div className="grid grid-cols-4 gap-2">
                     {sajuResult.map((p, i) => {
                       if (userData.unknownTime && p.title === '시주') return null;
@@ -1281,7 +1310,7 @@ ${daeunContext}
                 {/* Daeun Analysis */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold opacity-60">대운분석</h3>
+                    <h3 className="text-sm font-title font-bold opacity-60">대운분석</h3>
                     {daeunResult.length > 0 && (
                       <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">
                         {daeunResult[0].startAge}대운
@@ -1373,13 +1402,13 @@ ${daeunContext}
 
                 {/* Yongshin Analysis */}
                 <div className="space-y-2">
-                  <h3 className="text-sm font-bold opacity-60">용신(用神) 정밀 분석</h3>
+                  <h3 className="text-sm font-title font-bold opacity-60">용신(用神) 정밀 분석</h3>
                   {yongshinResult && (
                     <div className={`p-5 rounded-3xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-5`}>
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">핵심 에너지</p>
-                          <h4 className="text-xl font-bold text-indigo-500">{userData.name}님의 용신: {yongshinResult.yongshin}</h4>
+                          <h4 className="text-xl font-title font-bold text-indigo-500">{userData.name}님의 용신: {yongshinResult.yongshin}</h4>
                         </div>
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg ${
                           yongshinResult.yongshin.includes('목') ? 'bg-emerald-500' :
@@ -1537,6 +1566,38 @@ ${daeunContext}
                     </button>
                   </div>
                 </div>
+
+                {/* Question Categories */}
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="flex-1 overflow-x-auto hide-scrollbar">
+                    <div className="flex gap-1.5 shrink-0 pr-4">
+                      {CATEGORIES.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-title font-bold transition-all border ${
+                            selectedCategory === cat
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                              : isDarkMode
+                                ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 shadow-sm'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setRefreshKey(prev => prev + 1)}
+                    className={`p-2 rounded-xl transition-all shrink-0 ${
+                      isDarkMode ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                    title="다른 질문 보기"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -1625,7 +1686,7 @@ ${daeunContext}
                         <FileText className="w-10 h-10 text-indigo-500/30" />
                       </div>
                       <div className="space-y-4">
-                        <h3 className="text-xl font-bold">운세 리포트가 아직 없습니다.</h3>
+                        <h3 className="text-xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto">
                           상단의 <strong>'나의 운명 살펴보기'</strong> 버튼을 눌러보세요.<br/>
                           AI 디렉터가 당신의 사주 데이터를 기반으로 힙한 MZ 감성 리포트를 생성해 드립니다.
@@ -1872,7 +1933,7 @@ ${daeunContext}
                 <motion.div layoutId="activeTab" className="absolute -top-3 w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
               )}
               <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'scale-110' : ''} transition-transform`} />
-              <span className="text-[10px] font-bold tracking-tighter">{tab.label}</span>
+              <span className="text-[10px] font-title font-bold tracking-tighter">{tab.label}</span>
             </button>
           ))}
         </div>
