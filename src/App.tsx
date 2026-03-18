@@ -727,9 +727,15 @@ ${isFirstMessage
 ${sajuContext}
 `;
 
+      const history = messages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
-        config: { systemInstruction }
+        config: { systemInstruction },
+        history: history
       });
 
       const response = await chat.sendMessageStream({ message: userMessage });
@@ -1579,7 +1585,7 @@ ${daeunContext}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isListening ? `듣고 있어요... (${countdown}초)` : "상담사에게 물어보세요..."}
+                    placeholder={isListening ? `듣고 있어요... (${countdown}초)` : "무엇이든 물어보세요. 음성으로 입력 하실 수도 있습니다."}
                     className={`w-full border rounded-2xl py-2.5 pl-4 pr-24 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
                       isDarkMode 
                         ? 'bg-white/5 border-white/10 text-white' 

@@ -197,15 +197,31 @@ export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, 
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = unknownTime ? [12, 0] : timeStr.split(':').map(Number);
 
+  // Apply 30-minute offset for Korea (UTC+9 -> Solar Time approx UTC+8.5)
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  if (!unknownTime) {
+    date.setUTCMinutes(date.getUTCMinutes() - 30);
+  }
+  
+  const adjY = date.getUTCFullYear();
+  const adjM = date.getUTCMonth() + 1;
+  const adjD = date.getUTCDate();
+  const adjH = date.getUTCHours();
+  const adjMin = date.getUTCMinutes();
+
   let lunar;
   if (!isLunar) {
-    const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    const solar = Solar.fromYmdHms(adjY, adjM, adjD, adjH, adjMin, 0);
     lunar = solar.getLunar();
   } else {
-    lunar = Lunar.fromYmdHms(year, isLeap ? -month : month, day, hour, minute, 0);
+    lunar = Lunar.fromYmdHms(adjY, isLeap ? -adjM : adjM, adjD, adjH, adjMin, 0);
   }
 
   const eightChar = lunar.getEightChar();
+  // setDayZero(2): Day changes at 23:00 (Ja-si), and 23:00-00:00 is Jo-ja-si of the NEXT day.
+  // This is the standard for most Korean Saju practitioners.
+  eightChar.setDayZero(2);
+  
   const pillars = [
     { title: '년주', char: eightChar.getYear() },
     { title: '월주', char: eightChar.getMonth() },
@@ -263,17 +279,28 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = timeStr.split(':').map(Number);
 
+  // Apply 30-minute offset for Korea
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  date.setUTCMinutes(date.getUTCMinutes() - 30);
+  
+  const adjY = date.getUTCFullYear();
+  const adjM = date.getUTCMonth() + 1;
+  const adjD = date.getUTCDate();
+  const adjH = date.getUTCHours();
+  const adjMin = date.getUTCMinutes();
+
   let solar: Solar;
   let lunar: Lunar;
   if (!isLunar) {
-    solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    solar = Solar.fromYmdHms(adjY, adjM, adjD, adjH, adjMin, 0);
     lunar = solar.getLunar();
   } else {
-    lunar = Lunar.fromYmdHms(year, isLeap ? -month : month, day, hour, minute, 0);
+    lunar = Lunar.fromYmdHms(adjY, isLeap ? -adjM : adjM, adjD, adjH, adjMin, 0);
     solar = lunar.getSolar();
   }
 
   const eightChar = lunar.getEightChar();
+  eightChar.setDayZero(2);
   const yearStem = eightChar.getYear().charAt(0);
   const isYangYear = yinYangMap[yearStem] === '+';
   
