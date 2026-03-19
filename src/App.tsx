@@ -35,7 +35,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity } from "./utils/saju";
-import { QUESTIONS_DATA, CATEGORIES, type Category } from "./constants/questions";
+import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
 
@@ -362,7 +362,7 @@ const App: React.FC = () => {
   const [yongshinResult, setYongshinResult] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category>('사람관계');
+  const [selectedCategory, setSelectedCategory] = useState<string>('재물/사업');
   const [refreshKey, setRefreshKey] = useState(0);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -678,24 +678,31 @@ JSON 형식 예시:
       const birthYear = parseInt(userData.birthYear);
       const age = currentYear - birthYear + 1;
       
-      let ageGroup = '10';
-      if (age >= 60) ageGroup = '60';
-      else if (age >= 50) ageGroup = '50';
-      else if (age >= 40) ageGroup = '40';
-      else if (age >= 30) ageGroup = '30';
-      else if (age >= 20) ageGroup = '20';
-      else ageGroup = '10';
+      let ageGroup = '10대';
+      if (age >= 70) ageGroup = '70대↑';
+      else if (age >= 60) ageGroup = '60대';
+      else if (age >= 50) ageGroup = '50대';
+      else if (age >= 40) ageGroup = '40대';
+      else if (age >= 30) ageGroup = '30대';
+      else if (age >= 20) ageGroup = '20대';
+      else ageGroup = '10대';
 
-      const genderKey = userData.gender === 'M' ? 'male' : 'female';
-      const groupData = QUESTIONS_DATA[ageGroup];
+      const genderKey = userData.gender === 'M' ? '남' : '여';
+      console.log("[DEBUG] Questions:", { ageGroup, genderKey, selectedCategory });
       
-      if (groupData && groupData[genderKey]) {
-        const categoryQuestions = groupData[genderKey][selectedCategory];
+      const groupData = SUGGESTED_QUESTIONS[ageGroup as keyof typeof SUGGESTED_QUESTIONS];
+      
+      if (groupData && groupData[genderKey as keyof typeof groupData]) {
+        const categoryQuestions = groupData[genderKey as keyof typeof groupData][selectedCategory as keyof typeof groupData[keyof typeof groupData]];
         if (categoryQuestions) {
           // Shuffle and pick 3 questions
           const shuffled = [...categoryQuestions].sort(() => 0.5 - Math.random());
           setSuggestions(shuffled.slice(0, 3));
+        } else {
+          setSuggestions([]);
         }
+      } else {
+        setSuggestions([]);
       }
     }
   }, [activeTab, selectedCategory, userData.birthYear, userData.gender, refreshKey]);
@@ -1574,71 +1581,55 @@ ${daeunContext}
                   </div>
                 )}
               </div>
-              <div className={`p-2 border-t safe-bottom ${
+              {/* Input Area */}
+              <div className={`p-1 border-t safe-bottom ${
                 isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-gray-50/80'
               }`}>
-                {suggestions.length > 0 && (
-                  <div className="flex flex-col gap-1 mb-2">
-                    {suggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSuggestionClick(s)}
-                        className={`w-full text-left px-3 py-1.5 rounded-xl border text-[12px] transition-all ${
-                          isDarkMode 
-                            ? 'bg-white/5 border-white/10 text-gray-300 opacity-70 hover:opacity-100 hover:bg-white/10'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-100 hover:border-gray-300 shadow-sm'
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <div className="max-w-4xl mx-auto relative">
                   <input 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isListening ? `듣고 있어요... (${countdown}초)` : "무엇이든 물어보세요. 음성으로 입력 하실 수도 있습니다."}
-                    className={`w-full border rounded-2xl py-2.5 pl-4 pr-24 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                    placeholder={isListening ? `듣고 있어요... (${countdown}초)` : "무엇이든 물어보세요."}
+                    className={`w-full border rounded-xl py-2 pl-3 pr-20 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
                       isDarkMode 
                         ? 'bg-white/5 border-white/10 text-white' 
                         : 'bg-white border-gray-300 text-gray-900'
                     } ${isListening ? 'animate-pulse border-rose-500/50' : ''}`}
                   />
-                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
                     {isListening && (
                       <button 
                         onClick={() => recognitionRef.current?.stop()}
-                        className="p-2 bg-emerald-500 text-white rounded-xl shadow-lg active:scale-90 transition-transform"
+                        className="p-1.5 bg-emerald-500 text-white rounded-lg shadow-lg active:scale-90 transition-transform"
                         title="입력 완료"
                       >
-                        <Check className="w-4 h-4" />
+                        <Check className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button 
                       onClick={handleChatVoiceInput} 
-                      className={`p-2 rounded-xl transition-all ${
+                      className={`p-1.5 rounded-lg transition-all ${
                         isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-gray-400 hover:text-indigo-500'
                       }`}
                     >
-                      <Mic className="w-4 h-4" />
+                      <Mic className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => handleSend()} className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
-                      <Send className="w-4 h-4" />
+                    <button onClick={() => handleSend()} className="p-1.5 bg-indigo-600 rounded-lg text-white shadow-lg active:scale-90 transition-transform">
+                      <Send className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Question Categories */}
-                <div className="flex items-center gap-2 mt-3">
-                  <div className="flex-1 overflow-x-auto hide-scrollbar">
-                    <div className="flex gap-1.5 shrink-0 pr-4">
+                {/* Question Categories and Refresh */}
+                <div className="flex items-center gap-0.5 mt-2">
+                  <div className="flex-1 flex justify-center overflow-x-auto hide-scrollbar">
+                    <div className="flex items-center gap-1 shrink-0 px-1">
                       {CATEGORIES.map((cat) => (
                         <button
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
-                          className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-title font-bold transition-all border ${
+                          className={`shrink-0 px-3 py-0.5 rounded-full text-[10px] font-title font-bold transition-all border ${
                             selectedCategory === cat
                               ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
                               : isDarkMode
@@ -1649,18 +1640,37 @@ ${daeunContext}
                           {cat}
                         </button>
                       ))}
+                      <button 
+                        onClick={() => setRefreshKey(prev => prev + 1)}
+                        className={`p-1 rounded-xl transition-all shrink-0 ${
+                          isDarkMode ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                        title="다른 질문 보기"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setRefreshKey(prev => prev + 1)}
-                    className={`p-2 rounded-xl transition-all shrink-0 ${
-                      isDarkMode ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                    title="다른 질문 보기"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
                 </div>
+
+                {/* Suggested Questions */}
+                {suggestions.length > 0 && (
+                  <div className="flex flex-col items-end gap-0.5 mt-1.5">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSuggestionClick(s)}
+                        className={`w-fit text-right px-3 py-1 rounded-xl border text-[11px] transition-all ${
+                          isDarkMode 
+                            ? 'bg-white/5 border-white/10 text-gray-300 opacity-70 hover:opacity-100 hover:bg-white/10'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 shadow-sm'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -1978,11 +1988,11 @@ ${daeunContext}
         </AnimatePresence>
       </main>
 
-      <nav className={`px-4 pt-3 pb-8 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30`}>
+      <nav className={`px-4 pt-1 pb-8 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30`}>
         <div className="max-w-md mx-auto flex items-center justify-around pb-safe">
           {[
-            { id: "welcome", icon: User, label: "내정보" },
-            { id: "dashboard", icon: LayoutDashboard, label: "대시보드" },
+            { id: "welcome", icon: User, label: "정보입력" },
+            { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
             { id: "chat", icon: MessageCircle, label: "상담" },
             { id: "report", icon: FileText, label: "리포트" },
             { id: "guide", icon: Info, label: "가이드" }
