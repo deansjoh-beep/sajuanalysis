@@ -21,12 +21,23 @@ export const hiddenStems: Record<string, string[]> = {
   '申': ['무', '임', '경'], '酉': ['경', '신'], '戌': ['신', '정', '무'], '亥': ['무', '갑', '임']
 };
 
-export const calculateDeity = (dayStem: string, targetChar: string) => {
-  if (dayStem === targetChar) return '비견';
+export const calculateDeity = (dayStem: string, targetChar: string, isBranch: boolean = false) => {
+  let targetStem = targetChar;
+  if (isBranch && hiddenStems[targetChar]) {
+    // Use the last element of hiddenStems as the main energy (Yong/Main Energy/본기)
+    const mainHiddenStemHangul = hiddenStems[targetChar][hiddenStems[targetChar].length - 1];
+    // Find the corresponding hanja for the hangul
+    const entry = Object.entries(hanjaToHangul).find(([h, hangul]) => hangul === mainHiddenStemHangul);
+    if (entry) {
+      targetStem = entry[0];
+    }
+  }
+
+  if (dayStem === targetStem) return '비견';
   const meE = elementMap[dayStem];
   const meY = yinYangMap[dayStem];
-  const targetE = elementMap[targetChar];
-  const targetY = yinYangMap[targetChar];
+  const targetE = elementMap[targetStem];
+  const targetY = yinYangMap[targetStem];
   
   if (!meE || !targetE) return '';
 
@@ -261,7 +272,7 @@ export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, 
         hanja: branch,
         hangul: hanjaToHangul[branch],
         element: elementMap[branch],
-        deity: calculateDeity(dayStem, branch),
+        deity: calculateDeity(dayStem, branch, true),
         hidden: (hiddenStems[branch] || []).join(', ')
       }
     };
