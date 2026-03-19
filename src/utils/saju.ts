@@ -74,8 +74,6 @@ export const calculateDeity = (dayStem: string, targetChar: string) => {
 };
 
 export const calculateYongshin = (sajuData: any[]) => {
-  // sajuData is [Year, Month, Day, Hour] in reverse order from getSajuData
-  // Let's re-map to standard order for easier logic: [Year, Month, Day, Hour]
   const pillars = [...sajuData].reverse();
   const dayMaster = pillars[2].stem;
   const dayMasterElement = dayMaster.element;
@@ -84,12 +82,11 @@ export const calculateYongshin = (sajuData: any[]) => {
     wood: '목(木)', fire: '화(火)', earth: '토(土)', metal: '금(金)', water: '수(水)'
   };
 
-  // 1. Eokbu Analysis (Strength)
   let score = 0;
   const weights = {
     yearStem: 10, yearBranch: 10,
-    monthStem: 10, monthBranch: 35, // Month branch is most influential (Deuk-ryeong)
-    dayBranch: 15, // Deuk-ji
+    monthStem: 10, monthBranch: 35,
+    dayBranch: 15,
     hourStem: 10, hourBranch: 10
   };
 
@@ -102,8 +99,6 @@ export const calculateYongshin = (sajuData: any[]) => {
   };
 
   const meSupport = supportElements[dayMasterElement];
-
-  // Calculate score
   const checkSupport = (el: string) => meSupport.includes(el);
 
   if (checkSupport(pillars[0].stem.element)) score += weights.yearStem;
@@ -131,44 +126,29 @@ export const calculateYongshin = (sajuData: any[]) => {
   const eokbuYongshinRaw = score >= 50 ? opposites[dayMasterElement] : supports[dayMasterElement];
   const eokbuYongshin = elementNames[eokbuYongshinRaw];
 
-  // 2. Johoo Analysis (Season/Temperature)
   const monthBranch = pillars[1].branch.hanja;
   const hourBranch = pillars[3].branch.hanja;
   
   let johooStatus = '평온';
   let johooYongshinRaw = '';
 
-  // Winter (Hae, Ja, Chuk)
   if (['亥', '子', '丑'].includes(monthBranch)) {
     johooStatus = '한랭(寒冷)';
     johooYongshinRaw = 'fire';
-  }
-  // Summer (Sa, Oh, Mi)
-  else if (['巳', '午', '未'].includes(monthBranch)) {
+  } else if (['巳', '午', '未'].includes(monthBranch)) {
     johooStatus = '조열(燥熱)';
     johooYongshinRaw = 'water';
-  }
-  // Spring/Autumn with extreme time
-  else if (['寅', '卯', '辰'].includes(monthBranch) && ['巳', '午', '未'].includes(hourBranch)) {
-    johooStatus = '온난(溫暖)';
-  }
-  else if (['申', '酉', '戌'].includes(monthBranch) && ['亥', '子', '丑'].includes(hourBranch)) {
-    johooStatus = '숙살(肅殺)';
   }
 
   const johooYongshin = johooYongshinRaw ? elementNames[johooYongshinRaw] : '균형 잡힘';
 
-  // 3. Final Synthesis
   let finalYongshinRaw = '';
   let logicBasis = '';
 
-  // Priority 1: Johoo if extreme
   if (johooYongshinRaw) {
     finalYongshinRaw = johooYongshinRaw;
     logicBasis = `계절적 요인(${johooStatus})이 매우 강하여 조후 균형을 맞추는 것이 최우선입니다.`;
-  } 
-  // Priority 2: Eokbu
-  else {
+  } else {
     finalYongshinRaw = eokbuYongshinRaw;
     logicBasis = `일간의 기운이 ${strength}하므로 억부 균형을 맞추는 기운이 필요합니다.`;
   }
@@ -193,24 +173,14 @@ export const calculateYongshin = (sajuData: any[]) => {
   };
 };
 
-const getAdjustedTime = (year: number, month: number, day: number, hour: number, minute: number) => {
+export const getAdjustedTime = (year: number, month: number, day: number, hour: number, minute: number) => {
   let offsetMinutes = 0;
   const dateNum = year * 10000 + month * 100 + day;
 
-  // 1. Timezone Offset (South Korea)
-  // 1908.04.01 ~ 1911.12.31: UTC+8:30
-  // 1912.01.01 ~ 1954.03.20: UTC+9:00 (Needs -30m correction)
-  // 1954.03.21 ~ 1961.08.09: UTC+8:30 (No correction needed for solar time)
-  // 1961.08.10 ~ Present: UTC+9:00 (Needs -30m correction)
-  
   if ((dateNum >= 19120101 && dateNum <= 19540320) || dateNum >= 19610810) {
     offsetMinutes -= 30;
   }
 
-  // 2. Daylight Saving Time (DST) in South Korea
-  // 1948~1951: May to Sept
-  // 1955~1960: May to Sept
-  // 1987~1988: May to Oct
   const isDST = (y: number, m: number, d: number) => {
     if (y >= 1948 && y <= 1951) return m >= 5 && m <= 9;
     if (y >= 1955 && y <= 1960) return m >= 5 && m <= 9;
@@ -229,29 +199,36 @@ export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, 
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = unknownTime ? [12, 0] : timeStr.split(':').map(Number);
 
-  // Apply historical timezone and DST corrections
-  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  if (!unknownTime) {
-    const offset = getAdjustedTime(year, month, day, hour, minute);
-    date.setUTCMinutes(date.getUTCMinutes() + offset);
-  }
-  
-  const adjY = date.getUTCFullYear();
-  const adjM = date.getUTCMonth() + 1;
-  const adjD = date.getUTCDate();
-  const adjH = date.getUTCHours();
-  const adjMin = date.getUTCMinutes();
-
-  let lunar;
-  if (!isLunar) {
-    const solar = Solar.fromYmdHms(adjY, adjM, adjD, adjH, adjMin, 0);
-    lunar = solar.getLunar();
+  let solar: Solar;
+  if (isLunar) {
+    const tempLunar = Lunar.fromYmdHms(year, isLeap ? -month : month, day, hour, minute, 0);
+    solar = tempLunar.getSolar();
   } else {
-    lunar = Lunar.fromYmdHms(adjY, isLeap ? -adjM : adjM, adjD, adjH, adjMin, 0);
+    solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
   }
 
+  const offset = getAdjustedTime(solar.getYear(), solar.getMonth(), solar.getDay(), solar.getHour(), solar.getMinute());
+  const date = new Date(Date.UTC(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute(), 0));
+  date.setUTCMinutes(date.getUTCMinutes() + offset);
+  
+  const adjustedSolar = Solar.fromYmdHms(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    0
+  );
+  
+  const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
-  eightChar.setDayZero(2); // Day changes at 23:00 (after solar correction, this aligns with 23:30 standard)
+  try {
+    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
+      (eightChar as any).setDayZero(2);
+    }
+  } catch (e) {
+    console.warn('Failed to setDayZero in getSajuData:', e);
+  }
   
   const pillars = [
     { title: '년주', char: eightChar.getYear() },
@@ -310,52 +287,53 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = timeStr.split(':').map(Number);
 
-  // Apply historical timezone and DST corrections
-  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  const offset = getAdjustedTime(year, month, day, hour, minute);
-  date.setUTCMinutes(date.getUTCMinutes() + offset);
-  
-  const adjY = date.getUTCFullYear();
-  const adjM = date.getUTCMonth() + 1;
-  const adjD = date.getUTCDate();
-  const adjH = date.getUTCHours();
-  const adjMin = date.getUTCMinutes();
-
   let solar: Solar;
-  let lunar: Lunar;
-  if (!isLunar) {
-    solar = Solar.fromYmdHms(adjY, adjM, adjD, adjH, adjMin, 0);
-    lunar = solar.getLunar();
+  if (isLunar) {
+    const tempLunar = Lunar.fromYmdHms(year, isLeap ? -month : month, day, hour, minute, 0);
+    solar = tempLunar.getSolar();
   } else {
-    lunar = Lunar.fromYmdHms(adjY, isLeap ? -adjM : adjM, adjD, adjH, adjMin, 0);
-    solar = lunar.getSolar();
+    solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
   }
 
+  const offset = getAdjustedTime(solar.getYear(), solar.getMonth(), solar.getDay(), solar.getHour(), solar.getMinute());
+  const date = new Date(Date.UTC(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute(), 0));
+  date.setUTCMinutes(date.getUTCMinutes() + offset);
+  
+  const adjustedSolar = Solar.fromYmdHms(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    0
+  );
+  
+  const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
-  eightChar.setDayZero(2);
+  try {
+    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
+      (eightChar as any).setDayZero(2);
+    }
+  } catch (e) {
+    console.warn('Failed to setDayZero in getDaeunData:', e);
+  }
   const yearStem = eightChar.getYear().charAt(0);
   const isYangYear = yinYangMap[yearStem] === '+';
   
-  // Determine direction
   const isForward = gender === 'M' ? isYangYear : !isYangYear;
 
-  // Calculate Daeun-su (Major Fortune Number)
   const targetJie = isForward ? lunar.getNextJie() : lunar.getPrevJie();
   const targetSolar = targetJie.getSolar();
   
-  // Calculate difference in seconds
-  const birthTime = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute(), solar.getSecond()).getTime();
-  const jieTime = new Date(targetSolar.getYear(), targetSolar.getMonth() - 1, targetSolar.getDay(), targetSolar.getHour(), targetSolar.getMinute(), targetSolar.getSecond()).getTime();
+  const birthTime = Date.UTC(adjustedSolar.getYear(), adjustedSolar.getMonth() - 1, adjustedSolar.getDay(), adjustedSolar.getHour(), adjustedSolar.getMinute(), adjustedSolar.getSecond());
+  const jieTime = Date.UTC(targetSolar.getYear(), targetSolar.getMonth() - 1, targetSolar.getDay(), targetSolar.getHour(), targetSolar.getMinute(), targetSolar.getSecond());
   const diffSeconds = Math.abs(jieTime - birthTime) / 1000;
   
-  // Convert to days (precise)
   const diffDays = diffSeconds / (24 * 3600);
   
-  // Daeun-su calculation: round(days / 3)
   let daeunSu = Math.round(diffDays / 3);
-  if (daeunSu === 0) daeunSu = 1; // Minimum Daeun-su is 1
+  if (daeunSu === 0) daeunSu = 1;
 
-  // Generate 10 Daeun Pillars starting from Month Pillar
   const monthPillar = eightChar.getMonth();
   const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
   const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
@@ -379,7 +357,7 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
     
     daeuns.push({
       startAge: startAge,
-      startYear: year + startAge, // Simplified start year
+      startYear: year + startAge,
       stem: stem,
       branch: branch,
       description: branchDescription[branch] || ''

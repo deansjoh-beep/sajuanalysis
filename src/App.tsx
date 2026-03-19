@@ -204,47 +204,64 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
 
   // Parse the content into sections
   const { greeting, sections } = useMemo(() => {
-    // Extract greeting (everything before categories or specifically tagged)
-    const greetingMatch = content.match(/\[인사말\]\s*([\s\S]*?)(?=\n.*?\s\[키워드\]|$)/);
-    const greetingText = greetingMatch ? greetingMatch[1].trim() : "";
+    if (!content) return { greeting: "", sections: [] };
 
-    // Extract sections
-    // Format: Title [키워드] Keyword [🔽 내용 보기]\n(상세 확장 내용) Content
-    const sectionRegex = /(.*?\s\[키워드\]\s.*?\s\[🔽\s내용\s보기\])\n\((?:상세\s)?확장\s내용\)\s*([\s\S]*?)(?=\n.*?\s\[키워드\]|$)/g;
-    const matches = [];
-    let match;
-    while ((match = sectionRegex.exec(content)) !== null) {
-      matches.push({
-        header: match[1].replace(/\[키워드\]/, '').replace(/\[🔽\s내용\s보기\]/, '').trim(),
-        body: match[2].trim()
-      });
-    }
-    
-    // Fallback if regex fails (sometimes AI might miss the exact tags)
-    if (matches.length === 0 && content.includes('[키워드]')) {
-      const lines = content.split('\n');
-      let currentSection: { header: string; body: string } | null = null;
-      
-      lines.forEach(line => {
-        if (line.includes('[키워드]')) {
-          if (currentSection) matches.push(currentSection);
-          currentSection = {
-            header: line.replace(/\[키워드\]/, '').replace(/\[🔽\s내용\s보기\]/, '').trim(),
-            body: ''
+    try {
+      // 1. Extract greeting: everything before the first [SECTION]
+      const firstSectionIndex = content.indexOf('[SECTION]');
+      let greetingText = "";
+      let sectionsPart = content;
+
+      if (firstSectionIndex !== -1) {
+        greetingText = content.substring(0, firstSectionIndex).replace(/\[인사말\]/g, '').trim();
+        sectionsPart = content.substring(firstSectionIndex);
+      } else {
+        // If no [SECTION] found, treat everything as greeting or raw content
+        greetingText = content.replace(/\[인사말\]/g, '').trim();
+        sectionsPart = "";
+      }
+
+      // 2. Parse sections
+      // We split by [SECTION] and then parse each part
+      const parts = sectionsPart.split(/\[SECTION\]/).filter(p => p.trim());
+      const parsedSections = parts.map(part => {
+        // Each part looks like: "Title [KEYWORD] Key [CONTENT] Body [END]"
+        const match = part.match(/^(.*?)\s*\[KEYWORD\]\s*(.*?)\s*\[CONTENT\]\s*([\s\S]*)$/);
+        if (match) {
+          const title = match[1].trim();
+          const keyword = match[2].trim();
+          const body = match[3].replace(/\[END\]/g, '').trim();
+          
+          return {
+            header: `${title} : ${keyword}`,
+            body: body
           };
-        } else if (currentSection && !line.includes('[인사말]') && !line.includes('(상세 확장 내용)')) {
-          currentSection.body += line + '\n';
         }
+        // Fallback for malformed section: treat the whole part as body with a generic title
+        return {
+          header: "상세 분석",
+          body: part.replace(/\[KEYWORD\]|\[CONTENT\]|\[END\]/g, '').trim()
+        };
       });
-      if (currentSection) matches.push(currentSection);
-    }
 
-    return { greeting: greetingText, sections: matches };
+      return { greeting: greetingText, sections: parsedSections };
+    } catch (err) {
+      console.error("[ERROR] Failed to parse report content:", err);
+      return { greeting: "", sections: [] };
+    }
   }, [content]);
 
-  if (sections.length === 0 && !greeting) {
+  // Debug log to see raw content if needed
+  useEffect(() => {
+    if (content) {
+      console.log("[DEBUG] Report Content Length:", content.length);
+      console.log("[DEBUG] Sections Found:", sections.length);
+    }
+  }, [content, sections]);
+
+  if (sections.length === 0) {
     return (
-      <div className="markdown-body prose dark:prose-invert max-w-none text-sm">
+      <div className="markdown-body prose dark:prose-invert max-w-none text-sm p-4">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
@@ -390,41 +407,47 @@ const App: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysisStep(0);
 
-    const steps = [
-      "천문 데이터를 분석하고 있습니다...",
-      "사주 팔자를 산출하고 있습니다...",
-      "대운의 흐름을 파악하고 있습니다...",
-      "현대적 해석을 준비하고 있습니다..."
-    ];
+    try {
+      const steps = [
+        "천문 데이터를 분석하고 있습니다...",
+        "사주 팔자를 산출하고 있습니다...",
+        "대운의 흐름을 파악하고 있습니다...",
+        "현대적 해석을 준비하고 있습니다..."
+      ];
 
-    for (let i = 0; i < steps.length; i++) {
-      setAnalysisStep(i);
-      await new Promise(resolve => setTimeout(resolve, 800));
-    }
-
-    const dateStr = `${userData.birthYear}-${userData.birthMonth.padStart(2, '0')}-${userData.birthDay.padStart(2, '0')}`;
-    const timeStr = `${userData.birthHour.padStart(2, '0')}:${userData.birthMinute.padStart(2, '0')}`;
-    const isLunar = userData.calendarType !== 'solar';
-    const isLeap = userData.calendarType === 'leap';
-    
-    const result = getSajuData(dateStr, timeStr, isLunar, isLeap, userData.unknownTime);
-    const daeun = getDaeunData(dateStr, timeStr, isLunar, isLeap, userData.gender);
-    const yongshin = calculateYongshin(result);
-    
-    setSajuResult(result);
-    setDaeunResult(daeun);
-    setYongshinResult(yongshin);
-    setReportContent(null);
-    setIsAnalyzing(false);
-    setActiveTab("dashboard");
-    
-    // Reset chat with context
-    setMessages([
-      { 
-        role: "model", 
-        text: `반갑습니다, ${userData.name || '사용자'}님. 당신의 사주 분석이 완료되었습니다. 대시보드에서 당신의 타고난 기운을 확인하실 수 있으며, 궁금한 점은 일대일 상담 탭에서 물어봐 주세요.` 
+      for (let i = 0; i < steps.length; i++) {
+        setAnalysisStep(i);
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
-    ]);
+
+      const dateStr = `${userData.birthYear}-${userData.birthMonth.padStart(2, '0')}-${userData.birthDay.padStart(2, '0')}`;
+      const timeStr = `${userData.birthHour.padStart(2, '0')}:${userData.birthMinute.padStart(2, '0')}`;
+      const isLunar = userData.calendarType !== 'solar';
+      const isLeap = userData.calendarType === 'leap';
+      
+      const result = getSajuData(dateStr, timeStr, isLunar, isLeap, userData.unknownTime);
+      const daeun = getDaeunData(dateStr, timeStr, isLunar, isLeap, userData.gender);
+      const yongshin = calculateYongshin(result);
+      
+      setSajuResult(result);
+      setDaeunResult(daeun);
+      setYongshinResult(yongshin);
+      setReportContent(null);
+      setActiveTab("dashboard");
+      
+      // Reset chat with context
+      setMessages([
+        { 
+          role: "model", 
+          text: `반갑습니다, ${userData.name || '사용자'}님. 당신의 사주 분석이 완료되었습니다. 대시보드에서 당신의 타고난 기운을 확인하실 수 있으며, 궁금한 점은 일대일 상담 탭에서 물어봐 주세요.` 
+        }
+      ]);
+    } catch (err: any) {
+      console.error("Analysis error:", err);
+      alert("사주 분석 중 오류가 발생했습니다. 입력 정보를 확인해 주세요.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const startVoiceRecognition = (onComplete: (text: string) => void) => {
@@ -701,30 +724,32 @@ JSON 형식 예시:
       const ai = getGeminiAI();
       
       const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`).join('\n');
+      const daeunContext = daeunResult.map(d => `${d.age}세 대운: ${d.stem.hangul}${d.branch.hangul} (${d.deity})`).join(', ');
 
       const isFirstMessage = messages.length === 0;
       const systemInstruction = `
-[Role: UI Premium 1:1 Spiritual Counselor]
-당신은 '유아이(UI) 사주상담'의 전문 상담가입니다.
+[Role: UI Premium 1:1 Spiritual Counselor - MZ Edition]
+당신은 '유아이(UI) 사주상담'의 전문 상담가입니다. 
+당신의 상담 스타일은 **'MZ세대 감성'**입니다. 힙하고, 트렌디하며, 때로는 직설적이지만 따뜻한 공감을 잊지 않습니다.
 
 현재 날짜: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-현재 연도: ${new Date().getFullYear()}년
 
-1. 상담 원칙 (consulting_guideline.txt 준수):
-- 반드시 업로드된 consulting_guideline.txt와 saju_guideline.txt를 결합하여 분석하십시오.
-- 분석 시 반드시 '지침'에 따른 분석 단계(음양 -> 조후 -> 구조 -> 십성)를 순서대로 고려하여 명리학적 근거를 제시하십시오.
-- 전문 용어 사용 시 현대적인 비유를 곁들여 친절하게 설명하십시오.
-- 사용자의 이전 대화 맥락을 기억하고 초개인화된 상담을 제공하십시오.
+1. 상담 원칙:
+- **초개인화:** 사용자의 사주 정보(${sajuContext})와 대운 흐름(${daeunContext})을 바탕으로 질문에 딱 맞는 맞춤형 답변을 제공하세요.
+- **MZ 말투:** "반말"은 지양하되, 세련되고 깔끔한 말투를 사용하세요. 적절한 이모지(✨, 🍀, 🔥 등)를 섞어주세요.
+- **전문성:** 사주 명리학적 근거(음양오행, 십성 등)를 언급하되, 어려운 용어는 현대적인 비유로 풀어서 설명하세요.
+- **맥락 유지:** 이전 대화 내용을 기억하고 연결해서 답변하세요.
 ${isFirstMessage 
-  ? "- 상담 마무리는 항상 사용자를 응원하는 따뜻한 메시지와 함께 다음 질문을 유도하며 끝맺음하십시오."
-  : "- **중요**: 두 번째 질문부터는 불필요한 인사말이나 반복적인 응원 문구, 다음 질문 유도 등을 생략하고 사용자의 질문 내용에 대해서만 핵심적으로 답변하십시오. 답변을 간결하게 유지하십시오."}
+  ? "- 첫 인사는 따뜻하고 힙하게! 마지막은 항상 사용자를 응원하며 다음 질문을 유도하세요."
+  : "- **중요**: 두 번째 질문부터는 불필요한 인사말이나 반복적인 응원 문구를 생략하고 질문에 대한 핵심 답변만 간결하게 제공하세요."}
 
-2. 법적/윤리적 가이드라인 (필수 준수):
-- 의료 진단, 범죄 공모, 도박 조장, 생사(生死) 판별, 구체적인 주식/코인 종목 추천 등 법적/윤리적 위험이 있는 질문에는 답변을 거부하십시오.
-- 이러한 질문 감지 시: "죄송합니다. 해당 내용은 전문 영역(의료, 법률 등)에 해당하여 답변이 어렵습니다." 라고 정중히 거절하십시오.
+2. 법적/윤리적 가이드라인:
+- 의료, 범죄, 도박, 생사, 구체적 주식/코인 추천 등 위험한 질문은 정중히 거절하세요.
 
 [사용자 사주 정보]
 ${sajuContext}
+[대운 정보]
+${daeunContext}
 `;
 
       const history = messages.map(m => ({
@@ -779,27 +804,44 @@ ${sajuContext}
     setActiveTab("report");
 
     try {
+      console.log("[DEBUG] Starting report generation...");
       const ai = getGeminiAI();
       const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja})`).join('\n');
       
-      const currentAge = 2026 - parseInt(userData.birthYear) + 1;
+      const birthYearInt = parseInt(userData.birthYear);
+      const currentYear = new Date().getFullYear();
+      const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt + 1;
+      
       const daeunContext = daeunResult.map((dy, i) => {
         const isCurrent = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
-        return `${dy.startAge}세~${daeunResult[i+1]?.startAge || dy.startAge + 9}세: ${hanjaToHangul[dy.stem.hanja]}${hanjaToHangul[dy.branch.hanja]}${isCurrent ? ' (현재 대운)' : ''}`;
+        const stemHangul = hanjaToHangul[dy.stem] || dy.stem;
+        const branchHangul = hanjaToHangul[dy.branch] || dy.branch;
+        return `${dy.startAge}세~${daeunResult[i+1]?.startAge || dy.startAge + 9}세: ${stemHangul}${branchHangul}${isCurrent ? ' (현재 대운)' : ''}`;
       }).join('\n');
+
+      console.log("[DEBUG] Saju Context:", sajuContext);
+      console.log("[DEBUG] Daeun Context:", daeunContext);
 
       const systemInstruction = `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다. 제공된 사용자의 사주 데이터를 바탕으로 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오.
 
-작성 시 반드시 시스템에 사전 입력된 report_guideline.txt의 지침(단정적/극단적 표현 금지, 생사 및 질병 확정 금지, 객관적이고 따뜻한 조언 유지 등)을 엄격하게 준수해야 합니다.
+[지침 사항]
+${guidelines.report}
 
-[중요 요청 사항]
-1. 전체적으로 폰트 크기를 적절히 조절하고 문단을 깔끔하게 정리하여 가독성을 높여주십시오.
-2. 문단 사이에는 반드시 한 칸의 공백을 두어 시각적 피로도를 줄여주십시오.
-3. 각 카테고리의 제목이나 키워드 앞에 번호를 붙이지 마십시오.
-4. 처음에는 [인사말]과 각 카테고리의 [키워드]만 보이도록 구성하며, 상세 내용은 확장 버튼을 눌러야 보이도록 구조화하십시오.
+[출력 규칙 - 매우 중요]
+1. **절대로 HTML 태그(<div>, <strong> 등)를 사용하지 마십시오.** 오직 마크다운 텍스트만 사용하십시오.
+2. **카테고리 제목에 #, ##, ### 등 마크다운 헤더 기호를 사용하지 마십시오.**
+3. 아래에 제공된 [Output Format] 구조를 한 글자도 틀리지 말고 정확히 지켜주십시오. 파싱 로직이 이 태그들에 의존합니다.
+4. 모든 답변은 MZ세대의 감성을 담아 트렌디하고 친근하면서도 전문성을 잃지 않아야 합니다. (예: '갓생', '럭키비키', '오운완' 등의 표현을 적절히 섞어 쓰되 명리학적 깊이를 유지)
 
-[Output Structure: 확장형 UI 포맷]
-리포트는 앱 화면에서 사용자가 키워드를 누르면 상세 내용이 펼쳐지는 '아코디언 UI'에 적용될 예정입니다. 따라서 각 카테고리는 시선을 사로잡는 **[핵심 키워드]**와 클릭 시 나타나는 **[상세 확장 내용]**으로 명확히 구분하여 작성하십시오. 키워드 우측에는 [🔽 내용 보기]라는 버튼 표시를 달아주십시오.
+[Output Format]
+[인사말]
+(여기에 사용자에게 건네는 따뜻하고 힙한 첫인사를 작성하세요. MZ세대 감성 필수.)
+
+[SECTION] 카테고리 이름 [KEYWORD] 핵심 키워드 한 줄 [CONTENT]
+(여기에 상세 분석 내용을 마크다운으로 작성하세요. 문단 사이 공백 필수. 불필요한 서론 없이 바로 본론으로 들어가세요.)
+[END]
+
+(위 [SECTION] 구조를 8개 카테고리에 대해 반복하십시오. 각 섹션 끝에 반드시 [END]를 붙이세요.)
 
 [분석 대상 정보]
 이름: ${userData.name || '사용자'}
@@ -811,70 +853,35 @@ ${daeunContext}
 
 현재 나이: ${currentAge}세
 
-[8대 카테고리 작성 가이드]
-
+[8대 카테고리 리스트]
 1. 본질적 기질과 성격, 사회성
-키워드: 사용자의 가장 강력한 특성이나 십성을 한 문장으로 요약
-상세 확장 내용: 내면의 본질적 성향, 타인과 맺는 사회적 관계의 특징, 사회생활에서의 장단점 분석.
-
 2. 용신 분석 및 결핍 보완 (개운법)
-키워드: 사주에서 부족한 기운과 이를 채울 수 있는 핵심 처방 요약.
-상세 확장 내용: 오행의 과다/결핍을 분석하고, 이를 보완할 수 있는 실질적인 행동 양식, 마인드셋, 유리한 색상이나 방향 등 제시.
-
 3. 전체 인생 흐름 (대운 분석)
-키워드: 인생 전체를 관통하는 주요 테마나 현재 지나고 있는 계절의 비유.
-상세 확장 내용: 초년-중년-말년의 굵직한 변화 흐름과 현재 대운(10년 운)이 위치한 지점 및 향후 방향성.
-
 4. 재물운
-키워드: 돈을 벌고 모으는 스타일 한 줄 요약.
-상세 확장 내용: 타고난 재물 그릇의 크기, 유리한 자산 증식 형태(부동산, 금융, 사업, 월급 등), 재물 관리 시 주의점.
-
 5. 사회 및 직장운
-키워드: 가장 빛을 발할 수 있는 직업적 환경 요약.
-상세 확장 내용: 직장 조직 내에서의 역할, 독립(사업)과 소속(직장) 중 유리한 방향, 윗사람/아랫사람과의 관계성.
-
-6. 건강운
-키워드: 오행 밸런스에 따른 핵심 건강 키워드.
-상세 확장 내용: 원국 상 에너지가 과하게 몰리거나 부족하여 취약해질 수 있는 신체 부위 및 추천하는 건강 관리 루틴. (주의: 질병 진단 절대 금지)
-
+6. 건강운 (주의: 질병 진단 절대 금지)
 7. 연애 및 결혼운
-키워드: 사용자의 연애 스타일과 인연이 닿는 배우자상 요약.
-상세 확장 내용: 이성을 대하는 태도, 관계에서 조심해야 할 부분, 서로 시너지가 나는 파트너의 특징.
-
 8. 운명을 이끄는 가장 중요한 조언
-키워드: 현재 시점에서 가장 명심해야 할 단 하나의 메시지.
-상세 확장 내용: 전체 사주를 관통하여 삶을 더 나은 방향으로 이끌기 위한 진정성 있는 통찰과 마인드 컨트롤 조언.
-
-[출력 예시 (포맷을 정확히 지킬 것)]
-
-[인사말]
-안녕하세요, ${userData.name}님. 당신의 삶의 지도를 함께 그려볼 사주명리 상담가 유아이입니다. 당신의 사주 데이터를 정밀 분석한 결과, 다음과 같은 흐름이 포착되었습니다.
-
-본질적 기질과 성격, 사회성 [키워드] 부드러운 외면 속, 누구보다 단단한 원칙주의자 [🔽 내용 보기]
-(상세 확장 내용) 
-당신은 겉보기에 유연하고 사람들과 잘 어울리지만, 내면에는 자신만의 확고한 기준(정관)이 자리 잡고 있습니다. 
-
-사회생활에서는 다툼을 피하는 평화주의자 역할을 자처하지만, 결정적인 순간에는 자신의 신념을 굽히지 않는 강인함을 보여줍니다.
-
-용신 분석 및 결핍 보완 [키워드] 삶의 엔진을 식혀줄 '물(水)'의 지혜와 쉼표 [🔽 내용 보기]
-(상세 확장 내용) 
-현재 사주에 화(火) 기운이 강해 목표를 향해 달려가는 추진력은 좋으나, 번아웃이 오기 쉽습니다. 
-
-당신에게 필요한 것은 유연함과 휴식을 상징하는 수(水) 기운입니다.
-
-(... 나머지 항목도 동일한 포맷으로 작성)
 `;
 
-      const chat = ai.chats.create({
+      console.log("[DEBUG] Sending request to Gemini...");
+      const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        config: { systemInstruction }
+        contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
+        config: { 
+          systemInstruction,
+          maxOutputTokens: 4096,
+          temperature: 0.8
+        }
       });
-
-      const result = await chat.sendMessage({ message: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘." });
+      
+      console.log("[DEBUG] Gemini response received.");
       const text = result.text || "리포트 생성 실패";
+      console.log("[DEBUG] Gemini response text length:", text.length);
+      console.log("[DEBUG] Gemini response text preview:", text.substring(0, 200));
       setReportContent(text);
     } catch (err: any) {
-      console.error("Report generation error:", err);
+      console.error("[ERROR] Report generation failed:", err);
       const errorMessage = err?.message || String(err);
       setReportContent(`리포트 생성 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.`);
     } finally {
