@@ -377,3 +377,57 @@ export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean,
 
   return daeuns;
 };
+
+export const calculateGyeok = (sajuData: any[]) => {
+  if (!sajuData || sajuData.length < 4) return { gyeok: '분석 불가', composition: '' };
+  
+  const pillars = [...sajuData].reverse(); // [Year, Month, Day, Hour]
+  const dayMaster = pillars[2].stem.hanja;
+  const monthBranch = pillars[1].branch.hanja;
+  
+  // Get hidden stems of Month Branch
+  const hidden = hiddenStems[monthBranch] || [];
+  const hiddenHanjas = hidden.map(h => Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '');
+  
+  // Heavenly Stems (excluding Day Master)
+  const heavenlyStems = [pillars[0].stem.hanja, pillars[1].stem.hanja, pillars[3].stem.hanja];
+  
+  let gyeokStem = '';
+  
+  // 1. Check if any hidden stem appears in Heavenly Stems
+  // Priority: Main (Bon-gi) > Middle (Jung-gi) > Initial (Yeo-gi)
+  // hiddenStems array is [Initial, (Middle), Main]
+  for (let i = hiddenHanjas.length - 1; i >= 0; i--) {
+    if (heavenlyStems.includes(hiddenHanjas[i])) {
+      gyeokStem = hiddenHanjas[i];
+      break;
+    }
+  }
+  
+  // 2. If none appear, use Main energy (Bon-gi)
+  if (!gyeokStem && hiddenHanjas.length > 0) {
+    gyeokStem = hiddenHanjas[hiddenHanjas.length - 1];
+  }
+  
+  const deity = calculateDeity(dayMaster, gyeokStem);
+  const gyeokName = deity ? `${deity}격` : '특수격';
+  
+  // Calculate composition
+  const allDeities: string[] = [];
+  pillars.forEach((p, i) => {
+    if (p.stem.deity && p.stem.deity !== '일간') allDeities.push(p.stem.deity);
+    if (p.branch.deity) allDeities.push(p.branch.deity);
+  });
+  
+  const counts: Record<string, number> = {};
+  allDeities.forEach(d => {
+    counts[d] = (counts[d] || 0) + 1;
+  });
+  
+  const composition = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => `${name} ${count}개`)
+    .join(', ');
+    
+  return { gyeok: gyeokName, composition };
+};

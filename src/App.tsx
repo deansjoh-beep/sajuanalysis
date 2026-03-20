@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Send, 
   User, 
@@ -34,7 +34,7 @@ import ReactMarkdown from "react-markdown";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
-import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity } from "./utils/saju";
+import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
 import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
@@ -551,51 +551,92 @@ const App: React.FC = () => {
     setLoading(true);
     try {
       const ai = getGeminiAI();
-      const prompt = `
-사용자의 음성 입력에서 이름, 생년월일시 정보를 추출하여 JSON 형식으로 반환해줘.
-입력: "${text}"
+      const prompt = `Extract name, birth date (year, month, day), birth time (hour, minute), calendar type (solar/lunar/leap), gender (M/F), and if time is unknown from this text: "${text}".
+Return only JSON.
 
-JSON 형식 예시:
+Schema:
 {
-  "name": "홍길동",
-  "year": "1990",
-  "month": "5",
-  "day": "15",
-  "hour": "14",
-  "minute": "30",
+  "name": string,
+  "year": string,
+  "month": string,
+  "day": string,
+  "hour": string,
+  "minute": string,
   "calendarType": "solar" | "lunar" | "leap",
   "gender": "M" | "F",
-  "unknownTime": true | false
+  "unknownTime": boolean
 }
 
-규칙:
-1. 정보를 알 수 없는 경우 기존 값을 유지하거나 합리적으로 추측해.
-2. 이름이 언급되면 name 필드에 넣어줘. 언급되지 않으면 기존 이름을 유지해.
-3. 시간이 언급되지 않으면 unknownTime을 true로 설정해.
-4. calendarType은 '양력', '음력', '윤달' 키워드를 보고 판단해.
-5. 성별이 언급되지 않으면 'M'으로 기본 설정해.
-      `;
+Rules:
+1. If name is not mentioned, use null.
+2. If time is not mentioned, set unknownTime to true.
+3. Default gender to "M" if not mentioned.
+4. calendarType defaults to "solar" unless "음력" or "윤달" is mentioned.`;
 
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              year: { type: Type.STRING },
+              month: { type: Type.STRING },
+              day: { type: Type.STRING },
+              hour: { type: Type.STRING },
+              minute: { type: Type.STRING },
+              calendarType: { 
+                type: Type.STRING,
+                enum: ["solar", "lunar", "leap"]
+              },
+              gender: { 
+                type: Type.STRING,
+                enum: ["M", "F"]
+              },
+              unknownTime: { type: Type.BOOLEAN }
+            }
+          }
+        }
       });
       
-      const jsonStr = result.text?.replace(/```json|```/g, "").trim();
+      const jsonStr = result.text?.trim();
       if (jsonStr) {
-        const parsed = JSON.parse(jsonStr);
-        setUserData(prev => ({
-          ...prev,
-          name: parsed.name || prev.name,
-          birthYear: parsed.year || prev.birthYear,
-          birthMonth: parsed.month || prev.birthMonth,
-          birthDay: parsed.day || prev.birthDay,
-          birthHour: parsed.hour || prev.birthHour,
-          birthMinute: parsed.minute || prev.birthMinute,
-          calendarType: parsed.calendarType || prev.calendarType,
-          gender: parsed.gender || prev.gender,
-          unknownTime: parsed.unknownTime !== undefined ? parsed.unknownTime : prev.unknownTime
-        }));
+        try {
+          const parsed = JSON.parse(jsonStr);
+          setUserData(prev => ({
+            ...prev,
+            name: parsed.name || prev.name,
+            birthYear: parsed.year || prev.birthYear,
+            birthMonth: parsed.month || prev.birthMonth,
+            birthDay: parsed.day || prev.birthDay,
+            birthHour: parsed.hour || prev.birthHour,
+            birthMinute: parsed.minute || prev.birthMinute,
+            calendarType: parsed.calendarType || prev.calendarType,
+            gender: parsed.gender || prev.gender,
+            unknownTime: parsed.unknownTime !== undefined ? parsed.unknownTime : prev.unknownTime
+          }));
+        } catch (parseErr) {
+          console.error("JSON parse error:", parseErr, "Raw text:", jsonStr);
+          // Fallback parsing if JSON.parse fails despite responseMimeType
+          const match = jsonStr.match(/\{[\s\S]*\}/);
+          if (match) {
+            const extracted = JSON.parse(match[0]);
+            setUserData(prev => ({
+              ...prev,
+              name: extracted.name || prev.name,
+              birthYear: extracted.year || prev.birthYear,
+              birthMonth: extracted.month || prev.birthMonth,
+              birthDay: extracted.day || prev.birthDay,
+              birthHour: extracted.hour || prev.birthHour,
+              birthMinute: extracted.minute || prev.birthMinute,
+              calendarType: extracted.calendarType || prev.calendarType,
+              gender: extracted.gender || prev.gender,
+              unknownTime: extracted.unknownTime !== undefined ? extracted.unknownTime : prev.unknownTime
+            }));
+          }
+        }
       }
     } catch (err) {
       console.error("Voice parsing error:", err);
@@ -1289,11 +1330,19 @@ ${daeunContext}
                   </div>
                 </div>
 
-                {/* Disclaimer */}
-                <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/5">
-                  <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-relaxed text-center font-medium">
-                    본 분석 결과는 인공지능의 해석이며, 과학적 사실이 아닌 참고 용도로만 사용해 주세요. 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
-                  </p>
+                {/* Saju Conclusion */}
+                <div className="p-5 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">사주팔자 분석 결론</p>
+                      <h4 className="text-sm font-bold leading-tight">
+                        {userData.name}님의 사주는 <span className="text-indigo-500">{calculateGyeok(sajuResult).composition}</span>로 구성되어 있으며, <span className="text-indigo-500 font-black">[{calculateGyeok(sajuResult).gyeok}]</span>의 사주입니다.
+                      </h4>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Five Elements Distribution */}
@@ -1530,6 +1579,13 @@ ${daeunContext}
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Disclaimer (Moved to bottom) */}
+                <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/5 mt-8">
+                  <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-relaxed text-center font-medium">
+                    본 분석 결과는 인공지능의 해석이며, 과학적 사실이 아닌 참고 용도로만 사용해 주세요. 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
+                  </p>
                 </div>
               </div>
             </motion.div>
