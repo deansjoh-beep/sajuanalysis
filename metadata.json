@@ -1,7 +1,5 @@
 {
   "name": "유아이 사주상담",
   "description": "정통 명리학 지식과 최신 AI 분석 기술을 결합한 전문 사주 상담 서비스입니다.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

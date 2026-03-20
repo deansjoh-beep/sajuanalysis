@@ -11,7 +11,6 @@ import {
   FileText,
   LayoutDashboard,
   Compass,
-  Mic,
   Calendar,
   Clock,
   ChevronRight,
@@ -351,12 +350,6 @@ const App: React.FC = () => {
     gender: 'M',
     unknownTime: false
   });
-  const [isListening, setIsListening] = useState(false);
-  const [voiceText, setVoiceText] = useState("");
-  const [countdown, setCountdown] = useState(0);
-  const recognitionRef = useRef<any>(null);
-  const timerRef = useRef<any>(null);
-  const autoStopRef = useRef<any>(null);
   const [sajuResult, setSajuResult] = useState<any[]>([]);
   const [daeunResult, setDaeunResult] = useState<any[]>([]);
   const [yongshinResult, setYongshinResult] = useState<any>(null);
@@ -447,201 +440,6 @@ const App: React.FC = () => {
       alert("사주 분석 중 오류가 발생했습니다. 입력 정보를 확인해 주세요.");
     } finally {
       setIsAnalyzing(false);
-    }
-  };
-
-  const startVoiceRecognition = (onComplete: (text: string) => void) => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
-      return;
-    }
-
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.lang = "ko-KR";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    let finalTranscript = "";
-    let silenceTimer: any = null;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setVoiceText("");
-      setCountdown(30);
-      
-      autoStopRef.current = setTimeout(() => {
-        if (recognitionRef.current) recognitionRef.current.stop();
-      }, 30000);
-
-      timerRef.current = setInterval(() => {
-        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      clearInterval(timerRef.current);
-      clearTimeout(autoStopRef.current);
-      clearTimeout(silenceTimer);
-      if (finalTranscript.trim()) {
-        onComplete(finalTranscript);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      setIsListening(false);
-      clearTimeout(silenceTimer);
-      clearInterval(timerRef.current);
-      clearTimeout(autoStopRef.current);
-      
-      if (event.error === 'not-allowed') {
-        alert("마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해 주세요.");
-      } else if (event.error === 'network') {
-        alert("네트워크 연결에 문제가 있어 음성 인식을 시작할 수 없습니다.");
-      } else if (event.error === 'no-speech') {
-        // Just stop silently if no speech detected
-      } else {
-        alert(`음성 인식 중 오류가 발생했습니다: ${event.error}`);
-      }
-    };
-
-    recognition.onresult = (event: any) => {
-      let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      setVoiceText(finalTranscript + interimTranscript);
-
-      // Silence detection: if we have a final result, wait 1.5s and stop if no more speech
-      if (event.results[event.results.length - 1].isFinal) {
-        clearTimeout(silenceTimer);
-        silenceTimer = setTimeout(() => {
-          if (recognitionRef.current) recognitionRef.current.stop();
-        }, 1500);
-      }
-    };
-
-    recognition.start();
-  };
-
-  const handleVoiceInput = () => {
-    startVoiceRecognition(parseVoiceInput);
-  };
-
-  const handleChatVoiceInput = () => {
-    startVoiceRecognition((text) => {
-      setInput(text);
-      handleSend(text);
-    });
-  };
-
-  const parseVoiceInput = async (text: string) => {
-    setLoading(true);
-    try {
-      const ai = getGeminiAI();
-      const prompt = `Extract name, birth date (year, month, day), birth time (hour, minute), calendar type (solar/lunar/leap), gender (M/F), and if time is unknown from this text: "${text}".
-Return only JSON.
-
-Schema:
-{
-  "name": string,
-  "year": string,
-  "month": string,
-  "day": string,
-  "hour": string,
-  "minute": string,
-  "calendarType": "solar" | "lunar" | "leap",
-  "gender": "M" | "F",
-  "unknownTime": boolean
-}
-
-Rules:
-1. If name is not mentioned, use null.
-2. If time is not mentioned, set unknownTime to true.
-3. Default gender to "M" if not mentioned.
-4. calendarType defaults to "solar" unless "음력" or "윤달" is mentioned.`;
-
-      const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              year: { type: Type.STRING },
-              month: { type: Type.STRING },
-              day: { type: Type.STRING },
-              hour: { type: Type.STRING },
-              minute: { type: Type.STRING },
-              calendarType: { 
-                type: Type.STRING,
-                enum: ["solar", "lunar", "leap"]
-              },
-              gender: { 
-                type: Type.STRING,
-                enum: ["M", "F"]
-              },
-              unknownTime: { type: Type.BOOLEAN }
-            }
-          }
-        }
-      });
-      
-      const jsonStr = result.text?.trim();
-      if (jsonStr) {
-        try {
-          const parsed = JSON.parse(jsonStr);
-          setUserData(prev => ({
-            ...prev,
-            name: parsed.name || prev.name,
-            birthYear: parsed.year || prev.birthYear,
-            birthMonth: parsed.month || prev.birthMonth,
-            birthDay: parsed.day || prev.birthDay,
-            birthHour: parsed.hour || prev.birthHour,
-            birthMinute: parsed.minute || prev.birthMinute,
-            calendarType: parsed.calendarType || prev.calendarType,
-            gender: parsed.gender || prev.gender,
-            unknownTime: parsed.unknownTime !== undefined ? parsed.unknownTime : prev.unknownTime
-          }));
-        } catch (parseErr) {
-          console.error("JSON parse error:", parseErr, "Raw text:", jsonStr);
-          // Fallback parsing if JSON.parse fails despite responseMimeType
-          const match = jsonStr.match(/\{[\s\S]*\}/);
-          if (match) {
-            const extracted = JSON.parse(match[0]);
-            setUserData(prev => ({
-              ...prev,
-              name: extracted.name || prev.name,
-              birthYear: extracted.year || prev.birthYear,
-              birthMonth: extracted.month || prev.birthMonth,
-              birthDay: extracted.day || prev.birthDay,
-              birthHour: extracted.hour || prev.birthHour,
-              birthMinute: extracted.minute || prev.birthMinute,
-              calendarType: extracted.calendarType || prev.calendarType,
-              gender: extracted.gender || prev.gender,
-              unknownTime: extracted.unknownTime !== undefined ? extracted.unknownTime : prev.unknownTime
-            }));
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Voice parsing error:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1120,39 +918,11 @@ ${daeunContext}
                 <div className="text-center space-y-1 py-1">
                   <h2 className="text-3xl font-handwriting leading-tight text-cobalt">안녕하세요.<br/>유아이 사주상담입니다.</h2>
                   <p className="text-xs opacity-60 leading-relaxed px-4">
-                    음성으로 말하거나 정보를 입력하여<br/>당신의 삶을 분석해 보세요.
+                    정보를 입력하여<br/>당신의 삶을 분석해 보세요.
                   </p>
                 </div>
 
-                {/* Voice Input Block */}
-                <div className={`p-3 rounded-3xl border ${isDarkMode ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-indigo-50 border-indigo-200 shadow-md'} flex flex-row items-center gap-4`}>
-                  <button 
-                    onClick={handleVoiceInput}
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-rose-500 animate-pulse' : 'bg-indigo-600 shadow-lg shadow-indigo-500/30'}`}
-                  >
-                    <Mic className={`w-6 h-6 text-white ${isListening ? 'scale-110' : ''}`} />
-                  </button>
-                  <div className="text-left flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold mb-0.5">{isListening ? `말씀해 주세요... (${countdown}초)` : "음성으로 입력하기"}</p>
-                      {isListening && (
-                        <button 
-                          onClick={() => recognitionRef.current?.stop()}
-                          className="px-2 py-1 bg-indigo-600 text-white text-[10px] rounded-lg font-bold shadow-sm active:scale-95 transition-transform"
-                        >
-                          입력
-                        </button>
-                      )}
-                    </div>
-                    {isListening && voiceText ? (
-                      <p className="text-xs text-indigo-400 font-medium animate-pulse line-clamp-2">{voiceText}</p>
-                    ) : (
-                      <p className="text-[9px] opacity-50">예: "내 이름은 김유아이, 90년 5월 15일 오후 2시 양력 남자야"</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className={`p-3 rounded-3xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-3`}>
+                <div className={`p-3 rounded-3xl border border-blue-500 ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-lg'} space-y-3`}>
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold uppercase tracking-widest opacity-40 ml-1">사용자 이름</label>
                     <input 
@@ -1160,7 +930,7 @@ ${daeunContext}
                       placeholder="이름을 입력하세요"
                       value={userData.name}
                       onChange={(e) => setUserData({...userData, name: e.target.value})}
-                      className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                      className={`w-full px-4 py-2 rounded-xl border border-blue-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/20' : 'bg-gray-50'}`}
                     />
                   </div>
 
@@ -1172,7 +942,7 @@ ${daeunContext}
                         <select 
                           value={userData.birthYear}
                           onChange={(e) => setUserData({...userData, birthYear: e.target.value})}
-                          className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                          className={`w-full px-2 py-2 rounded-xl border border-blue-500 text-sm outline-none ${isDarkMode ? 'bg-black/20' : 'bg-gray-50'}`}
                         >
                           {Array.from({length: 100}, (_, i) => 2026 - i).map(y => (
                             <option key={y} value={y}>{y}년</option>
@@ -1184,7 +954,7 @@ ${daeunContext}
                         <select 
                           value={userData.birthMonth}
                           onChange={(e) => setUserData({...userData, birthMonth: e.target.value})}
-                          className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                          className={`w-full px-2 py-2 rounded-xl border border-blue-500 text-sm outline-none ${isDarkMode ? 'bg-black/20' : 'bg-gray-50'}`}
                         >
                           {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                             <option key={m} value={m}>{m}월</option>
@@ -1196,7 +966,7 @@ ${daeunContext}
                         <select 
                           value={userData.birthDay}
                           onChange={(e) => setUserData({...userData, birthDay: e.target.value})}
-                          className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                          className={`w-full px-2 py-2 rounded-xl border border-blue-500 text-sm outline-none ${isDarkMode ? 'bg-black/20' : 'bg-gray-50'}`}
                         >
                           {Array.from({length: 31}, (_, i) => i + 1).map(d => (
                             <option key={d} value={d}>{d}일</option>
@@ -1212,7 +982,7 @@ ${daeunContext}
                           <select 
                             value={userData.birthHour}
                             onChange={(e) => setUserData({...userData, birthHour: e.target.value})}
-                            className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                            className={`w-full px-2 py-2 rounded-xl border border-blue-500 text-sm outline-none ${isDarkMode ? 'bg-black/20' : 'bg-gray-50'}`}
                           >
                             {Array.from({length: 24}, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}시</option>
@@ -1224,7 +994,7 @@ ${daeunContext}
                           <select 
                             value={userData.birthMinute}
                             onChange={(e) => setUserData({...userData, birthMinute: e.target.value})}
-                            className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-black/10'}`}
+                            className={`w-full px-2 py-2 rounded-xl border border-blue-500 text-sm outline-none ${isDarkMode ? 'bg-black/20' : 'bg-gray-50'}`}
                           >
                             {Array.from({length: 60}, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m}분</option>
@@ -1247,8 +1017,8 @@ ${daeunContext}
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between p-2 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
-                      <div className="flex items-center gap-1.5 bg-black/10 p-1 rounded-xl w-full">
+                    <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-white'} border border-blue-500`}>
+                      <div className={`flex items-center gap-1.5 ${isDarkMode ? 'bg-white/5' : 'bg-white'} p-1 rounded-xl w-full`}>
                         <button 
                           onClick={() => setUserData({...userData, calendarType: 'solar'})}
                           className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}
@@ -1270,10 +1040,10 @@ ${daeunContext}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-2 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
-                      <div className="flex items-center gap-1.5 bg-black/10 p-1 rounded-xl w-full">
+                    <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-white'} border border-blue-500`}>
+                      <div className={`flex items-center gap-1.5 ${isDarkMode ? 'bg-white/5' : 'bg-white'} p-1 rounded-xl w-full`}>
                         <button onClick={() => setUserData({...userData, gender: 'M'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}>남자</button>
-                        <button onClick={() => setUserData({...userData, gender: 'F'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-rose-600 text-white shadow-md' : 'opacity-40'}`}>여자</button>
+                        <button onClick={() => setUserData({...userData, gender: 'F'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : 'opacity-40'}`}>여자</button>
                       </div>
                     </div>
                   </div>
@@ -1647,31 +1417,14 @@ ${daeunContext}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isListening ? `듣고 있어요... (${countdown}초)` : "무엇이든 물어보세요."}
+                    placeholder="무엇이든 물어보세요."
                     className={`w-full border rounded-xl py-2 pl-3 pr-20 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
                       isDarkMode 
                         ? 'bg-white/5 border-white/10 text-white' 
                         : 'bg-white border-gray-300 text-gray-900'
-                    } ${isListening ? 'animate-pulse border-rose-500/50' : ''}`}
+                    }`}
                   />
                   <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                    {isListening && (
-                      <button 
-                        onClick={() => recognitionRef.current?.stop()}
-                        className="p-1.5 bg-emerald-500 text-white rounded-lg shadow-lg active:scale-90 transition-transform"
-                        title="입력 완료"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button 
-                      onClick={handleChatVoiceInput} 
-                      className={`p-1.5 rounded-lg transition-all ${
-                        isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-gray-400 hover:text-indigo-500'
-                      }`}
-                    >
-                      <Mic className="w-3.5 h-3.5" />
-                    </button>
                     <button onClick={() => handleSend()} className="p-1.5 bg-indigo-600 rounded-lg text-white shadow-lg active:scale-90 transition-transform">
                       <Send className="w-3.5 h-3.5" />
                     </button>
@@ -1942,16 +1695,6 @@ ${daeunContext}
                   </div>
                   <div className="flex-1 p-8 space-y-8">
                     <div className="space-y-6">
-                      <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/20 flex items-center justify-center shrink-0">
-                          <Mic className="w-6 h-6 text-rose-500 animate-pulse" />
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-bold">WELCOME 화면 마이크 클릭</h4>
-                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">마이크를 눌러 음성으로 정보를 입력하세요.</p>
-                        </div>
-                      </div>
-
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center shrink-0">
                           <Clock className="w-6 h-6 text-indigo-500" />
