@@ -445,6 +445,7 @@ const App: React.FC = () => {
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showInputForm, setShowInputForm] = useState(false);
   const [newPost, setNewPost] = useState<Partial<BlogPost>>({
     title: "",
@@ -491,10 +492,16 @@ const App: React.FC = () => {
 
   // Admin Functions
   const handleLogin = async () => {
+    setIsLoggingIn(true);
     try {
+      console.log("Attempting login...");
       await signInWithPopup(auth, googleProvider);
+      console.log("Login successful");
     } catch (error) {
       console.error("Login error:", error);
+      alert("로그인 중 오류가 발생했습니다. 팝업 차단 여부를 확인해 주세요.");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -2622,33 +2629,6 @@ ${daeunContext}
                             </div>
                           </div>
 
-                          {isAdmin && (
-                            <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
-                              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                <span className="text-xs font-bold uppercase tracking-widest">관리자 모드</span>
-                              </div>
-                              <button 
-                                onClick={handleLogout}
-                                className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
-                              >
-                                로그아웃
-                              </button>
-                            </div>
-                          )}
-
-                          {!user && (
-                            <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
-                              <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자이신가요? 로그인하여 블로그 콘텐츠를 관리하세요.</p>
-                              <button 
-                                onClick={handleLogin}
-                                className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
-                              >
-                                관리자 로그인
-                              </button>
-                            </div>
-                          )}
-
                           <div className="hidden lg:block space-y-8">
                             <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">최근 인기 글</h4>
                             <div className="flex flex-col gap-6">
@@ -2669,6 +2649,39 @@ ${daeunContext}
                               ))}
                             </div>
                           </div>
+
+                          {isAdmin && (
+                            <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
+                              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                <span className="text-xs font-bold uppercase tracking-widest">관리자 모드</span>
+                              </div>
+                              <button 
+                                onClick={handleLogout}
+                                className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
+                              >
+                                로그아웃
+                              </button>
+                            </div>
+                          )}
+
+                          {!user && (
+                            <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
+                              <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자이신가요? 로그인하여 블로그 콘텐츠를 관리하세요.</p>
+                              <button 
+                                onClick={handleLogin}
+                                disabled={isLoggingIn}
+                                className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                {isLoggingIn ? (
+                                  <>
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                    로그인 중...
+                                  </>
+                                ) : "관리자 로그인"}
+                              </button>
+                            </div>
+                          )}
                         </aside>
 
                         {/* Main Content List */}
