@@ -442,12 +442,6 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog">("welcome");
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact">("main");
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('hasSeenOnboarding') === 'true';
-    }
-    return false;
-  });
   
   // State
   const [userData, setUserData] = useState<UserData>({
@@ -1076,74 +1070,7 @@ ${daeunContext}
 
   const COLORS = ['#10b981', '#f43f5e', '#f59e0b', '#94a3b8', '#6366f1'];
 
-  const handleOnboardingComplete = () => {
-    setHasSeenOnboarding(true);
-    localStorage.setItem('hasSeenOnboarding', 'true');
-  };
-
-  // Render Onboarding
-  if (!hasSeenOnboarding) {
-    return (
-      <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 ${isDarkMode ? 'bg-[#0a0a0a] text-zinc-100' : 'bg-[#fdfbf7] text-zinc-900'}`}>
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`max-w-lg w-full p-8 md:p-12 rounded-[3rem] shadow-2xl border ${isDarkMode ? 'bg-zinc-900/50 border-white/10' : 'bg-white border-black/5'} relative overflow-hidden`}
-        >
-          {/* Background Pattern */}
-          <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <circle cx="100" cy="0" r="80" fill="none" stroke="currentColor" strokeWidth="0.5" />
-              <circle cx="100" cy="0" r="60" fill="none" stroke="currentColor" strokeWidth="0.5" />
-              <circle cx="100" cy="0" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" />
-            </svg>
-          </div>
-
-          <div className="space-y-8 text-center">
-            <div className="space-y-4">
-              <h1 className="text-2xl md:text-3xl font-serif font-bold leading-tight break-keep">
-                당신의 삶을 비추는 고요한 등불,<br/>
-                <span className="text-indigo-500">"유아이사주상담"</span>에 오신 것을<br/>
-                진심으로 환영합니다
-              </h1>
-              <div className="w-12 h-0.5 bg-indigo-500/30 mx-auto rounded-full" />
-            </div>
-
-            <div className={`text-sm md:text-base leading-relaxed text-left space-y-4 font-serif opacity-80 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar`}>
-              <p>
-                안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다. 
-                유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다. 
-                우리는 수천 년을 이어온 명리학의 깊은 지혜를 가장 정밀한 AI 기술과 결합하여, 
-                당신만을 위한 <strong>'삶의 전략'</strong>을 도출해 내는 전문 사주 상담 플랫폼입니다.
-              </p>
-              <p>
-                <strong>최고의 전문성을 지향합니다:</strong> 유아이는 AI에게 방대하고 정교한 사주 전문 소스를 학습시켜, 
-                그 어떤 곳보다 깊이 있고 체계적인 분석 결과를 제공합니다. 단순한 키워드 나열이 아닌, 
-                당신의 삶을 관통하는 거대한 흐름을 읽어드립니다.
-              </p>
-              <p>
-                <strong>당신의 평온을 최우선으로 합니다:</strong> 고민의 무게를 누구보다 잘 알기에, 
-                유아이는 상담자의 프라이버시를 철저히 보장합니다. 로그인 없이도 당신의 속 깊은 이야기를 나눌 수 있으며, 
-                모든 상담은 오직 당신만을 위한 맞춤형 공간에서 안전하게 진행됩니다.
-              </p>
-              <p>
-                누구에게도 꺼내놓지 못한 고민이 있다면, 이제 유아이의 지혜를 빌려보십시오. 
-                당신의 내일이 오늘보다 더 명료해질 수 있도록 정성을 다해 돕겠습니다.
-              </p>
-            </div>
-
-            <button 
-              onClick={handleOnboardingComplete}
-              className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xl shadow-indigo-500/20 transition-all active:scale-95"
-            >
-              내 운명 확인하러 가기
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
+  // Render Main App
   return (
     <div className={`h-dvh ${isDarkMode ? 'bg-zinc-900' : 'bg-zinc-200'} flex items-center justify-center p-0 md:p-4 overflow-hidden`}>
       {/* Analysis Progress Overlay */}
