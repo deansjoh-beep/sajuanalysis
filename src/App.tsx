@@ -111,6 +111,48 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+// Saju Calculation Tool for Gemini
+const calculateSajuForPerson = (args: any) => {
+  try {
+    const { birthDate, birthTime, isLunar, isLeap, gender, personName, unknownTime } = args;
+    const saju = getSajuData(birthDate, birthTime, isLunar, !!isLeap, !!unknownTime);
+    const daeun = getDaeunData(birthDate, birthTime, isLunar, !!isLeap, gender as 'M' | 'F');
+    const yongshin = calculateYongshin(saju);
+    const gyeok = calculateGyeok(saju);
+    
+    const sajuText = saju.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`).join('\n');
+    const daeunText = daeun.map(d => `${d.startAge}세 대운: ${d.stem.hangul}${d.branch.hangul} (${hanjaToHangul[d.stem]}${hanjaToHangul[d.branch]})`).join(', ');
+    
+    return {
+      personName,
+      saju: sajuText,
+      daeun: daeunText,
+      yongshin: `${yongshin.yongshin} (기운: ${yongshin.strength}, 점수: ${yongshin.score})`,
+      gyeok: `${gyeok.gyeok} (구성: ${gyeok.composition})`
+    };
+  } catch (e) {
+    return { error: "사주 계산 중 오류가 발생했습니다. 날짜와 시간 형식을 확인해주세요. (예: 1990-01-01, 14:30)" };
+  }
+};
+
+const sajuToolDeclaration = {
+  name: "calculateSajuForPerson",
+  parameters: {
+    type: Type.OBJECT,
+    description: "타인의 생년월일시 정보를 바탕으로 사주 팔자와 대운을 계산합니다. 궁합 분석이나 제3자(가족, 친구 등) 상담 시 반드시 이 도구를 사용하여 정확한 데이터를 얻어야 합니다.",
+    properties: {
+      birthDate: { type: Type.STRING, description: "생년월일 (YYYY-MM-DD 형식)" },
+      birthTime: { type: Type.STRING, description: "생시 (HH:mm 형식, 모를 경우 '12:00')" },
+      isLunar: { type: Type.BOOLEAN, description: "음력 여부 (true: 음력, false: 양력)" },
+      isLeap: { type: Type.BOOLEAN, description: "윤달 여부 (음력일 경우에만 해당)" },
+      gender: { type: Type.STRING, description: "성별 ('M': 남성, 'F': 여성)" },
+      personName: { type: Type.STRING, description: "대상자의 이름 또는 호칭 (예: '남자친구', '상대방', '어머니')" },
+      unknownTime: { type: Type.BOOLEAN, description: "생시를 모르는지 여부" }
+    },
+    required: ["birthDate", "birthTime", "isLunar", "gender"]
+  }
+};
+
 // Helper to get Gemini AI instance
 const getGeminiAI = () => {
   const windowKey = (window as any).GEMINI_API_KEY;
@@ -673,7 +715,7 @@ const App: React.FC = () => {
       setMessages([
         { 
           role: "model", 
-          text: `반갑습니다, ${userData.name || '사용자'}님. 당신의 사주 분석이 완료되었습니다. 대시보드에서 당신의 타고난 기운을 확인하실 수 있으며, 궁금한 점은 일대일 상담 탭에서 물어봐 주세요.` 
+          text: `만세력에서 당신의 사주팔자를 확인하셨습니다. 이 상담창에 무엇이든 물어 보세요. 유아이 AI 전문상담자가 대답해 드립니다.` 
         }
       ]);
     } catch (err: any) {
@@ -825,6 +867,11 @@ const App: React.FC = () => {
 - **균형 잡힌 분석:** 무조건적인 긍정보다는 현실적이고 객관적인 분석을 제공하세요. 사주상의 리스크나 주의점(충, 형, 불균형 등)을 명확히 식별하고 전달해야 합니다.
 - **예방적 조언:** 안 좋은 흐름이나 약점이 발견될 경우, 이를 미리 대비하고 예방할 수 있는 구체적인 행동 지침을 반드시 포함하세요. "위기를 기회로 만드는 법"에 집중하세요.
 - **철저한 분석 기반:** 반드시 제공된 사용자의 사주 정보(${sajuContext})와 대운 흐름(${daeunContext})을 명리학적으로 정밀 분석한 결과에만 입각하여 답변하세요.
+- **타인 사주 분석(궁합 등) 및 개인정보 보호:** 사용자가 본인 외의 타인(궁합 상대, 가족 등)의 생년월일시를 제공하며 상담을 요청할 경우, **반드시 먼저 분석 승인을 얻어야 합니다.** 
+  1. 먼저 "제공해주신 정보를 바탕으로 유아이의 정밀 간명 로직을 통해 더욱 정확한 분석을 진행해 드려도 될까요?"라고 정중히 물어보며 승인을 구하세요. 
+  2. 사용자가 동의(승인)한 후에만 \`calculateSajuForPerson\` 도구를 사용하여 데이터를 가져오십시오. 
+  3. 당신이 임의로 계산한 데이터로 상담하는 것은 엄격히 금지됩니다. 반드시 도구를 통해 얻은 정밀 데이터를 바탕으로 분석하세요. 
+  4. 이는 개인정보를 소중히 다루고 상담의 신뢰도를 높이기 위한 필수 절차임을 사용자에게 인지시켜 신뢰를 구축하세요.
 - **MZ 말투:** "반말"은 지양하되, 세련되고 깔끔한 말투를 사용하세요. 적절한 이모지(✨, 🍀, 🔥 등)를 섞어주세요.
 - **전문성:** 사주 명리학적 근거(음양오행, 십성 등)를 언급하되, 어려운 용어는 현대적인 비유로 풀어서 설명하세요.
 - **맥락 유지:** 이전 대화 내용을 기억하고 연결해서 답변하세요.
@@ -841,30 +888,58 @@ ${sajuContext}
 ${daeunContext}
 `;
 
-      const history = messages.map(m => ({
-        role: m.role,
+      const contents: any[] = messages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.text }]
       }));
+      contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
-      const chat = ai.chats.create({
+      let response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        config: { systemInstruction },
-        history: history
+        contents,
+        config: { 
+          systemInstruction,
+          tools: [{ functionDeclarations: [sajuToolDeclaration] }]
+        }
       });
 
-      const response = await chat.sendMessageStream({ message: userMessage });
-      let fullText = "";
-      setMessages(prev => [...prev, { role: "model", text: "" }]);
-
-      for await (const chunk of response) {
-        const text = chunk.text;
-        fullText += text;
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1].text = fullText;
-          return newMessages;
+      // Handle function calls
+      let functionCalls = response.functionCalls;
+      while (functionCalls) {
+        const functionResponses = [];
+        for (const call of functionCalls) {
+          if (call.name === "calculateSajuForPerson") {
+            const result = calculateSajuForPerson(call.args);
+            functionResponses.push({
+              name: call.name,
+              response: result,
+              id: call.id
+            });
+          }
+        }
+        
+        // Add model's call to contents
+        contents.push(response.candidates[0].content);
+        
+        // Add function response to contents
+        contents.push({
+          role: 'user',
+          parts: functionResponses.map(r => ({ functionResponse: r }))
         });
+        
+        response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents,
+          config: { 
+            systemInstruction,
+            tools: [{ functionDeclarations: [sajuToolDeclaration] }]
+          }
+        });
+        functionCalls = response.functionCalls;
       }
+
+      const finalResponseText = response.text || "상담 중 오류가 발생했습니다.";
+      setMessages(prev => [...prev, { role: "model", text: finalResponseText }]);
     } catch (err: any) {
       console.error("Chat error:", err);
       const errorMessage = err?.message || String(err);
@@ -1961,7 +2036,7 @@ ${daeunContext}
             >
               <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full">
                 {/* Desktop Sidebar for Suggestions */}
-                <aside className="hidden md:flex w-72 flex-col border-r border-black/5 dark:border-white/10 p-6 space-y-8 overflow-y-auto">
+                <aside className="hidden md:flex w-72 flex-col border-r border-black/5 dark:border-white/10 p-6 space-y-8 overflow-y-auto relative">
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 카테고리</h4>
                     <div className="flex flex-col gap-1">
@@ -2002,6 +2077,32 @@ ${daeunContext}
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Consultation Tips */}
+                  <div className="space-y-4 pt-4 border-t border-black/5 dark:border-white/5">
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 팁</h4>
+                    <ul className="space-y-3 px-2">
+                      <li className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                        <span className="text-indigo-500 shrink-0">•</span>
+                        <span>생년월일시나 MBTI 같은 정보를 먼저 주세요. 상담이 더욱 풍성해 집니다.</span>
+                      </li>
+                      <li className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                        <span className="text-indigo-500 shrink-0">•</span>
+                        <span>구체적으로 질문하면 더욱 상담이 정교해 집니다.</span>
+                      </li>
+                      <li className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                        <span className="text-indigo-500 shrink-0">•</span>
+                        <span>상대방의 생년월일시를 알려주시면 정확한 궁합 분석이 가능합니다.</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Privacy Notice (Desktop) */}
+                  <div className="mt-auto pt-8">
+                    <p className="text-[9px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
+                      상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
+                    </p>
                   </div>
                 </aside>
 
@@ -2076,7 +2177,7 @@ ${daeunContext}
                       </div>
                     </div>
 
-                    {/* Mobile-only Quick Actions */}
+                    {/* Mobile-only Quick Actions & Privacy Notice */}
                     <div className="md:hidden mt-4 space-y-3">
                       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
                         {CATEGORIES.map((cat) => (
@@ -2109,6 +2210,13 @@ ${daeunContext}
                             {s}
                           </button>
                         ))}
+                      </div>
+
+                      {/* Privacy Notice (Mobile) */}
+                      <div className="pt-4 border-t border-black/5 dark:border-white/5">
+                        <p className="text-[9px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
+                          상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
+                        </p>
                       </div>
                     </div>
                   </div>
