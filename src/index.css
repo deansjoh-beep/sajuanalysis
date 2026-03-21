@@ -21,10 +21,37 @@
 
 @layer utilities {
   .safe-top {
-    padding-top: calc(0.75rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
   }
   .safe-bottom {
-    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top-px {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+  }
+  .safe-bottom-px {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .horizontal-scrollbar {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+  }
+  .horizontal-scrollbar::-webkit-scrollbar {
+    height: 4px;
+  }
+  .horizontal-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .horizontal-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(99, 102, 241, 0.3);
+    border-radius: 20px;
   }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;

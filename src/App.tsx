@@ -446,6 +446,29 @@ const App: React.FC = () => {
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const daeunScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeTab === "dashboard" && daeunScrollRef.current && daeunResult.length > 0) {
+      const timer = setTimeout(() => {
+        const currentAge = 2026 - parseInt(userData.birthYear) + 1;
+        const activeIndex = daeunResult.findIndex((dy, i) => 
+          currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge)
+        );
+        
+        if (activeIndex !== -1) {
+          const container = daeunScrollRef.current;
+          if (container && container.children[activeIndex]) {
+            const activeElement = container.children[activeIndex] as HTMLElement;
+            const scrollLeft = activeElement.offsetLeft - (container.offsetWidth / 2) + (activeElement.offsetWidth / 2);
+            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+          }
+        }
+      }, 300); // Give enough time for the tab transition animation
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, daeunResult, userData.birthYear]);
+
   const [showInputForm, setShowInputForm] = useState(false);
   const [newPost, setNewPost] = useState<Partial<BlogPost>>({
     title: "",
@@ -495,11 +518,23 @@ const App: React.FC = () => {
     setIsLoggingIn(true);
     try {
       console.log("Attempting login...");
-      await signInWithPopup(auth, googleProvider);
-      console.log("Login successful");
-    } catch (error) {
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("Login successful", result.user.email);
+    } catch (error: any) {
       console.error("Login error:", error);
-      alert("로그인 중 오류가 발생했습니다. 팝업 차단 여부를 확인해 주세요.");
+      let errorMessage = "로그인 중 오류가 발생했습니다.";
+      
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = `현재 도메인이 Firebase 승인 도메인에 등록되어 있지 않습니다. Firebase 콘솔에서 다음 도메인을 '승인된 도메인'에 추가해 주세요:\n\n${window.location.hostname}`;
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = "브라우저에서 팝업이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해 주세요.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "로그인 창이 닫혔습니다. 다시 시도해 주세요.";
+      } else {
+        errorMessage = `로그인 실패 (${error.code || 'unknown'}): ${error.message || '알 수 없는 오류가 발생했습니다.'}`;
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsLoggingIn(false);
     }
@@ -1094,7 +1129,7 @@ ${daeunContext}
 
       <div className={`w-full h-full md:h-screen ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-[#1a1a1a]'} overflow-hidden shadow-2xl relative flex flex-col transition-all duration-300 font-sans`}>
         {/* Navigation Header */}
-        <header className={`px-4 py-3 md:px-10 md:py-4 flex items-center justify-between border-b ${isDarkMode ? 'border-white/10 bg-black/80' : 'border-black/5 bg-white/80'} backdrop-blur-xl z-30 sticky top-0`}>
+        <header className={`px-4 py-3 md:px-10 md:py-4 flex items-center justify-between border-b ${isDarkMode ? 'border-white/10 bg-black/80' : 'border-black/5 bg-white/80'} backdrop-blur-xl z-30 sticky top-0 safe-top`}>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg">
               <Sparkles className="text-white w-4 h-4 md:w-5 h-5" />
@@ -1524,7 +1559,8 @@ ${daeunContext}
               exit={{ opacity: 0, x: -20 }}
               className="absolute inset-0 overflow-y-auto p-4 md:p-10 space-y-6 md:space-y-10 hide-scrollbar"
             >
-              <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+              {sajuResult.length > 0 ? (
+                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
                 {/* Left Column */}
                 <div className="space-y-8 md:space-y-12">
                   {/* Saju Grid - 2x4 Layout */}
@@ -1683,7 +1719,7 @@ ${daeunContext}
                     </div>
                     
                     <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}>
-                      <div className="flex flex-wrap gap-4 justify-center pb-2">
+                      <div ref={daeunScrollRef} className="flex overflow-x-auto horizontal-scrollbar gap-6 pb-6 snap-x snap-mandatory scroll-smooth">
                         {daeunResult.length > 0 ? daeunResult.map((dy, i) => {
                           const currentAge = 2026 - parseInt(userData.birthYear) + 1;
                           const isCurrentDaeun = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
@@ -1691,7 +1727,7 @@ ${daeunContext}
                                                 (daeunResult[i+1] && Math.abs(currentAge - daeunResult[i+1].startAge) <= 1);
 
                           return (
-                            <div key={i} className={`w-24 p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
+                            <div key={i} className={`w-24 shrink-0 snap-center p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
                               isCurrentDaeun 
                                 ? 'border-indigo-500 bg-indigo-600/30 shadow-2xl shadow-indigo-500/40 ring-4 ring-indigo-500/30 scale-110 z-10' 
                                 : isDarkMode ? 'border-transparent bg-white/5 opacity-40 hover:opacity-100' : 'border-transparent bg-black/5 opacity-40 hover:opacity-100'
@@ -1834,6 +1870,26 @@ ${daeunContext}
                   </div>
                 </div>
               </div>
+            ) : (
+                <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-20 px-6 text-center space-y-8">
+                  <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center ${isDarkMode ? 'bg-zinc-800' : 'bg-white shadow-xl'}`}>
+                    <LayoutDashboard className={`w-12 h-12 ${isDarkMode ? 'text-zinc-600' : 'text-zinc-300'}`} />
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-2xl font-bold">사주 데이터가 없습니다</h3>
+                    <p className={`max-w-md mx-auto ${isDarkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>
+                      HOME 탭에서 생년월일 정보를 입력하시면<br/>
+                      정밀한 만세력 분석과 대운 정보를 확인하실 수 있습니다.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab("welcome")}
+                    className="px-8 py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
+                  >
+                    정보 입력하러 가기
+                  </button>
+                </div>
+              )}
 
               {/* Navigation Guidance for Dashboard */}
               <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
@@ -1998,7 +2054,7 @@ ${daeunContext}
                   </div>
 
                   {/* Input Area */}
-                  <div className={`p-4 border-t ${
+                  <div className={`p-4 border-t pb-safe md:pb-4 ${
                     isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
                   }`}>
                     <div className="max-w-3xl mx-auto relative">
@@ -2914,8 +2970,8 @@ ${daeunContext}
         </AnimatePresence>
       </main>
 
-      <nav className={`md:hidden px-4 pt-1 pb-8 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30`}>
-        <div className="max-w-md mx-auto flex items-center justify-around pb-safe">
+      <nav className={`md:hidden px-4 pt-1 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30 safe-bottom-px`}>
+        <div className="max-w-md mx-auto flex items-center justify-around">
           {[
             { id: "welcome", icon: User, label: "HOME" },
             { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
