@@ -2711,7 +2711,7 @@ ${daeunContext}
                                   className={`whitespace-nowrap text-left px-6 py-4 rounded-[1.25rem] text-sm font-bold transition-all duration-300 ${
                                     blogCategory === cat 
                                       ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02]' 
-                                      : 'bg-white dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 border border-black/5 dark:border-white/5'
+                                      : 'bg-white dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 border border-black/5 dark:border-white/5'
                                   }`}
                                 >
                                   {cat}
@@ -2729,7 +2729,7 @@ ${daeunContext}
                                   onClick={() => setSelectedBlogPost(post)}
                                   className="group text-left space-y-2.5"
                                 >
-                                  <p className="text-sm font-bold leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
+                                  <p className="text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
                                     {post.title}
                                   </p>
                                   <div className="flex items-center gap-2 opacity-40">
@@ -2967,12 +2967,12 @@ ${daeunContext}
                                     )}
                                   </div>
                                   <div className="p-8 space-y-4 flex-1 flex flex-col">
-                                    <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-medium">
+                                    <div className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
                                       <Calendar className="w-3 h-3" />
                                       <span>{post.date}</span>
                                     </div>
-                                    <h3 className="font-bold text-xl leading-tight line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => setSelectedBlogPost(post)}>{post.title}</h3>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-3 leading-relaxed flex-1">
+                                    <h3 className="font-bold text-xl leading-tight line-clamp-2 text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => setSelectedBlogPost(post)}>{post.title}</h3>
+                                    <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 leading-relaxed flex-1">
                                       {post.content.replace(/[#*`]/g, '').slice(0, 120)}...
                                     </p>
                                     <button 
