@@ -26,7 +26,8 @@ import {
   Waves,
   Download,
   Mail,
-  Check
+  Check,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
@@ -479,6 +480,35 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  
+  // Weekly Recommended Content Logic
+  const recommendedPosts = useMemo(() => {
+    const allPosts = blogPosts.length > 0 ? blogPosts : BLOG_POSTS;
+    if (allPosts.length === 0) return [];
+    
+    // Get current week number (0-52)
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
+    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+    
+    // Simple seeded random based on week and year
+    const seed = now.getFullYear() * 100 + weekNumber;
+    const seededRandom = (s: number) => {
+      const x = Math.sin(s) * 10000;
+      return x - Math.floor(x);
+    };
+
+    // Shuffle and pick 3
+    const shuffled = [...allPosts].sort((a, b) => {
+      const hashA = seededRandom(seed + a.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
+      const hashB = seededRandom(seed + b.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
+      return hashA - hashB;
+    });
+
+    return shuffled.slice(0, 3);
+  }, [blogPosts]);
+
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -1264,59 +1294,27 @@ ${daeunContext}
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Latest Blog Card */}
-                        <div 
-                          onClick={() => {
-                            setSelectedBlogPost(BLOG_POSTS.find(p => p.id === "1") || null);
-                            setActiveTab("blog");
-                          }}
-                          className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}
-                        >
-                          <div className="aspect-video overflow-hidden relative">
-                            <img src={BLOG_POSTS.find(p => p.id === "1")?.imageUrl} alt="Latest" className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
-                            <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-widest">Latest</div>
+                        {recommendedPosts.map((post, idx) => (
+                          <div 
+                            key={post.id}
+                            onClick={() => {
+                              setSelectedBlogPost(post);
+                              setActiveTab("blog");
+                            }}
+                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}
+                          >
+                            <div className="aspect-video overflow-hidden relative">
+                              <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
+                              <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                                {idx === 0 ? 'Latest' : idx === 1 ? 'Popular' : 'Pick'}
+                              </div>
+                            </div>
+                            <div className="p-6 space-y-2">
+                              <h4 className="font-bold line-clamp-1 text-zinc-900 dark:text-zinc-100">{post.title}</h4>
+                              <p className="text-xs opacity-60 line-clamp-2 text-zinc-600 dark:text-zinc-400">{post.excerpt || post.content.replace(/[#*`]/g, '').slice(0, 80)}</p>
+                            </div>
                           </div>
-                          <div className="p-6 space-y-2">
-                            <h4 className="font-bold line-clamp-1">2026년 병오년 운세 총정리</h4>
-                            <p className="text-xs opacity-60 line-clamp-2">붉은 말의 해, 병오년이 다가옵니다. 당신의 일간별 핵심 운세를 미리 확인하세요.</p>
-                          </div>
-                        </div>
-
-                        {/* Popular Blog Card */}
-                        <div 
-                          onClick={() => {
-                            setSelectedBlogPost(BLOG_POSTS.find(p => p.id === "2") || null);
-                            setActiveTab("blog");
-                          }}
-                          className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}
-                        >
-                          <div className="aspect-video overflow-hidden relative">
-                            <img src={BLOG_POSTS.find(p => p.id === "2")?.imageUrl} alt="Popular" className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
-                            <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-rose-500 text-white text-[10px] font-bold uppercase tracking-widest">Popular</div>
-                          </div>
-                          <div className="p-6 space-y-2">
-                            <h4 className="font-bold line-clamp-1">내 사주에 부족한 오행 채우는 법</h4>
-                            <p className="text-xs opacity-60 line-clamp-2">색상, 음식, 습관을 통해 운의 균형을 맞추는 꿀팁을 공개합니다.</p>
-                          </div>
-                        </div>
-
-                        {/* What is Saju Card */}
-                        <div 
-                          onClick={() => {
-                            setSelectedBlogPost(BLOG_POSTS.find(p => p.id === "4") || null);
-                            setActiveTab("blog");
-                          }}
-                          className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}
-                        >
-                          <div className="aspect-video overflow-hidden relative">
-                            <img src={BLOG_POSTS.find(p => p.id === "4")?.imageUrl} alt="Saju" className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
-                            <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-widest">Guide</div>
-                          </div>
-                          <div className="p-6 space-y-2">
-                            <h4 className="font-bold line-clamp-1">사주팔자란 무엇인가?</h4>
-                            <p className="text-xs opacity-60 line-clamp-2">사주팔자는 우리 인생의 소중한 '내비게이션' 같은 존재입니다. 네 개의 기둥과 여덟 개의 글자가 담고 있는 의미를 쉽게 풀어드립니다.</p>
-                          </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
 
@@ -1945,10 +1943,28 @@ ${daeunContext}
               </div>
 
               {/* Disclaimer (Moved to bottom) */}
-              <div className="max-w-3xl mx-auto p-6 rounded-3xl bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/5 mt-12 mb-20">
+              <div className="max-w-3xl mx-auto p-6 rounded-3xl bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/5 mt-12">
                 <p className="text-[10px] md:text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed text-center font-medium">
                   본 분석 결과는 인공지능의 해석이며, 과학적 사실이 아닌 참고 용도로만 사용해 주세요. 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                 </p>
+              </div>
+
+              {/* External Manse-ryeok Calendar Link */}
+              <div className="max-w-3xl mx-auto flex justify-center mt-8 mb-20">
+                <a 
+                  href="https://k-manseryeok.vercel.app/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg ${
+                    isDarkMode 
+                      ? 'bg-zinc-800 text-white border border-white/10 hover:bg-zinc-700' 
+                      : 'bg-white text-zinc-900 border border-black/5 hover:bg-zinc-50'
+                  }`}
+                >
+                  <Calendar className="w-5 h-5 text-indigo-500" />
+                  만세력 으로 표시한 달력
+                  <ExternalLink className="w-4 h-4 opacity-40" />
+                </a>
               </div>
             </motion.div>
           )}
