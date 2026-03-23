@@ -560,7 +560,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      setIsAdmin(firebaseUser?.email === "dean.sj.oh@gmail.com");
+      setIsAdmin(firebaseUser?.email === "dean.uitrading@gmail.com");
     });
     return () => unsubscribe();
   }, []);
@@ -2544,7 +2544,7 @@ ${daeunContext}
 ## 운영 정보
 - **운영팀**: 유아이 사주 전략 연구소 (UI Saju Lab)
 - **대표 디렉터**: 오세진
-- **문의**: [dean.sj.oh@gmail.com](mailto:dean.sj.oh@gmail.com)
+- **문의**: [dean.uitrading@gmail.com](mailto:dean.uitrading@gmail.com)
 - **웹사이트**: [https://ais-pre-wuknjkjkvoeqlkc6y4jenr-502458168031.asia-east1.run.app](https://ais-pre-wuknjkjkvoeqlkc6y4jenr-502458168031.asia-east1.run.app)
                         `}</ReactMarkdown>
                       )}
@@ -2622,7 +2622,7 @@ ${daeunContext}
 유아이 사주상담 서비스 이용 중 궁금한 점이나 제안하고 싶은 내용이 있다면 언제든지 연락해 주세요.
 
 ## 연락처 정보
-- **이메일**: [dean.sj.oh@gmail.com](mailto:dean.sj.oh@gmail.com)
+- **이메일**: [dean.uitrading@gmail.com](mailto:dean.uitrading@gmail.com)
 - **운영 시간**: 언제든 가능
 
 ## 제휴 및 비즈니스 문의
