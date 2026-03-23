@@ -27,7 +27,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-             request.auth.token.email == "dean.uitrading@gmail.com" && 
+             (request.auth.token.email == "dean.uitrading@gmail.com" || 
+              request.auth.token.email == "dean.sj.oh@gmail.com") && 
              request.auth.token.email_verified == true;
     }
 
@@ -38,7 +39,8 @@ service cloud.firestore {
              data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
              data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.createdAt is timestamp &&
-             data.authorUid is string && data.authorUid == request.auth.uid;
+             data.authorUid is string && data.authorUid == request.auth.uid &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500));
     }
 
     // ===============================================================

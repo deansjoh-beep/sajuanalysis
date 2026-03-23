@@ -658,8 +658,10 @@ const App: React.FC = () => {
         category: "사주기초",
         imageUrl: `https://picsum.photos/seed/${Math.random().toString(36).substring(7)}/800/600`
       });
+      alert("블로그 글이 성공적으로 저장되었습니다.");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, "blogPosts");
+      alert("블로그 글 저장 중 오류가 발생했습니다.");
     }
   };
 
@@ -674,8 +676,10 @@ const App: React.FC = () => {
         imageUrl: isEditingPost.imageUrl
       });
       setIsEditingPost(null);
+      alert("블로그 글이 성공적으로 수정되었습니다.");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `blogPosts/${isEditingPost.id}`);
+      alert("블로그 글 수정 중 오류가 발생했습니다.");
     }
   };
 
@@ -684,8 +688,10 @@ const App: React.FC = () => {
     try {
       await deleteDoc(doc(db, "blogPosts", postId));
       if (selectedBlogPost?.id === postId) setSelectedBlogPost(null);
+      alert("블로그 글이 삭제되었습니다.");
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `blogPosts/${postId}`);
+      alert("블로그 글 삭제 중 오류가 발생했습니다.");
     }
   };
 
