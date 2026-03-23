@@ -536,6 +536,7 @@ const App: React.FC = () => {
   }, [activeTab, daeunResult, userData.birthYear]);
 
   const [showInputForm, setShowInputForm] = useState(false);
+  const [isAgreed, setIsAgreed] = useState(false);
   const [newPost, setNewPost] = useState<Partial<BlogPost>>({
     title: "",
     content: "",
@@ -1194,6 +1195,17 @@ ${daeunContext}
           </nav>
 
           <div className="flex items-center gap-1 md:gap-4">
+            {activeTab === "chat" && (
+              <button 
+                onClick={handleDownloadChat}
+                disabled={messages.length === 0}
+                className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-indigo-500/10 text-indigo-500 transition-all flex items-center gap-2 disabled:opacity-30 group"
+                title="상담 내용 저장"
+              >
+                <Download className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+                <span className="hidden md:block text-sm font-bold">텍스트 저장</span>
+              </button>
+            )}
             <button 
               onClick={handleReset} 
               className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-rose-500/10 text-rose-500 transition-all flex items-center gap-2 group"
@@ -1410,138 +1422,164 @@ ${daeunContext}
                     </div>
 
                     <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/10' : 'bg-white border-blue-500 shadow-xl'} space-y-6`}>
-                      <div className="space-y-1">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>사용자 이름</label>
+                      <div className={`flex items-center gap-3 p-4 rounded-2xl transition-all border ${isAgreed ? (isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200') : (isDarkMode ? 'bg-zinc-800/50 border-white/5' : 'bg-zinc-50 border-zinc-200')}`}>
                         <input 
-                          type="text" 
-                          placeholder="이름을 입력하세요"
-                          value={userData.name}
-                          onChange={(e) => setUserData({...userData, name: e.target.value})}
-                          className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                          type="checkbox" 
+                          id="privacyAgree"
+                          checked={isAgreed}
+                          onChange={(e) => setIsAgreed(e.target.checked)}
+                          className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                         />
+                        <label htmlFor="privacyAgree" className={`text-sm font-bold cursor-pointer transition-colors ${isAgreed ? (isDarkMode ? 'text-indigo-300' : 'text-indigo-900') : (isDarkMode ? 'text-zinc-500' : 'text-zinc-400')}`}>
+                          개인정보 이용에 동의합니다
+                        </label>
                       </div>
 
-                      {/* Dropdown Inputs */}
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>년도</label>
-                            <select 
-                              value={userData.birthYear}
-                              onChange={(e) => setUserData({...userData, birthYear: e.target.value})}
-                              className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
-                            >
-                              {Array.from({length: 100}, (_, i) => 2026 - i).map(y => (
-                                <option key={y} value={y} className="dark:bg-zinc-900">{y}년</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>월</label>
-                            <select 
-                              value={userData.birthMonth}
-                              onChange={(e) => setUserData({...userData, birthMonth: e.target.value})}
-                              className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
-                            >
-                              {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                                <option key={m} value={m} className="dark:bg-zinc-900">{m}월</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>일</label>
-                            <select 
-                              value={userData.birthDay}
-                              onChange={(e) => setUserData({...userData, birthDay: e.target.value})}
-                              className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
-                            >
-                              {Array.from({length: 31}, (_, i) => i + 1).map(d => (
-                                <option key={d} value={d} className="dark:bg-zinc-900">{d}일</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {!userData.unknownTime && (
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>시</label>
-                              <select 
-                                value={userData.birthHour}
-                                onChange={(e) => setUserData({...userData, birthHour: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
-                              >
-                                {Array.from({length: 24}, (_, i) => i).map(h => (
-                                  <option key={h} value={h} className="dark:bg-zinc-900">{h}시</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>분</label>
-                              <select 
-                                value={userData.birthMinute}
-                                onChange={(e) => setUserData({...userData, birthMinute: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
-                              >
-                                {Array.from({length: 60}, (_, i) => i).map(m => (
-                                  <option key={m} value={m} className="dark:bg-zinc-900">{m}분</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 ml-1">
+                      <div className={`space-y-6 transition-all ${!isAgreed ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'}`}>
+                        <div className="space-y-1">
+                          <label className={`text-[11px] font-bold uppercase tracking-widest ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>사용자 이름</label>
                           <input 
-                            type="checkbox" 
-                            id="unknownTime"
-                            checked={userData.unknownTime}
-                            onChange={(e) => setUserData({...userData, unknownTime: e.target.checked})}
-                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            type="text" 
+                            placeholder="이름을 입력하세요"
+                            value={userData.name}
+                            disabled={!isAgreed}
+                            onChange={(e) => setUserData({...userData, name: e.target.value})}
+                            className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
                           />
-                          <label htmlFor="unknownTime" className={`text-sm font-medium ${isDarkMode ? 'text-zinc-400' : 'opacity-70'}`}>생시를 몰라요</label>
                         </div>
-                      </div>
 
-                      <div className="flex flex-col gap-2">
-                        <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-blue-500'} border`}>
-                          <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
-                            <button 
-                              onClick={() => setUserData({...userData, calendarType: 'solar'})}
-                              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
-                            >
-                              양력
-                            </button>
-                            <button 
-                              onClick={() => setUserData({...userData, calendarType: 'lunar'})}
-                              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
-                            >
-                              음력(평)
-                            </button>
-                            <button 
-                              onClick={() => setUserData({...userData, calendarType: 'leap'})}
-                              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
-                            >
-                              음력(윤)
-                            </button>
+                        {/* Dropdown Inputs */}
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>년도</label>
+                              <select 
+                                value={userData.birthYear}
+                                disabled={!isAgreed}
+                                onChange={(e) => setUserData({...userData, birthYear: e.target.value})}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                              >
+                                {Array.from({length: 100}, (_, i) => 2026 - i).map(y => (
+                                  <option key={y} value={y} className="dark:bg-zinc-900">{y}년</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>월</label>
+                              <select 
+                                value={userData.birthMonth}
+                                disabled={!isAgreed}
+                                onChange={(e) => setUserData({...userData, birthMonth: e.target.value})}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                              >
+                                {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+                                  <option key={m} value={m} className="dark:bg-zinc-900">{m}월</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>일</label>
+                              <select 
+                                value={userData.birthDay}
+                                disabled={!isAgreed}
+                                onChange={(e) => setUserData({...userData, birthDay: e.target.value})}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                              >
+                                {Array.from({length: 31}, (_, i) => i + 1).map(d => (
+                                  <option key={d} value={d} className="dark:bg-zinc-900">{d}일</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {!userData.unknownTime && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>시</label>
+                                <select 
+                                  value={userData.birthHour}
+                                  disabled={!isAgreed}
+                                  onChange={(e) => setUserData({...userData, birthHour: e.target.value})}
+                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                >
+                                  {Array.from({length: 24}, (_, i) => i).map(h => (
+                                    <option key={h} value={h} className="dark:bg-zinc-900">{h}시</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>분</label>
+                                <select 
+                                  value={userData.birthMinute}
+                                  disabled={!isAgreed}
+                                  onChange={(e) => setUserData({...userData, birthMinute: e.target.value})}
+                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                >
+                                  {Array.from({length: 60}, (_, i) => i).map(m => (
+                                    <option key={m} value={m} className="dark:bg-zinc-900">{m}분</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2 ml-1">
+                            <input 
+                              type="checkbox" 
+                              id="unknownTime"
+                              disabled={!isAgreed}
+                              checked={userData.unknownTime}
+                              onChange={(e) => setUserData({...userData, unknownTime: e.target.checked})}
+                              className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <label htmlFor="unknownTime" className={`text-sm font-medium ${isDarkMode ? 'text-zinc-400' : 'opacity-70'}`}>생시를 몰라요</label>
                           </div>
                         </div>
 
-                        <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-blue-500'} border`}>
-                          <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
-                            <button onClick={() => setUserData({...userData, gender: 'M'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>남자</button>
-                            <button onClick={() => setUserData({...userData, gender: 'F'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>여자</button>
+                        <div className="flex flex-col gap-2">
+                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-blue-500'} border`}>
+                            <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
+                              <button 
+                                onClick={() => setUserData({...userData, calendarType: 'solar'})}
+                                disabled={!isAgreed}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
+                              >
+                                양력
+                              </button>
+                              <button 
+                                onClick={() => setUserData({...userData, calendarType: 'lunar'})}
+                                disabled={!isAgreed}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
+                              >
+                                음력(평)
+                              </button>
+                              <button 
+                                onClick={() => setUserData({...userData, calendarType: 'leap'})}
+                                disabled={!isAgreed}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
+                              >
+                                음력(윤)
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-blue-500'} border`}>
+                            <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
+                              <button onClick={() => setUserData({...userData, gender: 'M'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>남자</button>
+                              <button onClick={() => setUserData({...userData, gender: 'F'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>여자</button>
+                            </div>
                           </div>
                         </div>
+                        
+                        <button 
+                          onClick={handleStart}
+                          disabled={!isAgreed}
+                          className={`w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform ${!isAgreed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          운세 분석 시작
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
                       </div>
-                      
-                      <button 
-                        onClick={handleStart}
-                        className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform"
-                      >
-                        운세 분석 시작
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
                     </div>
                     
                     <p className={`text-center text-xs tracking-tight pb-2 ${isDarkMode ? 'text-zinc-600' : 'opacity-30'}`}>정확한 분석을 위해 태어난 시간을 꼭 확인해 주세요.</p>
@@ -1979,15 +2017,15 @@ ${daeunContext}
             >
               <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full">
                 {/* Desktop Sidebar for Suggestions */}
-                <aside className="hidden md:flex w-72 flex-col border-r border-black/5 dark:border-white/10 p-6 space-y-8 overflow-y-auto relative">
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 카테고리</h4>
+                <aside className="hidden md:flex w-64 flex-col border-r border-black/5 dark:border-white/10 p-4 space-y-6 overflow-y-auto relative">
+                  <div className="space-y-3">
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 카테고리</h4>
                     <div className="flex flex-col gap-1">
                       {CATEGORIES.map((cat) => (
                         <button
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
-                          className={`text-left px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+                          className={`text-left px-4 py-2 rounded-2xl text-sm font-bold transition-all ${
                             selectedCategory === cat
                               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                               : 'hover:bg-indigo-500/10 text-zinc-500 dark:text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400'
@@ -1999,9 +2037,9 @@ ${daeunContext}
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between px-2">
-                      <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">추천 질문</h4>
+                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">추천 질문</h4>
                       <button 
                         onClick={() => setRefreshKey(prev => prev + 1)}
                         className="p-1 hover:bg-indigo-500/10 rounded-lg text-indigo-500 transition-colors"
@@ -2014,7 +2052,7 @@ ${daeunContext}
                         <button
                           key={i}
                           onClick={() => handleSuggestionClick(s)}
-                          className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[11px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
+                          className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[13px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
                         >
                           {s}
                         </button>
@@ -2023,18 +2061,18 @@ ${daeunContext}
                   </div>
 
                   {/* Consultation Tips */}
-                  <div className="space-y-4 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 팁</h4>
-                    <ul className="space-y-3 px-2">
-                      <li className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                  <div className="space-y-3 pt-4 border-t border-black/5 dark:border-white/5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 팁</h4>
+                    <ul className="space-y-2 px-2">
+                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>생년월일시나 MBTI 같은 정보를 먼저 주세요. 상담이 더욱 풍성해 집니다.</span>
                       </li>
-                      <li className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>구체적으로 질문하면 더욱 상담이 정교해 집니다.</span>
                       </li>
-                      <li className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>상대방의 생년월일시를 알려주시면 정확한 궁합 분석이 가능합니다.</span>
                       </li>
@@ -2042,8 +2080,8 @@ ${daeunContext}
                   </div>
 
                   {/* Privacy Notice (Desktop) */}
-                  <div className="mt-auto pt-8">
-                    <p className="text-[9px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
+                  <div className="mt-auto pt-6">
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
                       상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
                     </p>
                   </div>
@@ -2051,32 +2089,16 @@ ${daeunContext}
 
                 {/* Main Chat Area */}
                 <div className="flex-1 flex flex-col overflow-hidden relative">
-                  {/* Chat Header */}
-                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-gray-100'}`}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-sm font-bold opacity-80">유아이(UI)와 실시간 상담</span>
-                    </div>
-                    <button 
-                      onClick={handleDownloadChat}
-                      disabled={messages.length === 0}
-                      className="p-2.5 rounded-xl hover:bg-indigo-500/10 text-indigo-500 transition-colors disabled:opacity-30"
-                      title="상담 내용 저장"
-                    >
-                      <Download className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 hide-scrollbar">
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 hide-scrollbar">
                     {messages.length === 0 && (
                       <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
-                        <MessageCircle className="w-12 h-12" />
-                        <p className="text-sm">궁금한 점을 물어보세요.<br/>당신의 사주를 기반으로 답변해 드립니다.</p>
+                        <MessageCircle className="w-14 h-14" />
+                        <p className="text-lg">궁금한 점을 물어보세요.<br/>당신의 사주를 기반으로 답변해 드립니다.</p>
                       </div>
                     )}
                     {messages.map((msg, i) => (
                       <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                        <div className={`max-w-[90%] md:max-w-[75%] p-5 rounded-2xl text-lg leading-relaxed shadow-sm ${
                           msg.role === 'user' 
                             ? 'bg-indigo-600 text-white rounded-tr-none' 
                             : isDarkMode 
@@ -2088,77 +2110,81 @@ ${daeunContext}
                       </div>
                     ))}
                     {loading && (
-                      <div className={`flex items-center gap-3 px-4 py-2 rounded-full w-fit border ${
+                      <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full w-fit border ${
                         isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100 border-gray-200'
                       }`}>
-                        <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-                        <span className={`text-xs ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
+                        <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
+                        <span className={`text-sm ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
                       </div>
                     )}
                   </div>
 
                   {/* Input Area */}
-                  <div className={`p-4 border-t pb-safe md:pb-4 ${
+                  <div className={`p-1.5 border-t pb-safe md:pb-2 ${
                     isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
                   }`}>
-                    <div className="max-w-3xl mx-auto relative">
+                    <div className="max-w-4xl mx-auto relative">
                       <input 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         placeholder="메시지를 입력하세요..."
-                        className={`w-full border rounded-2xl py-3.5 pl-5 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
+                        className={`w-full border rounded-2xl py-1.5 pl-4 pr-14 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
                           isDarkMode 
                             ? 'bg-white/5 border-white/10 text-white' 
                             : 'bg-white border-gray-300 text-gray-900'
                         }`}
                       />
-                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
-                        <button onClick={() => handleSend()} className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
-                          <Send className="w-4 h-4" />
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                        <button onClick={() => handleSend()} className="p-1.5 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
+                          <Send className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
 
                     {/* Mobile-only Quick Actions & Privacy Notice */}
-                    <div className="md:hidden mt-4 space-y-3">
-                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
-                        {CATEGORIES.map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
-                              selectedCategory === cat
-                                ? 'bg-indigo-600 border-indigo-600 text-white'
-                                : isDarkMode
-                                  ? 'bg-white/5 border-white/10 text-zinc-300'
-                                  : 'bg-white border-gray-200 text-gray-500'
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        {suggestions.slice(0, 2).map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSuggestionClick(s)}
-                            className={`w-fit text-right px-3 py-1.5 rounded-xl border text-[10px] transition-all ${
-                              isDarkMode 
-                                ? 'bg-white/10 border-white/10 text-zinc-200'
-                                : 'bg-white border-gray-200 text-gray-700 shadow-sm'
-                            }`}
-                          >
-                            {s}
-                          </button>
-                        ))}
+                    <div className="md:hidden mt-1 space-y-1">
+                      <div className="grid grid-cols-[1fr_2.5fr] gap-1">
+                        {/* Left: Categories */}
+                        <div className="flex flex-col gap-1">
+                          {CATEGORIES.map((cat) => (
+                            <button
+                              key={cat}
+                              onClick={() => setSelectedCategory(cat)}
+                              className={`w-full px-1 py-1 rounded-lg text-[12px] font-bold transition-all border text-center ${
+                                selectedCategory === cat
+                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                  : isDarkMode
+                                    ? 'bg-white/5 border-white/10 text-zinc-300'
+                                    : 'bg-white border-gray-200 text-gray-500'
+                              }`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Right: Suggestions */}
+                        <div className="flex flex-col items-end gap-1">
+                          {suggestions.slice(0, 3).map((s, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleSuggestionClick(s)}
+                              className={`w-fit text-right px-2 py-1 rounded-lg border text-[12px] leading-tight transition-all flex items-center min-h-[28px] ${
+                                isDarkMode 
+                                  ? 'bg-white/5 border-white/10 text-zinc-200'
+                                  : 'bg-white border-gray-200 text-gray-700 shadow-sm'
+                              }`}
+                            >
+                              <span className="line-clamp-2">{s}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       {/* Privacy Notice (Mobile) */}
-                      <div className="pt-4 border-t border-black/5 dark:border-white/5">
-                        <p className="text-[9px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
-                          상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
+                      <div className="pt-1 border-t border-black/5 dark:border-white/5">
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center leading-tight">
+                          상담 정보는 상담 종료 시 자동 파기됩니다.
                         </p>
                       </div>
                     </div>
