@@ -229,15 +229,15 @@ const HanjaBox: React.FC<{
 
   // Metal Special Rules (庚, 申, 辛, 酉)
   if (element === 'metal') {
-    const silverColor = isDarkMode ? 'bg-zinc-400 border-zinc-400' : 'bg-zinc-500 border-zinc-500';
-    const whiteColor = isDarkMode ? 'bg-zinc-200 border-zinc-200' : 'bg-white border-zinc-300';
+    const silverColor = isDarkMode ? 'bg-zinc-400 border-zinc-400' : 'bg-zinc-100 border-zinc-200';
+    const whiteColor = isDarkMode ? 'bg-zinc-200 border-zinc-200' : 'bg-white border-zinc-100';
     
     if (isYang) {
       // Yang Metal: White background, Silver text
       return (
         <div className="relative">
           {deityPosition === 'top' && deityEl}
-          <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-500'} border-2 flex items-center justify-center font-bold`}>
+          <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-400'} border flex items-center justify-center font-bold`}>
             {hanja}
           </div>
           {deityPosition === 'bottom' && deityEl}
@@ -248,7 +248,7 @@ const HanjaBox: React.FC<{
       return (
         <div className="relative">
           {deityPosition === 'top' && deityEl}
-          <div className={`${sizeClasses[size]} ${silverColor} text-white border-2 flex items-center justify-center font-bold`}>
+          <div className={`${sizeClasses[size]} ${silverColor} ${isDarkMode ? 'text-white' : 'text-zinc-600'} border flex items-center justify-center font-bold`}>
             {hanja}
           </div>
           {deityPosition === 'bottom' && deityEl}
@@ -380,11 +380,11 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
   return (
     <div className="space-y-3">
       {greeting && (
-        <div className={`p-8 rounded-[2.5rem] ${
+        <div className={`p-6 md:p-8 rounded-[2.5rem] ${
           isDarkMode 
             ? 'bg-indigo-950/60 text-indigo-50 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1)]' 
             : 'bg-indigo-50 text-indigo-950 border-indigo-100'
-        } font-handwriting text-3xl leading-relaxed mb-8 shadow-sm border`}>
+        } font-handwriting text-2xl md:text-3xl leading-relaxed mb-8 shadow-sm border`}>
           <ReactMarkdown>{greeting}</ReactMarkdown>
         </div>
       )}
@@ -1279,7 +1279,7 @@ ${daeunContext}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <button 
                         onClick={() => setShowInputForm(true)}
-                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-indigo-600/10 border-indigo-500/30 hover:bg-indigo-600/20' : 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100 shadow-xl shadow-indigo-500/5'}`}
+                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-indigo-600/10 border-indigo-500/30 hover:bg-indigo-600/20' : 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100 shadow-xl shadow-indigo-500/10'}`}
                       >
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                           <User className="text-white w-6 h-6" />
@@ -1293,7 +1293,7 @@ ${daeunContext}
 
                       <button 
                         onClick={() => setActiveTab("blog")}
-                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5'}`}
+                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-indigo-50 hover:bg-zinc-50 shadow-xl shadow-zinc-200/50'}`}
                       >
                         <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
                           <Newspaper className="text-white w-6 h-6" />
@@ -1307,7 +1307,7 @@ ${daeunContext}
 
                       <button 
                         onClick={() => setActiveTab("guide")}
-                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5'}`}
+                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-indigo-50 hover:bg-zinc-50 shadow-xl shadow-zinc-200/50'}`}
                       >
                         <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20">
                           <Compass className="text-white w-6 h-6" />
@@ -1335,7 +1335,7 @@ ${daeunContext}
                               setSelectedBlogPost(post);
                               setActiveTab("blog");
                             }}
-                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}
+                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-lg shadow-zinc-200/40'}`}
                           >
                             <div className="aspect-video overflow-hidden relative">
                               <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
@@ -1354,7 +1354,7 @@ ${daeunContext}
 
                     {/* Feature Highlight Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className={`p-8 rounded-[3rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-xl'} space-y-6`}>
+                      <div className={`p-8 rounded-[3rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-2xl shadow-indigo-500/5'} space-y-6`}>
                         <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center">
                           <Zap className="text-violet-500 w-8 h-8" />
                         </div>
@@ -1380,7 +1380,7 @@ ${daeunContext}
                         </button>
                       </div>
 
-                      <div className={`p-8 rounded-[3rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-black/5 shadow-xl'} space-y-6`}>
+                      <div className={`p-8 rounded-[3rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-2xl shadow-indigo-500/5'} space-y-6`}>
                         <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
                           <FileText className="text-indigo-500 w-8 h-8" />
                         </div>
@@ -1483,7 +1483,7 @@ ${daeunContext}
                       </p>
                     </div>
 
-                    <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/10' : 'bg-white border-blue-500 shadow-xl'} space-y-6`}>
+                    <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/10' : 'bg-white border-indigo-100 shadow-xl'} space-y-6`}>
                       <div className={`flex items-center gap-3 p-4 rounded-2xl transition-all border ${isAgreed ? (isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200') : (isDarkMode ? 'bg-zinc-800/50 border-white/5' : 'bg-zinc-50 border-zinc-200')}`}>
                         <input 
                           type="checkbox" 
@@ -1499,14 +1499,14 @@ ${daeunContext}
 
                       <div className={`space-y-6 transition-all ${!isAgreed ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'}`}>
                         <div className="space-y-1">
-                          <label className={`text-[11px] font-bold uppercase tracking-widest ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>사용자 이름</label>
+                          <label className={`text-[11px] font-bold uppercase tracking-widest ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>사용자 이름</label>
                           <input 
                             type="text" 
                             placeholder="이름을 입력하세요"
                             value={userData.name}
                             disabled={!isAgreed}
                             onChange={(e) => setUserData({...userData, name: e.target.value})}
-                            className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                            className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
                           />
                         </div>
 
@@ -1514,12 +1514,12 @@ ${daeunContext}
                         <div className="space-y-2">
                           <div className="grid grid-cols-3 gap-2">
                             <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>년도</label>
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>년도</label>
                               <select 
                                 value={userData.birthYear}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({...userData, birthYear: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
                               >
                                 {Array.from({length: 100}, (_, i) => 2026 - i).map(y => (
                                   <option key={y} value={y} className="dark:bg-zinc-900">{y}년</option>
@@ -1527,12 +1527,12 @@ ${daeunContext}
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>월</label>
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>월</label>
                               <select 
                                 value={userData.birthMonth}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({...userData, birthMonth: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
                               >
                                 {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                                   <option key={m} value={m} className="dark:bg-zinc-900">{m}월</option>
@@ -1540,12 +1540,12 @@ ${daeunContext}
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>일</label>
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>일</label>
                               <select 
                                 value={userData.birthDay}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({...userData, birthDay: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
                               >
                                 {Array.from({length: 31}, (_, i) => i + 1).map(d => (
                                   <option key={d} value={d} className="dark:bg-zinc-900">{d}일</option>
@@ -1557,12 +1557,12 @@ ${daeunContext}
                           {!userData.unknownTime && (
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1">
-                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>시</label>
+                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>시</label>
                                 <select 
                                   value={userData.birthHour}
                                   disabled={!isAgreed}
                                   onChange={(e) => setUserData({...userData, birthHour: e.target.value})}
-                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
                                 >
                                   {Array.from({length: 24}, (_, i) => i).map(h => (
                                     <option key={h} value={h} className="dark:bg-zinc-900">{h}시</option>
@@ -1570,12 +1570,12 @@ ${daeunContext}
                                 </select>
                               </div>
                               <div className="space-y-1">
-                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>분</label>
+                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>분</label>
                                 <select 
                                   value={userData.birthMinute}
                                   disabled={!isAgreed}
                                   onChange={(e) => setUserData({...userData, birthMinute: e.target.value})}
-                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-blue-500'}`}
+                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
                                 >
                                   {Array.from({length: 60}, (_, i) => i).map(m => (
                                     <option key={m} value={m} className="dark:bg-zinc-900">{m}분</option>
@@ -1599,36 +1599,36 @@ ${daeunContext}
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-blue-500'} border`}>
+                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-zinc-50 border-indigo-100'} border`}>
                             <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
                               <button 
                                 onClick={() => setUserData({...userData, calendarType: 'solar'})}
                                 disabled={!isAgreed}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
                               >
                                 양력
                               </button>
                               <button 
                                 onClick={() => setUserData({...userData, calendarType: 'lunar'})}
                                 disabled={!isAgreed}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
                               >
                                 음력(평)
                               </button>
                               <button 
                                 onClick={() => setUserData({...userData, calendarType: 'leap'})}
                                 disabled={!isAgreed}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
                               >
                                 음력(윤)
                               </button>
                             </div>
                           </div>
 
-                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-blue-500'} border`}>
+                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-zinc-50 border-indigo-100'} border`}>
                             <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
-                              <button onClick={() => setUserData({...userData, gender: 'M'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>남자</button>
-                              <button onClick={() => setUserData({...userData, gender: 'F'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>여자</button>
+                              <button onClick={() => setUserData({...userData, gender: 'M'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>남자</button>
+                              <button onClick={() => setUserData({...userData, gender: 'F'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>여자</button>
                             </div>
                           </div>
                         </div>
@@ -1636,7 +1636,7 @@ ${daeunContext}
                         <button 
                           onClick={handleStart}
                           disabled={!isAgreed}
-                          className={`w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform ${!isAgreed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all ${!isAgreed ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           운세 분석 시작
                           <ChevronRight className="w-5 h-5" />
@@ -1680,7 +1680,7 @@ ${daeunContext}
                                   isDarkMode={isDarkMode} 
                                   deity={item.deity}
                                   deityPosition={j === 0 ? 'top' : 'bottom'}
-                                  size="lg"
+                                  size="md"
                                 />
                               ))}
                             </div>
@@ -1778,7 +1778,7 @@ ${daeunContext}
                                 isDarkMode={isDarkMode} 
                                 deity={p.branch.deity}
                                 deityPosition="bottom"
-                                size="lg"
+                                size="md"
                               />
                             </div>
                             <span className={`text-[10px] md:text-xs font-bold mt-2 ${isDarkMode ? 'text-zinc-500' : 'opacity-70'}`}>{p.branch.hangul}({p.branch.hanja})</span>
@@ -2160,7 +2160,7 @@ ${daeunContext}
                     )}
                     {messages.map((msg, i) => (
                       <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[90%] md:max-w-[75%] p-5 rounded-2xl text-lg leading-relaxed shadow-sm ${
+                        <div className={`max-w-[90%] md:max-w-[75%] p-4 md:p-5 rounded-2xl text-base md:text-lg leading-relaxed shadow-sm ${
                           msg.role === 'user' 
                             ? 'bg-indigo-600 text-white rounded-tr-none' 
                             : isDarkMode 
@@ -2182,7 +2182,7 @@ ${daeunContext}
                   </div>
 
                   {/* Input Area */}
-                  <div className={`p-1 border-t md:pb-2 ${
+                  <div className={`p-2 border-t md:pb-4 ${
                     isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
                   }`}>
                     <div className="max-w-4xl mx-auto relative">
@@ -2191,15 +2191,15 @@ ${daeunContext}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         placeholder="메시지를 입력하세요..."
-                        className={`w-full border rounded-2xl py-1.5 pl-4 pr-14 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
+                        className={`w-full border rounded-2xl py-3 pl-4 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
                           isDarkMode 
                             ? 'bg-white/5 border-white/10 text-white' 
                             : 'bg-white border-gray-300 text-gray-900'
                         }`}
                       />
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2">
-                        <button onClick={() => handleSend()} className="p-1.5 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
-                          <Send className="w-3.5 h-3.5" />
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                        <button onClick={() => handleSend()} className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
+                          <Send className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -2865,38 +2865,7 @@ ${daeunContext}
                             </div>
                           </div>
 
-                          {user && (
-                            <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
-                              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
-                              </div>
-                              <button 
-                                onClick={handleLogout}
-                                className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
-                              >
-                                로그아웃
-                              </button>
-                            </div>
-                          )}
-
-                          {!user && (
-                            <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
-                              <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자이신가요? 로그인하여 블로그 콘텐츠를 관리하세요.</p>
-                              <button 
-                                onClick={handleLogin}
-                                disabled={isLoggingIn}
-                                className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                              >
-                                {isLoggingIn ? (
-                                  <>
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                    로그인 중...
-                                  </>
-                                ) : "관리자 로그인"}
-                              </button>
-                            </div>
-                          )}
+                          {/* Admin Login/Logout moved to bottom */}
                         </aside>
 
                         {/* Main Content List */}
@@ -3118,6 +3087,44 @@ ${daeunContext}
                               <p className="text-sm mt-2">다른 카테고리를 선택해 보세요.</p>
                             </div>
                           )}
+
+                          {/* Admin Login/Logout Section */}
+                          <div className="mt-16 pt-10 border-t border-black/5 dark:border-white/5">
+                            <div className="max-w-sm mx-auto lg:mx-0">
+                              {user && (
+                                <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
+                                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                    <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
+                                  </div>
+                                  <button 
+                                    onClick={handleLogout}
+                                    className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
+                                  >
+                                    로그아웃
+                                  </button>
+                                </div>
+                              )}
+
+                              {!user && (
+                                <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
+                                  <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자이신가요? 로그인하여 블로그 콘텐츠를 관리하세요.</p>
+                                  <button 
+                                    onClick={handleLogin}
+                                    disabled={isLoggingIn}
+                                    className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                  >
+                                    {isLoggingIn ? (
+                                      <>
+                                        <RefreshCw className="w-3 h-3 animate-spin" />
+                                        로그인 중...
+                                      </>
+                                    ) : "관리자 로그인"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
