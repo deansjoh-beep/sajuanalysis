@@ -27,7 +27,8 @@ import {
   Download,
   Mail,
   Check,
-  ExternalLink
+  ExternalLink,
+  Ticket
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
@@ -642,7 +643,11 @@ const App: React.FC = () => {
   };
 
   const handleAddPost = async () => {
-    if (!isAdmin || !user) return;
+    console.log("[DEBUG] handleAddPost attempt. isAdmin:", isAdmin, "user:", user?.email);
+    if (!isAdmin || !user) {
+      alert("관리자 권한이 없거나 로그인이 필요합니다.");
+      return;
+    }
     try {
       const postData = {
         ...newPost,
@@ -650,7 +655,9 @@ const App: React.FC = () => {
         createdAt: serverTimestamp(),
         authorUid: user.uid
       };
+      console.log("[DEBUG] Saving post data:", postData);
       await addDoc(collection(db, "blogPosts"), postData);
+      console.log("[DEBUG] Post saved successfully.");
       setIsAddingPost(false);
       setNewPost({
         title: "",
@@ -660,24 +667,33 @@ const App: React.FC = () => {
       });
       alert("블로그 글이 성공적으로 저장되었습니다.");
     } catch (error) {
+      console.error("[DEBUG] Error saving post:", error);
       handleFirestoreError(error, OperationType.CREATE, "blogPosts");
       alert("블로그 글 저장 중 오류가 발생했습니다.");
     }
   };
 
   const handleUpdatePost = async () => {
-    if (!isAdmin || !isEditingPost) return;
+    console.log("[DEBUG] handleUpdatePost attempt. isAdmin:", isAdmin, "isEditingPost:", isEditingPost?.id);
+    if (!isAdmin || !isEditingPost) {
+      alert("관리자 권한이 없거나 수정할 글이 선택되지 않았습니다.");
+      return;
+    }
     try {
       const postRef = doc(db, "blogPosts", isEditingPost.id);
-      await updateDoc(postRef, {
+      const updateData = {
         title: isEditingPost.title,
         content: isEditingPost.content,
         category: isEditingPost.category,
         imageUrl: isEditingPost.imageUrl
-      });
+      };
+      console.log("[DEBUG] Updating post data:", updateData);
+      await updateDoc(postRef, updateData);
+      console.log("[DEBUG] Post updated successfully.");
       setIsEditingPost(null);
       alert("블로그 글이 성공적으로 수정되었습니다.");
     } catch (error) {
+      console.error("[DEBUG] Error updating post:", error);
       handleFirestoreError(error, OperationType.UPDATE, `blogPosts/${isEditingPost.id}`);
       alert("블로그 글 수정 중 오류가 발생했습니다.");
     }
@@ -1388,6 +1404,46 @@ ${daeunContext}
                         >
                           프리미엄 리포트 확인
                         </button>
+                      </div>
+                    </div>
+
+                    {/* Special Services Section */}
+                    <div className="space-y-8">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-2xl font-bold">유아이가 제공하는 특별서비스</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <a 
+                          href="https://k-manseryeok.vercel.app/" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5'}`}
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
+                            <Calendar className="text-white w-6 h-6" />
+                          </div>
+                          <h3 className="text-xl font-bold mb-2">만세력으로 표시한 달력</h3>
+                          <p className="text-sm opacity-60 mb-6">나의 일진과 절기를 한눈에 확인하는 만세력 달력 서비스입니다.</p>
+                          <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
+                            바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </a>
+
+                        <a 
+                          href="https://lucky-number-generator-deansjoh.replit.app/" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5'}`}
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center mb-6 shadow-lg shadow-rose-500/20">
+                            <Ticket className="text-white w-6 h-6" />
+                          </div>
+                          <h3 className="text-xl font-bold mb-2">내 사주에 맞는 로또 번호는?</h3>
+                          <p className="text-sm opacity-60 mb-6">오늘의 운세와 사주 오행을 분석하여 행운의 번호를 생성해 드립니다.</p>
+                          <div className="flex items-center gap-2 text-rose-500 font-bold text-sm">
+                            바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </a>
                       </div>
                     </div>
 
