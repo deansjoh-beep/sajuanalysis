@@ -2182,7 +2182,7 @@ ${daeunContext}
                   </div>
 
                   {/* Input Area */}
-                  <div className={`p-1.5 border-t pb-safe md:pb-2 ${
+                  <div className={`p-1 border-t md:pb-2 ${
                     isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
                   }`}>
                     <div className="max-w-4xl mx-auto relative">
@@ -2205,7 +2205,7 @@ ${daeunContext}
                     </div>
 
                     {/* Mobile-only Quick Actions & Privacy Notice */}
-                    <div className="md:hidden mt-1 space-y-1">
+                    <div className="md:hidden mt-0.5 space-y-0.5">
                       <div className="grid grid-cols-[1fr_2.5fr] gap-1">
                         {/* Left: Categories */}
                         <div className="flex flex-col gap-1">
