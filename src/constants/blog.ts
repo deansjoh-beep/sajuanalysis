@@ -95,7 +95,7 @@ export const BLOG_POSTS: BlogPost[] = [
 - **키워드**: 수용성, 학문, 아이디어
 - **성향**: 정보를 받아들이고 깊이 생각하는 능력이 좋습니다. 기획이나 연구 분야에 적합합니다.
     `,
-    category: "심화분석",
+    category: "사주책리뷰",
     date: "2026-03-10",
     imageUrl: "https://picsum.photos/seed/stars/800/400",
     readTime: "6분"

@@ -560,7 +560,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      setIsAdmin(firebaseUser?.email === "dean.uitrading@gmail.com");
+      setIsAdmin(firebaseUser?.email === "dean.uitrading@gmail.com" || firebaseUser?.email === "dean.sj.oh@gmail.com");
     });
     return () => unsubscribe();
   }, []);
@@ -2766,7 +2766,7 @@ ${daeunContext}
                               )}
                             </div>
                             <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-4 lg:pb-0 no-scrollbar px-1">
-                              {['전체', '사주기초', '운세', '심화분석'].map(cat => (
+                              {['전체', '사주기초', '사주이야기', '사주책리뷰'].map(cat => (
                                 <button 
                                   key={cat} 
                                   onClick={() => setBlogCategory(cat)}
@@ -2803,11 +2803,11 @@ ${daeunContext}
                             </div>
                           </div>
 
-                          {isAdmin && (
+                          {user && (
                             <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
                               <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
                                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                <span className="text-xs font-bold uppercase tracking-widest">관리자 모드</span>
+                                <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
                               </div>
                               <button 
                                 onClick={handleLogout}
@@ -2874,8 +2874,8 @@ ${daeunContext}
                                       onChange={e => setNewPost({...newPost, category: e.target.value})}
                                     >
                                       <option value="사주기초">사주기초</option>
-                                      <option value="운세">운세</option>
-                                      <option value="심화분석">심화분석</option>
+                                      <option value="사주이야기">사주이야기</option>
+                                      <option value="사주책리뷰">사주책리뷰</option>
                                     </select>
                                   </div>
                                   <div className="space-y-2">
@@ -2945,8 +2945,8 @@ ${daeunContext}
                                       onChange={e => setIsEditingPost({...isEditingPost, category: e.target.value})}
                                     >
                                       <option value="사주기초">사주기초</option>
-                                      <option value="운세">운세</option>
-                                      <option value="심화분석">심화분석</option>
+                                      <option value="사주이야기">사주이야기</option>
+                                      <option value="사주책리뷰">사주책리뷰</option>
                                     </select>
                                   </div>
                                   <div className="space-y-2">
