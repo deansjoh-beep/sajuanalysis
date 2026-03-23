@@ -37,7 +37,7 @@ import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
 import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
-import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight } from "lucide-react";
+import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image } from "lucide-react";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
 import { db, auth, googleProvider, signInWithPopup, signOut } from "./firebase";
@@ -511,6 +511,60 @@ const App: React.FC = () => {
 
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const editCoverFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 800 * 1024) { // 800KB limit to stay under Firestore 1MB
+      alert("이미지 크기가 너무 큽니다. 800KB 이하의 이미지를 사용해 주세요.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      const markdownImage = `\n\n![이미지](${base64})\n\n`;
+      
+      if (isEdit && isEditingPost) {
+        setIsEditingPost({
+          ...isEditingPost,
+          content: isEditingPost.content + markdownImage
+        });
+      } else {
+        setNewPost({
+          ...newPost,
+          content: (newPost.content || "") + markdownImage
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 800 * 1024) {
+      alert("이미지 크기가 너무 큽니다. 800KB 이하의 이미지를 사용해 주세요.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (isEdit && isEditingPost) {
+        setIsEditingPost({ ...isEditingPost, imageUrl: base64 });
+      } else {
+        setNewPost({ ...newPost, imageUrl: base64 });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const daeunScrollRef = useRef<HTMLDivElement>(null);
 
@@ -540,6 +594,7 @@ const App: React.FC = () => {
   const [newPost, setNewPost] = useState<Partial<BlogPost>>({
     title: "",
     content: "",
+    excerpt: "",
     category: "사주기초",
     imageUrl: `https://picsum.photos/seed/${Math.random().toString(36).substring(7)}/800/600`
   });
@@ -644,8 +699,15 @@ const App: React.FC = () => {
   const handleAddPost = async () => {
     if (!isAdmin || !user) return;
     try {
+      const content = newPost.content || "";
+      const wordCount = content.trim().split(/\s+/).length;
+      const readTime = `${Math.max(1, Math.ceil(wordCount / 200))}분`;
+      const excerpt = newPost.excerpt || (content.substring(0, 100) + "...");
+
       const postData = {
         ...newPost,
+        excerpt,
+        readTime,
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp(),
         authorUid: user.uid
@@ -655,6 +717,7 @@ const App: React.FC = () => {
       setNewPost({
         title: "",
         content: "",
+        excerpt: "",
         category: "사주기초",
         imageUrl: `https://picsum.photos/seed/${Math.random().toString(36).substring(7)}/800/600`
       });
@@ -666,12 +729,19 @@ const App: React.FC = () => {
   const handleUpdatePost = async () => {
     if (!isAdmin || !isEditingPost) return;
     try {
+      const content = isEditingPost.content || "";
+      const wordCount = content.trim().split(/\s+/).length;
+      const readTime = `${Math.max(1, Math.ceil(wordCount / 200))}분`;
+      const excerpt = isEditingPost.excerpt || (content.substring(0, 100) + "...");
+
       const postRef = doc(db, "blogPosts", isEditingPost.id);
       await updateDoc(postRef, {
         title: isEditingPost.title,
         content: isEditingPost.content,
         category: isEditingPost.category,
-        imageUrl: isEditingPost.imageUrl
+        imageUrl: isEditingPost.imageUrl,
+        excerpt,
+        readTime
       });
       setIsEditingPost(null);
     } catch (error) {
@@ -2879,7 +2949,23 @@ ${daeunContext}
                                     </select>
                                   </div>
                                   <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">이미지 URL</label>
+                                    <div className="flex items-center justify-between ml-2">
+                                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">대표 이미지 URL</label>
+                                      <button 
+                                        onClick={() => coverFileInputRef.current?.click()}
+                                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors"
+                                      >
+                                        <Image className="w-3 h-3" />
+                                        이미지 업로드
+                                      </button>
+                                      <input 
+                                        type="file" 
+                                        ref={coverFileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={(e) => handleCoverImageUpload(e, false)}
+                                      />
+                                    </div>
                                     <input 
                                       type="text" 
                                       placeholder="https://..."
@@ -2890,7 +2976,33 @@ ${daeunContext}
                                   </div>
                                 </div>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">내용 (Markdown)</label>
+                                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">요약문</label>
+                                  <input 
+                                    type="text" 
+                                    placeholder="글의 내용을 한 줄로 요약해 주세요"
+                                    className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    value={newPost.excerpt}
+                                    onChange={e => setNewPost({...newPost, excerpt: e.target.value})}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between ml-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Markdown)</label>
+                                    <button 
+                                      onClick={() => fileInputRef.current?.click()}
+                                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors"
+                                    >
+                                      <Image className="w-3 h-3" />
+                                      이미지 추가
+                                    </button>
+                                    <input 
+                                      type="file" 
+                                      ref={fileInputRef} 
+                                      className="hidden" 
+                                      accept="image/*"
+                                      onChange={(e) => handleImageUpload(e, false)}
+                                    />
+                                  </div>
                                   <textarea 
                                     placeholder="마크다운 문법을 사용하여 내용을 작성하세요..."
                                     rows={12}
@@ -2950,7 +3062,23 @@ ${daeunContext}
                                     </select>
                                   </div>
                                   <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">이미지 URL</label>
+                                    <div className="flex items-center justify-between ml-2">
+                                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">대표 이미지 URL</label>
+                                      <button 
+                                        onClick={() => editCoverFileInputRef.current?.click()}
+                                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors"
+                                      >
+                                        <Image className="w-3 h-3" />
+                                        이미지 업로드
+                                      </button>
+                                      <input 
+                                        type="file" 
+                                        ref={editCoverFileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={(e) => handleCoverImageUpload(e, true)}
+                                      />
+                                    </div>
                                     <input 
                                       type="text" 
                                       placeholder="이미지 URL"
@@ -2961,7 +3089,33 @@ ${daeunContext}
                                   </div>
                                 </div>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">내용 (Markdown)</label>
+                                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">요약문</label>
+                                  <input 
+                                    type="text" 
+                                    placeholder="요약문을 입력하세요"
+                                    className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    value={isEditingPost.excerpt}
+                                    onChange={e => setIsEditingPost({...isEditingPost, excerpt: e.target.value})}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between ml-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Markdown)</label>
+                                    <button 
+                                      onClick={() => editFileInputRef.current?.click()}
+                                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors"
+                                    >
+                                      <Image className="w-3 h-3" />
+                                      이미지 추가
+                                    </button>
+                                    <input 
+                                      type="file" 
+                                      ref={editFileInputRef} 
+                                      className="hidden" 
+                                      accept="image/*"
+                                      onChange={(e) => handleImageUpload(e, true)}
+                                    />
+                                  </div>
                                   <textarea 
                                     placeholder="내용을 입력하세요"
                                     rows={12}
