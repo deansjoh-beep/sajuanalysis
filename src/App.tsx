@@ -32,13 +32,14 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from 'rehype-raw';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
 import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
-import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight } from "lucide-react";
+import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
 import { db, auth, googleProvider, signInWithPopup, signOut } from "./firebase";
@@ -543,6 +544,8 @@ const App: React.FC = () => {
     title: "",
     content: "",
     category: "사주기초",
+    excerpt: "",
+    readTime: "3분",
     imageUrl: `https://picsum.photos/seed/${Math.random().toString(36).substring(7)}/800/600`
   });
 
@@ -651,6 +654,24 @@ const App: React.FC = () => {
     }
   };
 
+  const insertMarkdown = (type: 'image' | 'size-image', isEdit: boolean) => {
+    const template = type === 'image' 
+      ? '![이미지 설명](이미지 URL)' 
+      : '<img src="이미지 URL" width="500" alt="이미지 설명" />';
+    
+    if (isEdit && isEditingPost) {
+      setIsEditingPost({
+        ...isEditingPost,
+        content: isEditingPost.content + '\n' + template
+      });
+    } else {
+      setNewPost({
+        ...newPost,
+        content: newPost.content + '\n' + template
+      });
+    }
+  };
+
   const handleAddPost = async () => {
     console.log("[DEBUG] handleAddPost attempt. isAdmin:", isAdmin, "user:", user?.email);
     if (!isAdmin || !user) {
@@ -660,6 +681,8 @@ const App: React.FC = () => {
     try {
       const postData = {
         ...newPost,
+        excerpt: newPost.excerpt || (newPost.content ? newPost.content.replace(/[#*`]/g, '').slice(0, 120) + "..." : ""),
+        readTime: newPost.readTime || "3분",
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp(),
         authorUid: user.uid
@@ -672,6 +695,8 @@ const App: React.FC = () => {
         title: "",
         content: "",
         category: "사주기초",
+        excerpt: "",
+        readTime: "3분",
         imageUrl: `https://picsum.photos/seed/${Math.random().toString(36).substring(7)}/800/600`
       });
       alert("블로그 글이 성공적으로 저장되었습니다.");
@@ -694,7 +719,9 @@ const App: React.FC = () => {
         title: isEditingPost.title,
         content: isEditingPost.content,
         category: isEditingPost.category,
-        imageUrl: isEditingPost.imageUrl
+        imageUrl: isEditingPost.imageUrl,
+        excerpt: isEditingPost.excerpt || isEditingPost.content.replace(/[#*`]/g, '').slice(0, 120) + "...",
+        readTime: isEditingPost.readTime || "3분"
       };
       console.log("[DEBUG] Updating post data:", updateData);
       await updateDoc(postRef, updateData);
@@ -2780,7 +2807,7 @@ ${daeunContext}
                         </div>
                         <div className="p-8 md:p-16 space-y-10">
                           <div className="markdown-body prose dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-zinc-700 dark:text-zinc-300">
-                            <ReactMarkdown>
+                            <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                               {selectedBlogPost.content.startsWith('# ') 
                                 ? selectedBlogPost.content.split('\n').slice(1).join('\n').trim() 
                                 : selectedBlogPost.content}
@@ -2929,8 +2956,50 @@ ${daeunContext}
                                     />
                                   </div>
                                 </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">요약 (Excerpt)</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="글의 짧은 요약을 입력하세요"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      value={newPost.excerpt}
+                                      onChange={e => setNewPost({...newPost, excerpt: e.target.value})}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">읽기 시간 (예: 3분)</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="3분"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      value={newPost.readTime}
+                                      onChange={e => setNewPost({...newPost, readTime: e.target.value})}
+                                    />
+                                  </div>
+                                </div>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">내용 (Markdown)</label>
+                                  <div className="flex items-center justify-between ml-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Markdown)</label>
+                                    <div className="flex gap-2">
+                                      <button 
+                                        onClick={() => insertMarkdown('image', false)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
+                                        title="이미지 삽입"
+                                      >
+                                        <ImageIcon className="w-3 h-3" />
+                                        이미지
+                                      </button>
+                                      <button 
+                                        onClick={() => insertMarkdown('size-image', false)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
+                                        title="크기 조절 이미지 삽입"
+                                      >
+                                        <Maximize className="w-3 h-3" />
+                                        크기조절
+                                      </button>
+                                    </div>
+                                  </div>
                                   <textarea 
                                     placeholder="마크다운 문법을 사용하여 내용을 작성하세요..."
                                     rows={12}
@@ -3000,8 +3069,50 @@ ${daeunContext}
                                     />
                                   </div>
                                 </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">요약 (Excerpt)</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="글의 짧은 요약을 입력하세요"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      value={isEditingPost.excerpt}
+                                      onChange={e => setIsEditingPost({...isEditingPost, excerpt: e.target.value})}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">읽기 시간 (예: 3분)</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="3분"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      value={isEditingPost.readTime}
+                                      onChange={e => setIsEditingPost({...isEditingPost, readTime: e.target.value})}
+                                    />
+                                  </div>
+                                </div>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">내용 (Markdown)</label>
+                                  <div className="flex items-center justify-between ml-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Markdown)</label>
+                                    <div className="flex gap-2">
+                                      <button 
+                                        onClick={() => insertMarkdown('image', true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
+                                        title="이미지 삽입"
+                                      >
+                                        <ImageIcon className="w-3 h-3" />
+                                        이미지
+                                      </button>
+                                      <button 
+                                        onClick={() => insertMarkdown('size-image', true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
+                                        title="크기 조절 이미지 삽입"
+                                      >
+                                        <Maximize className="w-3 h-3" />
+                                        크기조절
+                                      </button>
+                                    </div>
+                                  </div>
                                   <textarea 
                                     placeholder="내용을 입력하세요"
                                     rows={12}

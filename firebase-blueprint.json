@@ -29,6 +29,14 @@
         "authorUid": {
           "type": "string",
           "description": "The UID of the author."
+        },
+        "excerpt": {
+          "type": "string",
+          "description": "A short summary of the blog post."
+        },
+        "readTime": {
+          "type": "string",
+          "description": "Estimated reading time."
         }
       },
       "required": ["title", "content", "category", "date", "createdAt", "authorUid"]

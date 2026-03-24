@@ -34,12 +34,14 @@ service cloud.firestore {
     function isValidBlogPost(data) {
       return data.keys().hasAll(['title', 'content', 'category', 'date', 'createdAt', 'authorUid']) &&
              data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-             data.content is string && data.content.size() > 0 && data.content.size() <= 10000 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 50000 &&
              data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
              data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.createdAt is timestamp &&
              data.authorUid is string && data.authorUid == request.auth.uid &&
-             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500));
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500)) &&
+             (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000)) &&
+             (!('readTime' in data) || (data.readTime is string && data.readTime.size() <= 50));
     }
 
     // ===============================================================
