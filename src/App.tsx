@@ -478,6 +478,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [showAdminGate, setShowAdminGate] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
@@ -568,6 +569,14 @@ const App: React.FC = () => {
 
   // Fetch Blog Posts from Firestore
   useEffect(() => {
+    // Hidden Admin Gate: Check for secret query param or path
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ui_gate') === 'premium_777') {
+      setShowAdminGate(true);
+      // Clean up URL without refreshing
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const q = query(collection(db, "blogPosts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const posts = snapshot.docs.map(doc => ({
@@ -3088,43 +3097,45 @@ ${daeunContext}
                             </div>
                           )}
 
-                          {/* Admin Login/Logout Section */}
-                          <div className="mt-16 pt-10 border-t border-black/5 dark:border-white/5">
-                            <div className="max-w-sm mx-auto lg:mx-0">
-                              {user && (
-                                <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
-                                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                    <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
+                          {/* Admin Login/Logout Section (Hidden Gate) */}
+                          {showAdminGate && (
+                            <div className="mt-16 pt-10 border-t border-black/5 dark:border-white/5">
+                              <div className="max-w-sm mx-auto lg:mx-0">
+                                {user && (
+                                  <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
+                                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                      <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                      <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
+                                    </div>
+                                    <button 
+                                      onClick={handleLogout}
+                                      className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
+                                    >
+                                      로그아웃
+                                    </button>
                                   </div>
-                                  <button 
-                                    onClick={handleLogout}
-                                    className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
-                                  >
-                                    로그아웃
-                                  </button>
-                                </div>
-                              )}
+                                )}
 
-                              {!user && (
-                                <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
-                                  <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자이신가요? 로그인하여 블로그 콘텐츠를 관리하세요.</p>
-                                  <button 
-                                    onClick={handleLogin}
-                                    disabled={isLoggingIn}
-                                    className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                  >
-                                    {isLoggingIn ? (
-                                      <>
-                                        <RefreshCw className="w-3 h-3 animate-spin" />
-                                        로그인 중...
-                                      </>
-                                    ) : "관리자 로그인"}
-                                  </button>
-                                </div>
-                              )}
+                                {!user && (
+                                  <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
+                                    <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자 전용 게이트웨이입니다. 로그인하여 시스템을 관리하세요.</p>
+                                    <button 
+                                      onClick={handleLogin}
+                                      disabled={isLoggingIn}
+                                      className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                      {isLoggingIn ? (
+                                        <>
+                                          <RefreshCw className="w-3 h-3 animate-spin" />
+                                          로그인 중...
+                                        </>
+                                      ) : "관리자 로그인"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>

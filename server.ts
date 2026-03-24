@@ -14,6 +14,37 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Security: Block access to sensitive files and patterns
+  app.use((req, res, next) => {
+    const sensitivePatterns = [
+      /wp-config\.php/i,
+      /\.env/i,
+      /\.git/i,
+      /\.htaccess/i,
+      /\.php$/i,
+      /config\.php/i,
+      /database\.php/i
+    ];
+    if (sensitivePatterns.some(pattern => pattern.test(req.path))) {
+      console.warn(`[SECURITY] Blocked access attempt to sensitive path: ${req.path} from ${req.ip}`);
+      return res.status(403).send("Forbidden: Access to this file is restricted.");
+    }
+
+    // Block common admin/login paths to prevent scanning
+    const adminPaths = [
+      /^\/login/i,
+      /^\/admin/i,
+      /^\/wp-admin/i,
+      /^\/administrator/i,
+      /^\/portal/i
+    ];
+    if (adminPaths.some(pattern => pattern.test(req.path))) {
+      return res.status(404).send("Not Found"); // Return 404 to hide existence
+    }
+
+    next();
+  });
+
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({ 
