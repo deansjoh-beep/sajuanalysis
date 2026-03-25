@@ -1934,7 +1934,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                 <div className="space-y-8 md:space-y-12">
                   {/* Saju Grid - 2x4 Layout */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>사주팔자 (四柱八字)</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('sajuPaljaTitle')}</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
@@ -1973,7 +1973,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="space-y-2">
                           <p className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">사주팔자 분석 결론</p>
                           <h4 className={`text-base md:text-xl font-bold leading-tight ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
-                            {userData.name}님의 사주는 <span className="text-indigo-500">{calculateGyeok(sajuResult).composition}</span>로 구성되어 있으며, <br className="hidden md:block"/><span className="text-indigo-500 font-black">[{calculateGyeok(sajuResult).gyeok}]</span>의 사주입니다.
+                            {userData.name}{t('sajuCompositionText')} <span className="text-indigo-500">{calculateGyeok(sajuResult).composition}</span> {t('sajuTypeSuffix')}
                           </h4>
                         </div>
                         
@@ -2016,12 +2016,12 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
 
                   {/* Five Elements Distribution */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>오행분포 (五行分布)</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('ohaengDistributionTitle')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-zinc-200 shadow-lg'} flex flex-col justify-center`}>
                         <p className={`text-sm md:text-base leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
-                          {userData.name}님의 오행 분포는 <br className="hidden md:block"/>
-                          {getChartData().map(d => `${d.name} ${d.value}개`).join(', ')}으로 구성되어 있습니다.
+                          {userData.name}{t('fiveElementsComposedOf')} <br className="hidden md:block"/>
+                          {getChartData().map(d => `${d.name} ${d.value}${t('fiveElementsCount')}`).join(', ')}
                         </p>
                       </div>
                       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'} flex items-center justify-center`}>
@@ -2049,7 +2049,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                 <div className="space-y-8 md:space-y-12">
                   {/* Jiji and Jijangan */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>지지와 지장간 (地支/地藏干)</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('jijiAndJijanganTitle')}</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
@@ -2088,14 +2088,14 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       })}
                     </div>
                     <p className={`text-xs md:text-sm leading-relaxed mt-4 italic ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>
-                      지지와 지장간은 사주의 뿌리이자 에너지가 저장된 곳입니다. 지장간은 지지 속에 숨겨진 천간의 기운으로, 당신의 내면적인 성향과 잠재력을 나타냅니다.
+                      {t('branchAndHiddenText')}
                     </p>
                   </div>
 
                   {/* Daeun Analysis */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>대운분석 (大運分析)</h3>
+                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('daewoonAnalysisTitle')}</h3>
                       {daeunResult.length > 0 && (
                         <span className="text-[10px] md:text-xs font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
                           {daeunResult[0].startAge}대운
@@ -2366,7 +2366,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                 {/* Desktop Sidebar for Suggestions */}
                 <aside className="hidden md:flex w-64 flex-col border-r border-black/5 dark:border-white/10 p-4 space-y-6 overflow-y-auto relative">
                   <div className="space-y-3">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 카테고리</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">{t('consultationCategory')}</h4>
                     <div className="flex flex-col gap-1">
                       {CATEGORIES.map((cat) => (
                         <button
@@ -2386,7 +2386,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-2">
-                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">추천 질문</h4>
+                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">{t('recommendedQuestions')}</h4>
                       <button 
                         onClick={() => setRefreshKey(prev => prev + 1)}
                         className="p-1 hover:bg-indigo-500/10 rounded-lg text-indigo-500 transition-colors"
@@ -2409,19 +2409,19 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
 
                   {/* Consultation Tips */}
                   <div className="space-y-3 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 팁</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">{t('consultationTips')}</h4>
                     <ul className="space-y-2 px-2">
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>생년월일시나 MBTI 같은 정보를 먼저 주세요. 상담이 더욱 풍성해 집니다.</span>
+                        <span>{t('questionTip1')}</span>
                       </li>
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>구체적으로 질문하면 더욱 상담이 정교해 집니다.</span>
+                        <span>{t('questionTip2')}</span>
                       </li>
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>상대방의 생년월일시를 알려주시면 정확한 궁합 분석이 가능합니다.</span>
+                        <span>{t('questionTip3')}</span>
                       </li>
                     </ul>
                   </div>
@@ -2429,7 +2429,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                   {/* Privacy Notice (Desktop) */}
                   <div className="mt-auto pt-6">
                     <p className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
-                      상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
+                      {t('privacyNotice')}
                     </p>
                   </div>
                 </aside>
@@ -2440,7 +2440,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     {messages.length === 0 && (
                       <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
                         <MessageCircle className="w-14 h-14" />
-                        <p className="text-lg">궁금한 점을 물어보세요.<br/>당신의 사주를 기반으로 답변해 드립니다.</p>
+                        <p className="text-lg">{t('emptyMessage')}<br/>{t('navigateChat')}</p>
                       </div>
                     )}
                     {messages.map((msg, i) => (
@@ -2461,7 +2461,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100 border-gray-200'
                       }`}>
                         <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
-                        <span className={`text-sm ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
+                        <span className={`text-sm ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>{t('analyzing')}</span>
                       </div>
                     )}
                   </div>
@@ -2475,7 +2475,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder="메시지를 입력하세요..."
+                        placeholder={t('chatPlaceholder')}
                         className={`w-full border rounded-2xl py-3 pl-4 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
                           isDarkMode 
                             ? 'bg-white/5 border-white/10 text-white' 
