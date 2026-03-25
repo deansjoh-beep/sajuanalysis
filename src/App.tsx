@@ -2682,38 +2682,31 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         </div>
                         <div className="relative z-10 space-y-4">
                           <h2 className="text-white text-3xl font-serif font-bold leading-tight">
-                            CEO 인사말
+                            {t('ceoGreeting')}
                           </h2>
-                          <p className="text-indigo-100 text-xs font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
+                          <p className="text-indigo-100 text-xs font-serif opacity-70">{t('ceoMottoTitle')}</p>
                         </div>
                       </div>
                       <div className="flex-1 p-10 md:p-14 space-y-8">
                         <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700 dark:text-zinc-300">
-                          <p className="font-bold text-zinc-900 dark:text-white text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
+                          <p className="font-bold text-zinc-900 dark:text-white text-xl">{t('ceoGreetingContent')}</p>
                           <div className="space-y-4">
                             <p>
-                              유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다. 
-                              우리는 수천 년을 이어온 명리학의 깊은 지혜를 가장 정밀한 AI 기술과 결합하여, 
-                              당신만을 위한 <strong>'삶의 전략'</strong>을 도출해 내는 전문 사주 상담 플랫폼입니다.
+                              {t('ceoMessage1')}
                             </p>
                             <p>
-                              <strong>최고의 전문성을 지향합니다:</strong> 유아이는 AI에게 방대하고 정교한 사주 전문 소스를 학습시켜, 
-                              그 어떤 곳보다 깊이 있고 체계적인 분석 결과를 제공합니다. 단순한 키워드 나열이 아닌, 
-                              당신의 삶을 관통하는 거대한 흐름을 읽어드립니다.
+                              <strong>{t('ceoMessage2Title')}</strong> {t('ceoMessage2')}
                             </p>
                             <p>
-                              <strong>당신의 평온을 최우선으로 합니다:</strong> 고민의 무게를 누구보다 잘 알기에, 
-                              유아이는 상담자의 프라이버시를 철저히 보장합니다. 로그인 없이도 당신의 속 깊은 이야기를 나눌 수 있으며, 
-                              모든 상담은 오직 당신만을 위한 맞춤형 공간에서 안전하게 진행됩니다.
+                              <strong>{t('ceoMessage3Title')}</strong> {t('ceoMessage3')}
                             </p>
                             <p>
-                              누구에게도 꺼내놓지 못한 고민이 있다면, 이제 유아이의 지혜를 빌려보십시오. 
-                              당신의 내일이 오늘보다 더 명료해질 수 있도록 정성을 다해 돕겠습니다.
+                              {t('ceoMessage4')}
                             </p>
                           </div>
                         </div>
                         <div className="pt-8 border-t border-black/5 dark:border-white/5 text-right">
-                          <p className="text-sm font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
+                          <p className="text-sm font-serif opacity-60 italic">{t('ceoSignature')}</p>
                         </div>
                       </div>
                     </div>
@@ -2724,7 +2717,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
                         <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
-                            유아이 앱이 다른 앱보다<br/>좋은 세가지 이유
+                            {t('guideCard1Title')}
                           </h2>
                         </div>
                         <div className="p-10 space-y-10">
@@ -2737,9 +2730,9 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">철저한 프라이버시 보호</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guidePrivacy')}</p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
+                                {t('guidePrivacyDesc')}
                               </p>
                             </div>
                           </div>
@@ -2749,9 +2742,9 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               <Zap className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">정밀한 사주 데이터 학습</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guidePrecision')}</p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
+                                {t('guidePrecisionDesc')}
                               </p>
                             </div>
                           </div>
@@ -2764,9 +2757,9 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">맞춤형 인생 가이드 제공</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guideCustom')}</p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
+                                {t('guideCustomDesc')}
                               </p>
                             </div>
                           </div>
@@ -2777,7 +2770,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
                         <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
-                            사용자 정보 입력 방법
+                            {t('guideCard2Title')}
                           </h2>
                         </div>
                         <div className="p-10 space-y-10">
@@ -2786,8 +2779,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               <Clock className="w-8 h-8 text-indigo-500" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">생시 미입력 가능</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guideBirthTimeOptional')}</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{t('guideBirthTimeOptionalDesc')}</p>
                             </div>
                           </div>
 
@@ -2796,8 +2789,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               <Calendar className="w-8 h-8 text-indigo-500" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">양력/음력 자동 인식</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guideSolarLunar')}</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{t('guideSolarLunarDesc')}</p>
                             </div>
                           </div>
 
@@ -2806,8 +2799,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               <Zap className="w-8 h-8 text-white fill-white" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">분석 시작</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
+                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{t('guideAnalysisStart')}</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{t('guideAnalysisStartDesc')}</p>
                             </div>
                           </div>
                         </div>
@@ -2817,7 +2810,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col md:col-span-2">
                         <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
-                            유아이의 운세분석 과정과<br/>운세에 대한 철학
+                            {t('guideFortune')}
                           </h2>
                         </div>
                         <div className="p-10 flex flex-col md:flex-row items-center justify-around gap-12">
@@ -2836,7 +2829,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                                 <FileText className="w-8 h-8 text-indigo-500" />
                               </div>
                             </div>
-                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">분석 프로세스</p>
+                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">{t('guideAnalysisProcess')}</p>
                           </div>
 
                           <div className="hidden md:block w-px h-40 bg-zinc-100 dark:bg-zinc-800"></div>
