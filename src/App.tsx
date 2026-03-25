@@ -1454,7 +1454,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                 title={t('saveText')}
               >
                 <Download className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-                <span className="hidden md:block text-sm font-bold">텍스트 저장</span>
+                <span className="hidden md:block text-sm font-bold">{t('saveTextButton')}</span>
               </button>
             )}
             <button 
@@ -1463,11 +1463,11 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
               title="상담 종료 및 데이터 삭제"
             >
               <Trash2 className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-              <span className="hidden md:block text-sm font-bold">상담 종료</span>
+              <span className="hidden md:block text-sm font-bold">{t('resetButton')}</span>
             </button>
             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all flex items-center gap-2">
               {isDarkMode ? <Sun className="w-5 h-5 opacity-70" /> : <Moon className="w-5 h-5 opacity-70" />}
-              <span className="hidden md:block text-sm font-bold">{isDarkMode ? '라이트' : '다크'}</span>
+              <span className="hidden md:block text-sm font-bold">{isDarkMode ? t('lightMode') : t('darkMode')}</span>
             </button>
           </div>
         </header>
@@ -1496,11 +1496,10 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         Premium AI Saju Consulting
                       </motion.div>
                       <h2 className={`text-4xl md:text-6xl font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
-                        당신의 운명을 읽는<br/>
-                        <span className="text-indigo-500">가장 명료한 시선</span>
+                        {t('heroTitle')}
                       </h2>
                       <p className={`text-sm md:text-lg max-w-2xl mx-auto opacity-60 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                        수천 년의 지혜와 첨단 AI 기술이 만나 당신의 삶에 가장 정밀한 전략을 제시합니다.
+                        {t('heroSubtitle')}
                       </p>
                     </div>
 
@@ -1513,8 +1512,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                           <User className="text-white w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">정보 입력하기</h3>
-                        <p className="text-sm opacity-60 mb-6">생년월일시를 입력하여 나만의 정밀 만세력을 확인하세요.</p>
+                        <h3 className="text-xl font-bold mb-2">{t('inputCardTitle')}</h3>
+                        <p className="text-sm opacity-60 mb-6">{t('inputCardDesc')}</p>
                         <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
                           바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
@@ -1527,8 +1526,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
                           <Newspaper className="text-white w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">블로그 읽기</h3>
-                        <p className="text-sm opacity-60 mb-6">명리학 기초부터 2026년 운세까지 다양한 지식을 만나보세요.</p>
+                        <h3 className="text-xl font-bold mb-2">{t('blogCardTitle')}</h3>
+                        <p className="text-sm opacity-60 mb-6">{t('blogCardDesc')}</p>
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
                           바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
@@ -1541,8 +1540,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20">
                           <Compass className="text-white w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">이용 가이드</h3>
-                        <p className="text-sm opacity-60 mb-6">유아이 사주상담을 200% 활용하는 방법을 안내해 드립니다.</p>
+                        <h3 className="text-xl font-bold mb-2">{t('guideCardTitle')}</h3>
+                        <p className="text-sm opacity-60 mb-6">{t('guideCardDesc')}</p>
                         <div className="flex items-center gap-2 text-amber-500 font-bold text-sm">
                           바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
@@ -1552,8 +1551,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     {/* Content Cards Section */}
                     <div className="space-y-8">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold">추천 컨텐츠</h3>
-                        <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">전체보기</button>
+                        <h3 className="text-2xl font-bold">{t('recommendedContent')}</h3>
+                        <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">{t('viewAll')}</button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1584,13 +1583,13 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center">
                           <Zap className="text-violet-500 w-8 h-8" />
                         </div>
-                        <h3 className="text-2xl font-bold">상담을 통해 얻을 수 있는 효과</h3>
+                        <h3 className="text-2xl font-bold">{t('benefitsTitle')}</h3>
                         <ul className="space-y-3">
                           {[
-                            "나의 타고난 기질과 잠재력의 명확한 파악",
-                            "현재 운의 흐름에 따른 최적의 결정 시기 포착",
-                            "관계의 갈등을 해소하는 명리학적 솔루션",
-                            "심리적 불안 해소와 삶의 방향성 정립"
+                            t('benefit1'),
+                            t('benefit2'),
+                            t('benefit3'),
+                            t('benefit4')
                           ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm opacity-80">
                               <Check className="w-5 h-5 text-emerald-500 shrink-0" />
