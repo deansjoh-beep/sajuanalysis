@@ -1508,7 +1508,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       >
                         Premium AI Saju Consulting
                       </motion.div>
-                      <h2 className={`text-4xl md:text-6xl font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
+                      <h2 className={`text-4xl ${language === 'ko' ? 'md:text-5xl' : 'md:text-6xl'} font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
                         {t('heroTitle')}
                       </h2>
                       <p className={`text-sm md:text-lg max-w-2xl mx-auto opacity-60 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
