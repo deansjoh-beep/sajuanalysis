@@ -44,7 +44,7 @@
   "resetButton": "상담 종료",
   "lightMode": "라이트",
   "darkMode": "다크",
-  "heroTitle": "당신의 운명을 읽는<br/>가장 명료한 시선",
+  "heroTitle": "당신의 운명을 읽는 가장 명료한 시선",
   "heroSubtitle": "수천 년의 지혜와 첨단 AI 기술이 만나 당신의 삶에 가장 정밀한 전략을 제시합니다.",
   "inputCardTitle": "정보 입력하기",
   "inputCardDesc": "생년월일시를 입력하여 나만의 정밀 만세력을 확인하세요.",
@@ -106,5 +106,71 @@
   "fortunePhilosophy": "운명은 정해진 결말이 아니라, 우리가 조종하는 돛의 방향입니다.",
   "fortunePhilosophyDesc": "만세력 기반의 정밀 분석과 AI의 전략적 해석으로, 당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.",
   "currentDaeun": "현재 대운",
-  "analysisReady": "사주 분석 준비 완료!" 
+  "analysisReady": "사주 분석 준비 완료!",
+
+  "dashboardNoDataTitle": "사주 데이터가 없습니다",
+  "dashboardNoDataDesc": "HOME 탭에서 생년월일 정보를 입력하면 정밀한 사주와 대운 정보를 확인할 수 있습니다.",
+  "dashboardGoInputButton": "정보 입력하러 가기",
+
+  "dashboardChatCardTitle": "AI와 더 깊은 대화 나누기",
+  "dashboardChatCardDesc": "분석된 사주를 바탕으로 직업, 연애, 재물 등 궁금한 점을 물어보세요.",
+  "dashboardChatCardCta": "AI 상담 시작하기",
+
+  "dashboardReportCardTitle": "프리미엄 운세 리포트",
+  "dashboardReportCardDesc": "PDF로 저장하는 정밀 리포트로 인생 설계도를 확인하세요.",
+  "dashboardReportCardCta": "리포트 생성하기",
+
+  "reportSidebarTitle": "운명 리포트",
+  "reportSidebarDesc": "AI 디렉터가 분석한 인생 지도를 확인하고 저장하세요.",
+  "reportGenerateButton": "리포트 생성하기",
+  "reportDownloadPdf": "PDF 저장",
+  "reportEmail": "이메일",
+
+  "reportLoadingTitle": "운명의 지도를 그리는 중...",
+  "reportLoadingDesc": "AI 디렉터가 사주 로그를 정밀 분석 중입니다.",
+  "reportEmptyTitle": "운세 리포트가 아직 없습니다.",
+  "reportEmptyDesc": "'리포트 생성하기' 버튼을 눌러보세요. AI 디렉터가 사주 데이터를 기반으로 MZ 감성 리포트를 생성합니다.",
+
+  "reportDisclaimer": "본 리포트는 AI 해석이며 과학적 사실이 아닙니다. 참고 용도로만 사용하시기 바라며 최종 결정과 책임은 본인에게 있습니다.",
+
+  "chatWelcomeMessage": "만세력에서 사주팔자를 확인했습니다. 이 상담창에 무엇이든 물어보세요. AI 상담자가 도와드립니다.",
+  "chatSystemMessageWarning": "상담 정보는 상담 종료 시 자동 파기됩니다.",
+
+  "saveChatFilename": "UI 사주 상담 내역",
+  "saveChatDateLabel": "날짜",
+
+  "blogTitle": "유아이 사주 블로그",
+  "blogSubtitle": "깊이 있는 사주 지혜와 실용적 인사이트를 만나보세요.",
+  "blogCategoryHeader": "글 카테고리",
+  "blogNoPostsTitle": "이 카테고리에 게시물이 없습니다.",
+  "blogNoPostsDesc": "다른 카테고리를 선택해보세요.",
+  "blogNewPostTitle": "새 블로그 글 작성",
+  "blogNewPostDesc": "지혜를 세상과 공유하세요.",
+  "blogEditPostTitle": "블로그 글 수정",
+  "blogEditPostDesc": "이미 작성한 인사이트를 다듬어보세요.",
+  "blogAdminMode": "관리자 모드",
+  "blogUserMode": "일반 사용자",
+  "blogAdminLoginGate": "관리자 전용 게이트웨이입니다. 로그인하여 시스템을 관리하세요.",
+  "blogLogout": "로그아웃",
+  "blogAdminLogin": "관리자 로그인",
+  "blogLoggingIn": "로그인 중...",
+
+  "categoryAll": "전체",
+  "categoryWealthBusiness": "재물/사업",
+  "categoryHealthFamily": "건강/가족",
+  "categoryLoveMarriage": "연애/결혼",
+  "categorySajuBasics": "사주기초",
+  "categorySajuStories": "사주이야기",
+  "categoryBookReviews": "사주책리뷰",
+
+  "chatCategoryWealthBusiness": "재물/사업",
+  "chatCategoryHealthFamily": "건강/가족",
+  "chatCategoryLoveMarriage": "연애/결혼",
+
+  "chatUserLabel": "나",
+  "chatAiLabel": "유아이",
+
+  "analysisRequiredAlert": "먼저 사주 분석을 완료해주세요.",
+
+  "reportEmailNotImplemented": "이메일 전송 기능은 준비 중입니다."
 }

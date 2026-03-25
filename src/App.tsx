@@ -511,6 +511,19 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
 
+  const chatCategoryTranslationMap: Record<string, string> = {
+    '재물/사업': t('chatCategoryWealthBusiness'),
+    '건강/가족': t('chatCategoryHealthFamily'),
+    '연애/결혼': t('chatCategoryLoveMarriage')
+  };
+
+  const blogCategoryMap: Record<string, string> = {
+    '전체': t('categoryAll'),
+    '사주기초': t('categorySajuBasics'),
+    '사주이야기': t('categorySajuStories'),
+    '사주책리뷰': t('categoryBookReviews')
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem('language');
     let activeLang: 'ko' | 'en' = 'ko';
@@ -977,7 +990,7 @@ const App: React.FC = () => {
       setMessages([
         { 
           role: "model", 
-          text: `만세력에서 당신의 사주팔자를 확인하셨습니다. 이 상담창에 무엇이든 물어 보세요. 유아이 AI 전문상담자가 대답해 드립니다.` 
+          text: t('chatWelcomeMessage') 
         }
       ]);
     } catch (err: any) {
@@ -996,15 +1009,15 @@ const App: React.FC = () => {
     if (messages.length === 0) return;
     
     const chatContent = messages.map(msg => {
-      const role = msg.role === 'user' ? '나' : '유아이';
+      const role = msg.role === 'user' ? t('chatUserLabel') : t('chatAiLabel');
       return `[${role}]\n${msg.text}\n`;
     }).join('\n---\n\n');
     
-    const blob = new Blob([`유아이 사주상담 내역\n날짜: ${new Date().toLocaleString()}\n\n${chatContent}`], { type: 'text/plain' });
+    const blob = new Blob([`${t('saveChatFilename')}\n${t('saveChatDateLabel')}: ${new Date().toLocaleString()}\n\n${chatContent}`], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `유아이_상담내역_${new Date().toISOString().slice(0,10)}.txt`;
+    a.download = `${t('saveChatFilename')}_${new Date().toISOString().slice(0,10)}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1101,7 +1114,7 @@ const App: React.FC = () => {
     }
 
     if (sajuResult.length === 0) {
-      alert("먼저 사주 분석을 완료해 주세요.");
+      alert(t('analysisRequiredAlert'));
       setActiveTab("welcome");
       return;
     }
@@ -1224,7 +1237,7 @@ ${careerFocus || '직업적 잠재력 분석이 필요합니다.'}
     }
 
     if (sajuResult.length === 0) {
-      alert("먼저 사주 분석을 완료해 주세요.");
+      alert(t('analysisRequiredAlert'));
       setActiveTab("welcome");
       return;
     }
@@ -2256,28 +2269,23 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                 </div>
               </div>
             ) : (
+              <div className="max-w-7xl mx-auto grid grid-cols-1 gap-8 md:gap-12">
                 <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-20 px-6 text-center space-y-8">
                   <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center ${isDarkMode ? 'bg-zinc-800' : 'bg-white shadow-xl'}`}>
                     <LayoutDashboard className={`w-12 h-12 ${isDarkMode ? 'text-zinc-600' : 'text-zinc-300'}`} />
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-2xl font-bold">사주 데이터가 없습니다</h3>
+                    <h3 className="text-2xl font-bold">{t('dashboardNoDataTitle')}</h3>
                     <p className={`max-w-md mx-auto ${isDarkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>
-                      HOME 탭에서 생년월일 정보를 입력하시면<br/>
-                      정밀한 만세력 분석과 대운 정보를 확인하실 수 있습니다.
+                      {t('dashboardNoDataDesc')}
                     </p>
                   </div>
                   <button 
                     onClick={() => setActiveTab("welcome")}
                     className="px-8 py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
                   >
-                    정보 입력하러 가기
+                    {t('dashboardGoInputButton')}
                   </button>
-                </div>
-              )}
-
-              {/* Navigation Guidance for Dashboard */}
-              <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
                 <motion.div 
                   whileHover={{ y: -5 }}
                   onClick={() => setActiveTab("chat")}
@@ -2291,13 +2299,13 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     <MessageCircle className="text-violet-500 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold">AI와 더 깊은 대화 나누기</h3>
+                    <h3 className="text-2xl font-bold">{t('dashboardChatCardTitle')}</h3>
                     <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
-                      분석된 사주를 바탕으로 궁금한 점을 직접 물어보세요. 직업, 연애, 재물운 등 구체적인 조언을 얻을 수 있습니다.
+                      {t('dashboardChatCardDesc')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-violet-500 font-bold text-sm">
-                    AI 상담 시작하기
+                    {t('dashboardChatCardCta')}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </motion.div>
@@ -2315,13 +2323,13 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     <FileText className="text-indigo-500 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold">프리미엄 운세 리포트</h3>
+                    <h3 className="text-2xl font-bold">{t('dashboardReportCardTitle')}</h3>
                     <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
-                      당신의 인생 설계도를 한눈에 볼 수 있는 정밀 리포트를 생성합니다. PDF로 저장하여 언제든 다시 꺼내볼 수 있습니다.
+                      {t('dashboardReportCardDesc')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
-                    리포트 생성하기
+                    {t('dashboardReportCardCta')}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </motion.div>
@@ -2351,8 +2359,10 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                   <ExternalLink className="w-4 h-4 opacity-40" />
                 </a>
               </div>
-            </motion.div>
+            </div>
           )}
+          </motion.div>
+        )}
 
           {activeTab === "chat" && (
             <motion.div 
@@ -2378,7 +2388,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                               : 'hover:bg-indigo-500/10 text-zinc-500 dark:text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400'
                           }`}
                         >
-                          {cat}
+                          {chatCategoryTranslationMap[cat] || cat}
                         </button>
                       ))}
                     </div>
@@ -2506,7 +2516,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                                     : 'bg-white border-gray-200 text-gray-500'
                               }`}
                             >
-                              {cat}
+                              {chatCategoryTranslationMap[cat] || cat}
                             </button>
                           ))}
                         </div>
@@ -2531,7 +2541,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       {/* Privacy Notice (Mobile) */}
                       <div className="pt-1 border-t border-black/5 dark:border-white/5">
                         <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center leading-tight">
-                          상담 정보는 상담 종료 시 자동 파기됩니다.
+                          {t('chatSystemMessageWarning')}
                         </p>
                       </div>
                     </div>
@@ -2553,15 +2563,15 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                   {/* Desktop Sidebar Actions */}
                   <div className="md:w-64 space-y-4 md:sticky md:top-0 h-fit">
                     <div className="p-6 rounded-3xl bg-indigo-600 text-white space-y-4 shadow-xl shadow-indigo-500/20">
-                      <h3 className="font-bold text-lg">운명 리포트</h3>
-                      <p className="text-xs opacity-80 leading-relaxed">AI 디렉터가 분석한 당신의 인생 지도를 확인하고 저장하세요.</p>
+                      <h3 className="font-bold text-lg">{t('reportSidebarTitle')}</h3>
+                      <p className="text-xs opacity-80 leading-relaxed">{t('reportSidebarDesc')}</p>
                       <button 
                         onClick={handleGenerateReport}
                         disabled={loading || sajuResult.length === 0}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-white text-indigo-600 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
                       >
                         <Compass className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        리포트 생성하기
+                        {t('reportGenerateButton')}
                       </button>
                     </div>
 
@@ -2572,14 +2582,14 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm disabled:opacity-50"
                       >
                         <Download className={`w-5 h-5 ${isPrinting ? 'animate-bounce' : ''}`} />
-                        <span className="text-[10px] font-bold">PDF 저장</span>
+                        <span className="text-[10px] font-bold">{t('reportDownloadPdf')}</span>
                       </button>
                       <button 
-                        onClick={() => alert("이메일 전송 기능은 준비 중입니다.")}
+                        onClick={() => alert(t('reportEmailNotImplemented'))}
                         className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm"
                       >
                         <Mail className="w-5 h-5" />
-                        <span className="text-[10px] font-bold">이메일</span>
+                        <span className="text-[10px] font-bold">{t('reportEmail')}</span>
                       </button>
                     </div>
                   </div>
@@ -2600,8 +2610,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                             <Compass className="w-6 h-6 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                           </div>
                           <div className="text-center space-y-2">
-                            <p className="text-lg font-bold animate-pulse">운명의 지도를 그리는 중...</p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
+                            <p className="text-lg font-bold animate-pulse">{t('reportLoadingTitle')}</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('reportLoadingDesc')}</p>
                           </div>
                         </motion.div>
                       ) : reportContent ? (
@@ -2618,7 +2628,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           
                           <div className="mt-10 pt-6 border-t border-black/5 dark:border-white/5">
                             <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
-                              본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
+                              {t('reportDisclaimer')}
                             </p>
                           </div>
                         </motion.div>
@@ -2633,10 +2643,9 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                             <FileText className="w-10 h-10 text-indigo-500/30" />
                           </div>
                           <div className="space-y-4">
-                            <h3 className="text-2xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
+                            <h3 className="text-2xl font-title font-bold">{t('reportEmptyTitle')}</h3>
                             <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
-                              왼쪽의 <strong>'리포트 생성하기'</strong> 버튼을 눌러보세요.<br/>
-                              AI 디렉터가 당신의 사주 데이터를 기반으로 힙한 MZ 감성 리포트를 생성해 드립니다.
+                              {t('reportEmptyDesc')}
                             </p>
                           </div>
                         </motion.div>
@@ -3084,8 +3093,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none">
                           <Sparkles className="w-full h-full text-white" />
                         </div>
-                        <h2 className="text-4xl md:text-7xl font-handwriting text-white">유아이 사주 블로그</h2>
-                        <p className="text-sm md:text-lg text-indigo-100/70 max-w-2xl mx-auto">깊이 있는 사주 명리학 이야기와 당신의 삶을 위한 지혜를 만나보세요.</p>
+                        <h2 className="text-4xl md:text-7xl font-handwriting text-white">{t('blogTitle')}</h2>
+                        <p className="text-sm md:text-lg text-indigo-100/70 max-w-2xl mx-auto">{t('blogSubtitle')}</p>
                       </div>
 
                       <div className="flex flex-col lg:flex-row gap-12">
@@ -3093,7 +3102,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <aside className="w-full lg:w-64 shrink-0 space-y-10">
                           <div className="space-y-6">
                             <div className="flex items-center justify-between px-2">
-                              <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40">글카테고리</h4>
+                              <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40">{t('blogCategoryHeader')}</h4>
                               {isAdmin && (
                                 <button 
                                   onClick={() => setIsAddingPost(true)}
@@ -3115,7 +3124,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                                       : 'bg-white dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 border border-black/5 dark:border-white/5'
                                   }`}
                                 >
-                                  {cat}
+                                  {cat === '전체' ? t('categoryAll') : cat === '사주기초' ? t('categorySajuBasics') : cat === '사주이야기' ? t('categorySajuStories') : t('categoryBookReviews')}
                                 </button>
                               ))}
                             </div>
@@ -3155,8 +3164,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                  <h3 className="text-2xl font-bold">새 블로그 글 작성</h3>
-                                  <p className="text-xs text-zinc-400">당신의 지혜를 세상과 공유하세요.</p>
+                                  <h3 className="text-2xl font-bold">{t('blogNewPostTitle')}</h3>
+                                  <p className="text-xs text-zinc-400">{t('blogNewPostDesc')}</p>
                                 </div>
                                 <button onClick={() => setIsAddingPost(false)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
                                   <X className="w-6 h-6" />
@@ -3282,8 +3291,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                  <h3 className="text-2xl font-bold">블로그 글 수정</h3>
-                                  <p className="text-xs text-zinc-400">기존의 지혜를 다듬어 보세요.</p>
+                                  <h3 className="text-2xl font-bold">{t('blogEditPostTitle')}</h3>
+                                  <p className="text-xs text-zinc-400">{t('blogEditPostDesc')}</p>
                                 </div>
                                 <button onClick={() => setIsEditingPost(null)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
                                   <X className="w-6 h-6" />
@@ -3472,8 +3481,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           {(blogPosts.length > 0 ? blogPosts : BLOG_POSTS).filter(post => blogCategory === '전체' || post.category === blogCategory).length === 0 && (
                             <div className="text-center py-40 opacity-20">
                               <Newspaper className="w-20 h-20 mx-auto mb-6 text-indigo-500" />
-                              <p className="text-xl font-bold">해당 카테고리에 게시된 글이 없습니다.</p>
-                              <p className="text-sm mt-2">다른 카테고리를 선택해 보세요.</p>
+                              <p className="text-xl font-bold">{t('blogNoPostsTitle')}</p>
+                              <p className="text-sm mt-2">{t('blogNoPostsDesc')}</p>
                             </div>
                           )}
 
@@ -3530,12 +3539,12 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
       <nav className={`md:hidden px-4 pt-1 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30 safe-bottom-px`}>
         <div className="max-w-md mx-auto flex items-center justify-around">
           {[
-            { id: "welcome", icon: User, label: "HOME" },
-            { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
-            { id: "chat", icon: MessageCircle, label: "상담" },
-            { id: "report", icon: FileText, label: "리포트" },
-            { id: "blog", icon: Newspaper, label: "블로그" },
-            { id: "guide", icon: Info, label: "가이드" }
+            { id: "welcome", icon: User, label: t('navHome') },
+            { id: "dashboard", icon: LayoutDashboard, label: t('navSaju') },
+            { id: "chat", icon: MessageCircle, label: t('navChat') },
+            { id: "report", icon: FileText, label: t('navReport') },
+            { id: "blog", icon: Newspaper, label: t('navBlog') },
+            { id: "guide", icon: Info, label: t('navGuide') }
           ].map((tab) => (
             <button 
               key={tab.id}

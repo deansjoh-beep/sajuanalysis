@@ -156,5 +156,71 @@
   "autoLocationButton": "Auto-fill Timezone/Location",
   "privacyAgreeLabel": "I agree to the use of personal information",
   "enterNamePlaceholder": "Please enter your name",
-  "accurateAnalysisNotice": "Please verify your birth time for accurate analysis."
+  "accurateAnalysisNotice": "Please verify your birth time for accurate analysis.",
+
+  "dashboardNoDataTitle": "No saju data available",
+  "dashboardNoDataDesc": "Enter your birth details on the HOME tab to see precise saju and daewoon information.",
+  "dashboardGoInputButton": "Enter Details",
+
+  "dashboardChatCardTitle": "Deeper AI conversation",
+  "dashboardChatCardDesc": "Ask anything based on your analyzed saju: career, relationships, money and more.",
+  "dashboardChatCardCta": "Start AI Consultation",
+
+  "dashboardReportCardTitle": "Premium Fortune Report",
+  "dashboardReportCardDesc": "Generate a detailed life blueprint report with PDF export.",
+  "dashboardReportCardCta": "Generate Report",
+
+  "reportSidebarTitle": "Destiny Report",
+  "reportSidebarDesc": "Review your life map analyzed by AI director and save it.",
+  "reportGenerateButton": "Generate Report",
+  "reportDownloadPdf": "Save PDF",
+  "reportEmail": "Email",
+
+  "reportLoadingTitle": "Drawing your destiny map...",
+  "reportLoadingDesc": "AI director is analyzing your saju log with precision.",
+  "reportEmptyTitle": "No fortune report yet.",
+  "reportEmptyDesc": "Click the 'Generate Report' button to start. AI director creates a trendy MZ style report based on your saju data.",
+
+  "reportDisclaimer": "This report is an AI interpretation and not a scientific fact. Use for reference only. Final decisions and responsibilities rest with you.",
+
+  "chatWelcomeMessage": "Your saju has been confirmed from manseryeok. Ask anything in this chat, our AI counselor is here.",
+  "chatSystemMessageWarning": "All consultation data is automatically deleted when the session ends.",
+
+  "saveChatFilename": "UI Saju Chat Log",
+  "saveChatDateLabel": "Date",
+
+  "blogTitle": "UI Saju Blog",
+  "blogSubtitle": "Explore deep saju wisdom and practical life insights.",
+  "blogCategoryHeader": "Post Categories",
+  "blogNoPostsTitle": "No posts in this category.",
+  "blogNoPostsDesc": "Try a different category.",
+  "blogNewPostTitle": "Create New Blog Post",
+  "blogNewPostDesc": "Share your wisdom with the world.",
+  "blogEditPostTitle": "Edit Blog Post",
+  "blogEditPostDesc": "Polish the insight you already wrote.",
+  "blogAdminMode": "Admin Mode",
+  "blogUserMode": "User Mode",
+  "blogAdminLoginGate": "Admin login gateway. Log in to manage the system.",
+  "blogLogout": "Log out",
+  "blogAdminLogin": "Admin Login",
+  "blogLoggingIn": "Logging in...",
+
+  "categoryAll": "All",
+  "categoryWealthBusiness": "Wealth / Business",
+  "categoryHealthFamily": "Health / Family",
+  "categoryLoveMarriage": "Love / Marriage",
+  "categorySajuBasics": "Saju Basics",
+  "categorySajuStories": "Saju Stories",
+  "categoryBookReviews": "Saju Book Reviews",
+
+  "chatCategoryWealthBusiness": "Wealth / Business",
+  "chatCategoryHealthFamily": "Health / Family",
+  "chatCategoryLoveMarriage": "Love / Marriage",
+
+  "chatUserLabel": "User",
+  "chatAiLabel": "UI",
+
+  "analysisRequiredAlert": "Please complete saju analysis first.",
+
+  "reportEmailNotImplemented": "Email sending feature is not available yet."
 }
