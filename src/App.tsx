@@ -55,6 +55,7 @@ import {
   orderBy, 
   serverTimestamp, 
   getDocFromServer, 
+  increment,
   doc 
 } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -491,27 +492,52 @@ const App: React.FC = () => {
     const allPosts = blogPosts.length > 0 ? blogPosts : BLOG_POSTS;
     if (allPosts.length === 0) return [];
     
-    // Get current week number (0-52)
+    // 1. Latest: Sort by date descending
+    const sortedByDate = [...allPosts].sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.()?.getTime() || new Date(a.date).getTime();
+      const dateB = b.createdAt?.toDate?.()?.getTime() || new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+    const latest = sortedByDate[0];
+
+    // 2. Popular: Sort by views descending (excluding latest)
+    const sortedByViews = [...allPosts]
+      .filter(p => p.id !== latest.id)
+      .sort((a, b) => (b.views || 0) - (a.views || 0));
+    const popular = sortedByViews[0] || latest;
+
+    // 3. Picks: 2 random posts (excluding latest and popular), stable for a month
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+    const monthSeed = now.getFullYear() * 100 + now.getMonth();
     
-    // Simple seeded random based on week and year
-    const seed = now.getFullYear() * 100 + weekNumber;
     const seededRandom = (s: number) => {
       const x = Math.sin(s) * 10000;
       return x - Math.floor(x);
     };
 
-    // Shuffle and pick 3
-    const shuffled = [...allPosts].sort((a, b) => {
-      const hashA = seededRandom(seed + a.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
-      const hashB = seededRandom(seed + b.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
+    const eligibleForPicks = allPosts.filter(p => p.id !== latest.id && p.id !== popular.id);
+    
+    const shuffledPicks = [...eligibleForPicks].sort((a, b) => {
+      const hashA = seededRandom(monthSeed + a.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
+      const hashB = seededRandom(monthSeed + b.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
       return hashA - hashB;
     });
 
-    return shuffled.slice(0, 3);
+    const pick1 = shuffledPicks[0] || (allPosts.find(p => p.id !== latest.id && p.id !== popular.id) || latest);
+    const pick2 = shuffledPicks[1] || (allPosts.find(p => p.id !== latest.id && p.id !== popular.id && p.id !== pick1.id) || latest);
+
+    // Ensure unique posts for the 4 slots
+    const result: BlogPost[] = [];
+    const seenIds = new Set<string>();
+    
+    [latest, popular, pick1, pick2].forEach(post => {
+      if (!seenIds.has(post.id)) {
+        result.push(post);
+        seenIds.add(post.id);
+      }
+    });
+    
+    return result;
   }, [blogPosts]);
 
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
@@ -699,6 +725,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePostClick = async (post: BlogPost) => {
+    setSelectedBlogPost(post);
+    setActiveTab("blog");
+    
+    // Increment views in Firestore
+    try {
+      const postRef = doc(db, "blogPosts", post.id);
+      await updateDoc(postRef, {
+        views: increment(1)
+      });
+    } catch (error) {
+      console.error("Error incrementing views:", error);
+    }
+  };
+
   const handleAddPost = async () => {
     console.log("[DEBUG] handleAddPost attempt. isAdmin:", isAdmin, "user:", user?.email);
     if (!isAdmin || !user) {
@@ -712,7 +753,8 @@ const App: React.FC = () => {
         readTime: newPost.readTime || "3분",
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp(),
-        authorUid: user.uid
+        authorUid: user.uid,
+        views: 0
       };
       console.log("[DEBUG] Saving post data:", postData);
       await addDoc(collection(db, "blogPosts"), postData);
@@ -1390,19 +1432,16 @@ ${daeunContext}
                         <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">전체보기</button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {recommendedPosts.map((post, idx) => (
                           <div 
-                            key={post.id}
-                            onClick={() => {
-                              setSelectedBlogPost(post);
-                              setActiveTab("blog");
-                            }}
+                            key={`${post.id}-${idx}`}
+                            onClick={() => handlePostClick(post)}
                             className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-lg shadow-zinc-200/40'}`}
                           >
                             <div className="aspect-video overflow-hidden relative">
                               <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
-                              <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                              <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-emerald-500'}`}>
                                 {idx === 0 ? 'Latest' : idx === 1 ? 'Popular' : 'Pick'}
                               </div>
                             </div>
@@ -2913,7 +2952,7 @@ ${daeunContext}
                               {(blogPosts.length > 0 ? blogPosts : BLOG_POSTS).slice(0, 3).map(post => (
                                 <button 
                                   key={post.id} 
-                                  onClick={() => setSelectedBlogPost(post)}
+                                  onClick={() => handlePostClick(post)}
                                   className="group text-left space-y-2.5"
                                 >
                                   <p className="text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
@@ -3196,7 +3235,7 @@ ${daeunContext}
                                   whileHover={{ y: -10 }}
                                   className="relative w-full text-left rounded-[2.5rem] overflow-hidden bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 shadow-xl flex flex-col group transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
                                 >
-                                  <div className="relative h-52 overflow-hidden cursor-pointer" onClick={() => setSelectedBlogPost(post)}>
+                                  <div className="relative h-52 overflow-hidden cursor-pointer" onClick={() => handlePostClick(post)}>
                                     <img 
                                       src={post.imageUrl} 
                                       alt={post.title}
@@ -3239,12 +3278,12 @@ ${daeunContext}
                                       <Calendar className="w-3 h-3" />
                                       <span>{post.date}</span>
                                     </div>
-                                    <h3 className="font-bold text-xl leading-tight line-clamp-2 text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => setSelectedBlogPost(post)}>{post.title}</h3>
+                                    <h3 className="font-bold text-xl leading-tight line-clamp-2 text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => handlePostClick(post)}>{post.title}</h3>
                                     <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 leading-relaxed flex-1">
                                       {post.content.replace(/[#*`]/g, '').slice(0, 120)}...
                                     </p>
                                     <button 
-                                      onClick={() => setSelectedBlogPost(post)}
+                                      onClick={() => handlePostClick(post)}
                                       className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-2 pt-4 group/btn"
                                     >
                                       자세히 읽기 

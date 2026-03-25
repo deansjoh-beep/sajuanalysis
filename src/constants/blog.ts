@@ -7,6 +7,8 @@ export interface BlogPost {
   date: string;
   imageUrl: string;
   readTime: string;
+  createdAt?: any;
+  views?: number;
 }
 
 export const BLOG_POSTS: BlogPost[] = [
@@ -65,7 +67,8 @@ export const BLOG_POSTS: BlogPost[] = [
     category: "사주기초",
     date: "2026-03-20",
     imageUrl: "https://picsum.photos/seed/korean-calligraphy/800/400",
-    readTime: "3분"
+    readTime: "3분",
+    views: 1250
   },
   {
     id: "3",
@@ -98,6 +101,7 @@ export const BLOG_POSTS: BlogPost[] = [
     category: "사주책리뷰",
     date: "2026-03-10",
     imageUrl: "https://picsum.photos/seed/stars/800/400",
-    readTime: "6분"
+    readTime: "6분",
+    views: 840
   }
 ];
