@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useTranslation } from 'react-i18next';
+import i18next from 'i18next';
+import './i18n';
+import tzlookup from 'tz-lookup';
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Send, 
@@ -38,7 +42,7 @@ import "easymde/dist/easymde.min.css";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
-import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
+import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok, getDeityEnglishExplanation, getCareerFocus } from "./utils/saju";
 import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
 import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
@@ -120,13 +124,20 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
 // Saju Calculation Tool for Gemini
 const calculateSajuForPerson = (args: any) => {
   try {
-    const { birthDate, birthTime, isLunar, isLeap, gender, personName, unknownTime } = args;
-    const saju = getSajuData(birthDate, birthTime, isLunar, !!isLeap, !!unknownTime);
-    const daeun = getDaeunData(birthDate, birthTime, isLunar, !!isLeap, gender as 'M' | 'F');
+    const { birthDate, birthTime, isLunar, isLeap, gender, personName, unknownTime, timezone, longitude, latitude } = args;
+    const saju = getSajuData(birthDate, birthTime, isLunar, !!isLeap, !!unknownTime, timezone || 'Asia/Seoul', longitude, latitude);
+    const daeun = getDaeunData(birthDate, birthTime, isLunar, !!isLeap, gender as 'M' | 'F', timezone || 'Asia/Seoul', longitude, latitude);
     const yongshin = calculateYongshin(saju);
     const gyeok = calculateGyeok(saju);
     
-    const sajuText = saju.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`).join('\n');
+    const sajuText = saju.map(p => {
+      const stemDeityEng = getDeityEnglishExplanation(p.stem.deity);
+      const branchDeityEng = getDeityEnglishExplanation(p.branch.deity);
+      return `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}` +
+        (stemDeityEng ? ` (stem: ${stemDeityEng})` : '') +
+        (branchDeityEng ? ` (branch: ${branchDeityEng})` : '');
+    }).join('\n');
+
     const daeunText = daeun.map(d => `${d.startAge}세 대운: ${d.stem.hangul}${d.branch.hangul} (${hanjaToHangul[d.stem]}${hanjaToHangul[d.branch]})`).join(', ');
     
     return {
@@ -134,10 +145,11 @@ const calculateSajuForPerson = (args: any) => {
       saju: sajuText,
       daeun: daeunText,
       yongshin: `${yongshin.yongshin} (기운: ${yongshin.strength}, 점수: ${yongshin.score})`,
-      gyeok: `${gyeok.gyeok} (구성: ${gyeok.composition})`
+      gyeok: `${gyeok.gyeok} (구성: ${gyeok.composition})`,
+      careerFocus: getCareerFocus(saju)
     };
   } catch (e) {
-    return { error: "사주 계산 중 오류가 발생했습니다. 날짜와 시간 형식을 확인해주세요. (예: 1990-01-01, 14:30)" };
+    return { error: i18next.t('calculateError') };
   }
 };
 
@@ -145,7 +157,7 @@ const sajuToolDeclaration = {
   name: "calculateSajuForPerson",
   parameters: {
     type: Type.OBJECT,
-    description: "타인의 생년월일시 정보를 바탕으로 사주 팔자와 대운을 계산합니다. 궁합 분석이나 제3자(가족, 친구 등) 상담 시 반드시 이 도구를 사용하여 정확한 데이터를 얻어야 합니다.",
+    description: i18next.t('sajuToolDescription'),
     properties: {
       birthDate: { type: Type.STRING, description: "생년월일 (YYYY-MM-DD 형식)" },
       birthTime: { type: Type.STRING, description: "생시 (HH:mm 형식, 모를 경우 '12:00')" },
@@ -153,7 +165,10 @@ const sajuToolDeclaration = {
       isLeap: { type: Type.BOOLEAN, description: "윤달 여부 (음력일 경우에만 해당)" },
       gender: { type: Type.STRING, description: "성별 ('M': 남성, 'F': 여성)" },
       personName: { type: Type.STRING, description: "대상자의 이름 또는 호칭 (예: '남자친구', '상대방', '어머니')" },
-      unknownTime: { type: Type.BOOLEAN, description: "생시를 모르는지 여부" }
+      unknownTime: { type: Type.BOOLEAN, description: "생시를 모르는지 여부" },
+      timezone: { type: Type.STRING, description: "IANA 타임존 (예: 'Asia/Seoul', 'America/New_York')" },
+      longitude: { type: Type.NUMBER, description: "태어난 장소의 경도 (예: 126.9780)" },
+      latitude: { type: Type.NUMBER, description: "태어난 장소의 위도 (예: 37.5665)" }
     },
     required: ["birthDate", "birthTime", "isLunar", "gender"]
   }
@@ -195,6 +210,9 @@ interface UserData {
   calendarType: 'solar' | 'lunar' | 'leap';
   gender: 'M' | 'F';
   unknownTime: boolean;
+  timezone: string;
+  longitude: number;
+  latitude: number;
 }
 
 const HanjaBox: React.FC<{ 
@@ -444,6 +462,7 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
 };
 
 const App: React.FC = () => {
+  const { t, i18n } = useTranslation();
   // Navigation
   const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog">("welcome");
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact">("main");
@@ -459,7 +478,10 @@ const App: React.FC = () => {
     birthMinute: "0",
     calendarType: 'solar',
     gender: 'M',
-    unknownTime: false
+    unknownTime: false,
+    timezone: 'Asia/Seoul',
+    longitude: 126.9780,
+    latitude: 37.5665
   });
   const [sajuResult, setSajuResult] = useState<any[]>([]);
   const [daeunResult, setDaeunResult] = useState<any[]>([]);
@@ -468,11 +490,13 @@ const App: React.FC = () => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('재물/사업');
   const [blogCategory, setBlogCategory] = useState<string>('전체');
+  const [language, setLanguage] = useState<'ko' | 'en'>('ko');
   const [refreshKey, setRefreshKey] = useState(0);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
+  const [careerFocus, setCareerFocus] = useState<string>("");
   const [guidelines, setGuidelines] = useState<Guidelines | null>({
     saju: SAJU_GUIDELINE,
     consulting: CONSULTING_GUIDELINE,
@@ -486,7 +510,31 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
-  
+
+  useEffect(() => {
+    const saved = localStorage.getItem('language');
+    let activeLang: 'ko' | 'en' = 'ko';
+
+    if (saved === 'ko' || saved === 'en') {
+      activeLang = saved;
+    } else {
+      const navLang = navigator.language || navigator.languages?.[0] || 'ko';
+      if (navLang.startsWith('en')) activeLang = 'en';
+      else if (navLang.startsWith('ko')) activeLang = 'ko';
+      else activeLang = 'ko';
+    }
+
+    i18next.changeLanguage(activeLang);
+    setLanguage(activeLang);
+    localStorage.setItem('language', activeLang);
+  }, []);
+
+  const changeLanguage = (lng: 'ko' | 'en') => {
+    i18next.changeLanguage(lng);
+    setLanguage(lng);
+    localStorage.setItem('language', lng);
+  };
+
   // Weekly Recommended Content Logic
   const recommendedPosts = useMemo(() => {
     const allPosts = blogPosts.length > 0 ? blogPosts : BLOG_POSTS;
@@ -631,14 +679,14 @@ const App: React.FC = () => {
       console.log("Login successful", result.user.email);
     } catch (error: any) {
       console.error("Login error:", error);
-      let errorMessage = "로그인 중 오류가 발생했습니다.";
+      let errorMessage = t('loginError');
       
       if (error.code === 'auth/unauthorized-domain') {
         errorMessage = `현재 도메인이 Firebase 승인 도메인에 등록되어 있지 않습니다. Firebase 콘솔에서 다음 도메인을 '승인된 도메인'에 추가해 주세요:\n\n${window.location.hostname}`;
       } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = "브라우저에서 팝업이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해 주세요.";
+        errorMessage = t('loginPopupBlocked');
       } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = "로그인 창이 닫혔습니다. 다시 시도해 주세요.";
+        errorMessage = t('loginPopupClosed');
       } else {
         errorMessage = `로그인 실패 (${error.code || 'unknown'}): ${error.message || '알 수 없는 오류가 발생했습니다.'}`;
       }
@@ -650,7 +698,7 @@ const App: React.FC = () => {
   };
 
   const handleReset = () => {
-    if (window.confirm("상담을 종료하고 모든 입력 데이터를 삭제하시겠습니까? (이 작업은 되돌릴 수 없습니다)")) {
+    if (window.confirm(t('confirmResetMessage'))) {
       setUserData({
         name: "사용자",
         birthYear: "1990",
@@ -660,7 +708,10 @@ const App: React.FC = () => {
         birthMinute: "0",
         calendarType: 'solar',
         gender: 'M',
-        unknownTime: false
+        unknownTime: false,
+        timezone: 'Asia/Seoul',
+        longitude: 126.9780,
+        latitude: 37.5665
       });
       setMessages([]);
       setSajuResult([]);
@@ -673,6 +724,46 @@ const App: React.FC = () => {
       setIsAnalyzing(false);
       setAnalysisStep(0);
     }
+  };
+
+  const handleAutoLocation = () => {
+    if (!navigator.geolocation) {
+      alert(t('locationNotSupported'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        let detectedTimezone = 'UTC';
+        try {
+          detectedTimezone = tzlookup(latitude, longitude);
+        } catch (err) {
+          console.warn("tz-lookup error", err);
+        }
+
+        setUserData({
+          ...userData,
+          latitude,
+          longitude,
+          timezone: detectedTimezone
+        });
+      },
+      (error) => {
+        console.error("Geolocation error", error);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            alert(t('locationPermissionDenied'));
+            break;
+          case error.POSITION_UNAVAILABLE:
+            alert(t('locationUnavailable'));
+            break;
+          default:
+            alert(t('locationGeneralError'));
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const handleLogout = async () => {
@@ -852,13 +943,32 @@ const App: React.FC = () => {
       const isLunar = userData.calendarType !== 'solar';
       const isLeap = userData.calendarType === 'leap';
       
-      const result = getSajuData(dateStr, timeStr, isLunar, isLeap, userData.unknownTime);
-      const daeun = getDaeunData(dateStr, timeStr, isLunar, isLeap, userData.gender);
+      const result = getSajuData(
+        dateStr,
+        timeStr,
+        isLunar,
+        isLeap,
+        userData.unknownTime,
+        userData.timezone,
+        userData.longitude,
+        userData.latitude
+      );
+      const daeun = getDaeunData(
+        dateStr,
+        timeStr,
+        isLunar,
+        isLeap,
+        userData.gender,
+        userData.timezone,
+        userData.longitude,
+        userData.latitude
+      );
       const yongshin = calculateYongshin(result);
       
       setSajuResult(result);
       setDaeunResult(daeun);
       setYongshinResult(yongshin);
+      setCareerFocus(getCareerFocus(result));
       setReportContent(null);
       setActiveTab("dashboard");
       setShowInputForm(false);
@@ -872,7 +982,7 @@ const App: React.FC = () => {
       ]);
     } catch (err: any) {
       console.error("Analysis error:", err);
-      alert("사주 분석 중 오류가 발생했습니다. 입력 정보를 확인해 주세요.");
+      alert(t('calculateError'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -1026,6 +1136,7 @@ const App: React.FC = () => {
   4. 이는 개인정보를 소중히 다루고 상담의 신뢰도를 높이기 위한 필수 절차임을 사용자에게 인지시켜 신뢰를 구축하세요.
 - **MZ 말투:** "반말"은 지양하되, 세련되고 깔끔한 말투를 사용하세요. 적절한 이모지(✨, 🍀, 🔥 등)를 섞어주세요.
 - **전문성:** 사주 명리학적 근거(음양오행, 십성 등)를 언급하되, 어려운 용어는 현대적인 비유로 풀어서 설명하세요.
+- **서양적 재해석:** "관운(官運)"은 'career luck'만으로 끝내지 말고, 가능한 경우 "professional recognition", "authority in the workplace", "leadership opportunity" 같은 구체적이고 현실적인 비즈니스/커리어 용어로 확장 설명하세요.
 - **맥락 유지:** 이전 대화 내용을 기억하고 연결해서 답변하세요.
 ${isFirstMessage 
   ? "- 첫 인사는 따뜻하고 힙하게! 마지막은 항상 사용자를 응원하며 다음 질문을 유도하세요."
@@ -1038,6 +1149,8 @@ ${isFirstMessage
 ${sajuContext}
 [대운 정보]
 ${daeunContext}
+[관운 커리어 포커스]
+${careerFocus || '직업적 잠재력 분석이 필요합니다.'}
 `;
 
       const contents: any[] = messages.map(m => ({
@@ -1173,6 +1286,9 @@ ${sajuContext}
 대운 흐름:
 ${daeunContext}
 
+관운 커리어 포커스:
+${careerFocus || '직업적 경향 분석이 필요합니다.'}
+
 현재 나이: ${currentAge}세
 
 [8대 카테고리 리스트]
@@ -1265,10 +1381,10 @@ ${daeunContext}
                   className="text-lg font-medium text-white"
                 >
                   {[
-                    "천문 데이터를 분석하고 있습니다...",
-                    "사주 팔자를 산출하고 있습니다...",
-                    "대운의 흐름을 파악하고 있습니다...",
-                    "현대적 해석을 준비하고 있습니다..."
+                    t('analysisStep1'),
+                    t('analysisStep2'),
+                    t('analysisStep3'),
+                    t('analysisStep4')
                   ][analysisStep]}
                 </motion.p>
                 
@@ -1280,7 +1396,7 @@ ${daeunContext}
                   />
                 </div>
                 
-                <p className="text-xs text-white/40">잠시만 기다려 주세요. 정밀한 분석이 진행 중입니다.</p>
+                <p className="text-xs text-white/40">{t('analysisWait')}</p>
               </div>
             </div>
           </motion.div>
@@ -1295,20 +1411,20 @@ ${daeunContext}
               <Sparkles className="text-white w-4 h-4 md:w-5 h-5" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-base md:text-xl font-title font-bold tracking-tight">유아이 사주상담</h1>
-              <p className="hidden md:block text-[10px] opacity-40 uppercase tracking-widest font-bold">전문 사주 분석</p>
+              <h1 className="text-base md:text-xl font-title font-bold tracking-tight">{t('uiTitle')}</h1>
+              <p className="hidden md:block text-[10px] opacity-40 uppercase tracking-widest font-bold">{t('uiSubtitle')}</p>
             </div>
           </div>
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-2 lg:gap-4">
             {[
-              { id: "welcome", icon: User, label: "HOME" },
-              { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
-              { id: "chat", icon: MessageCircle, label: "상담" },
-              { id: "report", icon: FileText, label: "리포트" },
-              { id: "blog", icon: Newspaper, label: "블로그" },
-              { id: "guide", icon: Info, label: "가이드" }
+              { id: "welcome", icon: User, label: t('navHome') },
+              { id: "dashboard", icon: LayoutDashboard, label: t('navSaju') },
+              { id: "chat", icon: MessageCircle, label: t('navChat') },
+              { id: "report", icon: FileText, label: t('navReport') },
+              { id: "blog", icon: Newspaper, label: t('navBlog') },
+              { id: "guide", icon: Info, label: t('navGuide') }
             ].map((tab) => (
               <button 
                 key={tab.id}
@@ -1322,12 +1438,20 @@ ${daeunContext}
           </nav>
 
           <div className="flex items-center gap-1 md:gap-4">
+            <button 
+              onClick={() => changeLanguage(language === 'ko' ? 'en' : 'ko')}
+              className="px-3 py-2 rounded-full border border-gray-300 hover:border-indigo-500 text-sm font-bold transition-all"
+              title={language === 'ko' ? 'Switch to English' : '한국어로 전환'}
+            >
+              {language === 'ko' ? 'EN' : 'KO'}
+            </button>
+
             {activeTab === "chat" && (
               <button 
                 onClick={handleDownloadChat}
                 disabled={messages.length === 0}
                 className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-indigo-500/10 text-indigo-500 transition-all flex items-center gap-2 disabled:opacity-30 group"
-                title="상담 내용 저장"
+                title={t('saveText')}
               >
                 <Download className="w-5 h-5 opacity-70 group-hover:opacity-100" />
                 <span className="hidden md:block text-sm font-bold">텍스트 저장</span>
@@ -1698,6 +1822,50 @@ ${daeunContext}
                             />
                             <label htmlFor="unknownTime" className={`text-sm font-medium ${isDarkMode ? 'text-zinc-400' : 'opacity-70'}`}>생시를 몰라요</label>
                           </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>타임존</label>
+                              <input
+                                type="text"
+                                value={userData.timezone}
+                                disabled={!isAgreed}
+                                onChange={(e) => setUserData({ ...userData, timezone: e.target.value })}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                                placeholder="Asia/Seoul"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>경도</label>
+                              <input
+                                type="number"
+                                step="0.0001"
+                                value={userData.longitude}
+                                disabled={!isAgreed}
+                                onChange={(e) => setUserData({ ...userData, longitude: parseFloat(e.target.value) || 0 })}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>위도</label>
+                              <input
+                                type="number"
+                                step="0.0001"
+                                value={userData.latitude}
+                                disabled={!isAgreed}
+                                onChange={(e) => setUserData({ ...userData, latitude: parseFloat(e.target.value) || 0 })}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={handleAutoLocation}
+                            disabled={!isAgreed}
+                            className={`w-full py-2 rounded-xl text-xs font-bold transition-all ${!isAgreed ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                          >
+                            현재 위치로 타임존/위치 자동 채우기
+                          </button>
                         </div>
 
                         <div className="flex flex-col gap-2">
@@ -1740,7 +1908,7 @@ ${daeunContext}
                           disabled={!isAgreed}
                           className={`w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all ${!isAgreed ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          운세 분석 시작
+                          {t('sajuAnalysisStart')}
                           <ChevronRight className="w-5 h-5" />
                         </button>
                       </div>
@@ -1817,18 +1985,34 @@ ${daeunContext}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
-                            AI와 상담하기
+                            {t('chatWithAI')}
                           </button>
                           <button 
                             onClick={() => setActiveTab("report")}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-700 transition-all"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            운세리포트 생성
+                            {t('generateReport')}
                           </button>
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Career Focus */}
+                  <div className={`p-6 md:p-8 rounded-[2.5rem] border shadow-xl ${
+                    isDarkMode 
+                      ? 'bg-amber-500/5 border-amber-500/20' 
+                      : 'bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20'
+                  }`}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <Sun className="w-5 h-5 text-amber-400" />
+                      <h4 className={`text-sm md:text-base font-title font-bold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>{t('careerFocusHeader')}</h4>
+                    </div>
+                    <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
+                      {careerFocus || t('careerFocusFallback')}
+                    </p>
+                    <p className={`text-xs opacity-60 mt-2 ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600'}`}>{t('careerFocusInfo')}</p>
                   </div>
 
                   {/* Five Elements Distribution */}

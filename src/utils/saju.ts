@@ -1,4 +1,6 @@
 import { Solar, Lunar } from 'lunar-javascript';
+import { DateTime } from 'luxon';
+import { getDeityLocalizedInterpretation, getCareerExpression } from '../constants/deityInterpretation';
 
 export const hanjaToHangul: Record<string, string> = {
   '甲': '갑', '乙': '을', '丙': '병', '丁': '정', '戊': '무', '己': '기', '庚': '경', '辛': '신', '壬': '임', '癸': '계',
@@ -13,6 +15,26 @@ export const elementMap: Record<string, string> = {
 export const yinYangMap: Record<string, string> = {
   '甲': '+', '丙': '+', '戊': '+', '庚': '+', '壬': '+', '子': '+', '寅': '+', '辰': '+', '午': '+', '申': '+', '戌': '+',
   '乙': '-', '丁': '-', '己': '-', '辛': '-', '癸': '-', '丑': '-', '卯': '-', '巳': '-', '未': '-', '酉': '-', '亥': '-'
+};
+
+const equationOfTime = (dateTime: DateTime) => {
+  const n = dateTime.ordinal; // day of year
+  const B = (2 * Math.PI * (n - 81)) / 365;
+  return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // minutes
+};
+
+const applyTrueSolarTime = (dateTime: DateTime, longitude?: number) => {
+  if (longitude === undefined || longitude === null || Number.isNaN(longitude)) {
+    return dateTime;
+  }
+
+  const offsetHours = dateTime.offset / 60; // country zone offset in hours
+  const standardMeridian = offsetHours * 15;
+
+  const longitudeCorrection = 4 * (longitude - standardMeridian); // minutes
+  const eot = equationOfTime(dateTime);
+
+  return dateTime.plus({ minutes: longitudeCorrection + eot });
 };
 
 export const hiddenStems: Record<string, string[]> = {
@@ -206,29 +228,57 @@ export const getAdjustedTime = (year: number, month: number, day: number, hour: 
   return offsetMinutes;
 };
 
-export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, isLeap: boolean, unknownTime: boolean = false) => {
+export const getSajuData = (
+  dateStr: string,
+  timeStr: string,
+  isLunar: boolean,
+  isLeap: boolean,
+  unknownTime: boolean = false,
+  timezone: string = 'Asia/Seoul',
+  longitude?: number,
+  latitude?: number
+) => {
   const [year, month, day] = dateStr.split('-').map(Number);
-  const [hour, minute] = unknownTime ? [12, 0] : timeStr.split(':').map(Number);
+  let [hour, minute] = unknownTime ? [12, 0] : timeStr.split(':').map(Number);
+
+  let localDateTime = DateTime.fromObject({ year, month, day, hour, minute }, { zone: timezone });
+
+  if (unknownTime) {
+    localDateTime = localDateTime.set({ hour: 12, minute: 0 });
+  }
+
+  const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
 
   let solar: Solar;
   if (isLunar) {
-    const tempLunar = Lunar.fromYmdHms(year, isLeap ? -month : month, day, hour, minute, 0);
+    const tempLunar = Lunar.fromYmdHms(
+      trueSolarDateTime.year,
+      isLeap ? -trueSolarDateTime.month : trueSolarDateTime.month,
+      trueSolarDateTime.day,
+      trueSolarDateTime.hour,
+      trueSolarDateTime.minute,
+      0
+    );
     solar = tempLunar.getSolar();
   } else {
-    solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    solar = Solar.fromYmdHms(
+      trueSolarDateTime.year,
+      trueSolarDateTime.month,
+      trueSolarDateTime.day,
+      trueSolarDateTime.hour,
+      trueSolarDateTime.minute,
+      0
+    );
   }
 
-  const offset = getAdjustedTime(solar.getYear(), solar.getMonth(), solar.getDay(), solar.getHour(), solar.getMinute());
-  const date = new Date(Date.UTC(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute(), 0));
-  date.setUTCMinutes(date.getUTCMinutes() + offset);
-  
+  const utcDateTime = trueSolarDateTime.toUTC();
   const adjustedSolar = Solar.fromYmdHms(
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    0
+    utcDateTime.year,
+    utcDateTime.month,
+    utcDateTime.day,
+    utcDateTime.hour,
+    utcDateTime.minute,
+    utcDateTime.second
   );
   
   const lunar = adjustedSolar.getLunar();
@@ -260,23 +310,61 @@ export const getSajuData = (dateStr: string, timeStr: string, isLunar: boolean, 
     }
     const stem = p.char.charAt(0);
     const branch = p.char.charAt(1);
+
+    const stemDeity = idx === 2 ? '일간' : calculateDeity(dayStem, stem);
+    const branchDeity = calculateDeity(dayStem, branch, true);
+
     return {
       title: p.title,
       stem: {
         hanja: stem,
         hangul: hanjaToHangul[stem],
         element: elementMap[stem],
-        deity: idx === 2 ? '일간' : calculateDeity(dayStem, stem)
+        deity: stemDeity,
+        western: getDeityLocalizedInterpretation(stemDeity, 'en'),
+        korean: getDeityLocalizedInterpretation(stemDeity, 'ko'),
+        careers: getCareerExpression(stemDeity)
       },
       branch: {
         hanja: branch,
         hangul: hanjaToHangul[branch],
         element: elementMap[branch],
-        deity: calculateDeity(dayStem, branch, true),
+        deity: branchDeity,
+        western: getDeityLocalizedInterpretation(branchDeity, 'en'),
+        korean: getDeityLocalizedInterpretation(branchDeity, 'ko'),
+        careers: getCareerExpression(branchDeity),
         hidden: (hiddenStems[branch] || []).join(', ')
       }
     };
   }).reverse();
+};
+
+export const getDeityEnglishExplanation = (deity: string) => {
+  if (!deity) return '';
+  return getDeityLocalizedInterpretation(deity, 'en') || '';
+};
+
+export const getCareerFocus = (sajuData: any[]) => {
+  if (!sajuData || sajuData.length === 0) {
+    return 'General professional potential with emphasis on your core capabilities.';
+  }
+
+  const careerItems = new Set<string>();
+  sajuData.forEach(p => {
+    const stems = [p.stem?.deity, p.branch?.deity];
+    stems.forEach(d => {
+      if (d) {
+        const desc = getCareerExpression(d);
+        if (desc) careerItems.add(desc);
+      }
+    });
+  });
+
+  if (careerItems.size === 0) {
+    return 'General professional potential with emphasis on your core capabilities.';
+  }
+
+  return Array.from(careerItems).join(' | ');
 };
 
 export const branchDescription: Record<string, string> = {
@@ -294,29 +382,52 @@ export const branchDescription: Record<string, string> = {
   '亥': '준비와 휴식의 시기입니다. 지식을 쌓고 정신적인 성숙을 이루며 다음 단계를 기약하는 환경입니다.'
 };
 
-export const getDaeunData = (dateStr: string, timeStr: string, isLunar: boolean, isLeap: boolean, gender: 'M' | 'F') => {
+export const getDaeunData = (
+  dateStr: string,
+  timeStr: string,
+  isLunar: boolean,
+  isLeap: boolean,
+  gender: 'M' | 'F',
+  timezone: string = 'Asia/Seoul',
+  longitude?: number,
+  latitude?: number
+) => {
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hour, minute] = timeStr.split(':').map(Number);
 
+  let localDateTime = DateTime.fromObject({ year, month, day, hour, minute }, { zone: timezone });
+  const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
+
   let solar: Solar;
   if (isLunar) {
-    const tempLunar = Lunar.fromYmdHms(year, isLeap ? -month : month, day, hour, minute, 0);
+    const tempLunar = Lunar.fromYmdHms(
+      trueSolarDateTime.year,
+      isLeap ? -trueSolarDateTime.month : trueSolarDateTime.month,
+      trueSolarDateTime.day,
+      trueSolarDateTime.hour,
+      trueSolarDateTime.minute,
+      0
+    );
     solar = tempLunar.getSolar();
   } else {
-    solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    solar = Solar.fromYmdHms(
+      trueSolarDateTime.year,
+      trueSolarDateTime.month,
+      trueSolarDateTime.day,
+      trueSolarDateTime.hour,
+      trueSolarDateTime.minute,
+      0
+    );
   }
 
-  const offset = getAdjustedTime(solar.getYear(), solar.getMonth(), solar.getDay(), solar.getHour(), solar.getMinute());
-  const date = new Date(Date.UTC(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute(), 0));
-  date.setUTCMinutes(date.getUTCMinutes() + offset);
-  
+  const utcDateTime = trueSolarDateTime.toUTC();
   const adjustedSolar = Solar.fromYmdHms(
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    0
+    utcDateTime.year,
+    utcDateTime.month,
+    utcDateTime.day,
+    utcDateTime.hour,
+    utcDateTime.minute,
+    utcDateTime.second
   );
   
   const lunar = adjustedSolar.getLunar();
