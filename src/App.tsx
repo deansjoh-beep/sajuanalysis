@@ -33,6 +33,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from 'rehype-raw';
+import SimpleMDE from "react-simplemde-editor";
+import "easymde/dist/easymde.min.css";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
@@ -42,7 +44,7 @@ import { BLOG_POSTS, BlogPost } from "./constants/blog";
 import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
 
 import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
-import { db, auth, googleProvider, signInWithPopup, signOut } from "./firebase";
+import { db, auth, googleProvider, signInWithPopup, signOut, ref, uploadBytes, getDownloadURL, storage } from "./firebase";
 import { 
   collection, 
   addDoc, 
@@ -515,6 +517,7 @@ const App: React.FC = () => {
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const daeunScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -669,6 +672,30 @@ const App: React.FC = () => {
         ...newPost,
         content: newPost.content + '\n' + template
       });
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `blog/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      if (isEdit && isEditingPost) {
+        setIsEditingPost({ ...isEditingPost, imageUrl: url });
+      } else {
+        setNewPost({ ...newPost, imageUrl: url });
+      }
+      alert("이미지가 성공적으로 업로드되었습니다.");
+    } catch (error) {
+      console.error("Image upload error:", error);
+      alert("이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -2946,14 +2973,40 @@ ${daeunContext}
                                     </select>
                                   </div>
                                   <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">이미지 URL</label>
-                                    <input 
-                                      type="text" 
-                                      placeholder="https://..."
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                      value={newPost.imageUrl}
-                                      onChange={e => setNewPost({...newPost, imageUrl: e.target.value})}
-                                    />
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">이미지 (URL 또는 업로드)</label>
+                                    <div className="flex gap-3">
+                                      <input 
+                                        type="text" 
+                                        placeholder="https://..."
+                                        className="flex-1 p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        value={newPost.imageUrl}
+                                        onChange={e => setNewPost({...newPost, imageUrl: e.target.value})}
+                                      />
+                                      <label className="cursor-pointer px-6 py-5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/20">
+                                        <ImageIcon className="w-4 h-4" />
+                                        {isUploading ? "업로드 중..." : "파일 선택"}
+                                        <input 
+                                          type="file" 
+                                          className="hidden" 
+                                          accept="image/*"
+                                          onChange={e => handleImageUpload(e, false)}
+                                          disabled={isUploading}
+                                        />
+                                      </label>
+                                    </div>
+                                    {newPost.imageUrl && (
+                                      <div className="mt-4 relative h-40 rounded-2xl overflow-hidden border border-black/5 dark:border-white/5">
+                                        <img 
+                                          src={newPost.imageUrl} 
+                                          alt="Preview" 
+                                          className="w-full h-full object-cover"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                          <span className="text-white text-[10px] font-bold uppercase tracking-widest">이미지 미리보기</span>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2980,33 +3033,21 @@ ${daeunContext}
                                 </div>
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between ml-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Markdown)</label>
-                                    <div className="flex gap-2">
-                                      <button 
-                                        onClick={() => insertMarkdown('image', false)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
-                                        title="이미지 삽입"
-                                      >
-                                        <ImageIcon className="w-3 h-3" />
-                                        이미지
-                                      </button>
-                                      <button 
-                                        onClick={() => insertMarkdown('size-image', false)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
-                                        title="크기 조절 이미지 삽입"
-                                      >
-                                        <Maximize className="w-3 h-3" />
-                                        크기조절
-                                      </button>
-                                    </div>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Rich Text / Markdown)</label>
                                   </div>
-                                  <textarea 
-                                    placeholder="마크다운 문법을 사용하여 내용을 작성하세요..."
-                                    rows={12}
-                                    className="w-full p-6 rounded-3xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed transition-all"
-                                    value={newPost.content}
-                                    onChange={e => setNewPost({...newPost, content: e.target.value})}
-                                  />
+                                  <div className="prose-editor dark:prose-editor-dark">
+                                    <SimpleMDE 
+                                      value={newPost.content}
+                                      onChange={value => setNewPost({...newPost, content: value})}
+                                      options={{
+                                        spellChecker: false,
+                                        autofocus: false,
+                                        placeholder: "마크다운 문법을 사용하여 내용을 작성하세요...",
+                                        status: false,
+                                        minHeight: "300px"
+                                      }}
+                                    />
+                                  </div>
                                 </div>
                                 <button 
                                   onClick={handleAddPost}
@@ -3059,14 +3100,40 @@ ${daeunContext}
                                     </select>
                                   </div>
                                   <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">이미지 URL</label>
-                                    <input 
-                                      type="text" 
-                                      placeholder="이미지 URL"
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                      value={isEditingPost.imageUrl}
-                                      onChange={e => setIsEditingPost({...isEditingPost, imageUrl: e.target.value})}
-                                    />
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">이미지 (URL 또는 업로드)</label>
+                                    <div className="flex gap-3">
+                                      <input 
+                                        type="text" 
+                                        placeholder="이미지 URL"
+                                        className="flex-1 p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        value={isEditingPost.imageUrl}
+                                        onChange={e => setIsEditingPost({...isEditingPost, imageUrl: e.target.value})}
+                                      />
+                                      <label className="cursor-pointer px-6 py-5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/20">
+                                        <ImageIcon className="w-4 h-4" />
+                                        {isUploading ? "업로드 중..." : "파일 선택"}
+                                        <input 
+                                          type="file" 
+                                          className="hidden" 
+                                          accept="image/*"
+                                          onChange={e => handleImageUpload(e, true)}
+                                          disabled={isUploading}
+                                        />
+                                      </label>
+                                    </div>
+                                    {isEditingPost.imageUrl && (
+                                      <div className="mt-4 relative h-40 rounded-2xl overflow-hidden border border-black/5 dark:border-white/5">
+                                        <img 
+                                          src={isEditingPost.imageUrl} 
+                                          alt="Preview" 
+                                          className="w-full h-full object-cover"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                          <span className="text-white text-[10px] font-bold uppercase tracking-widest">이미지 미리보기</span>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3093,33 +3160,21 @@ ${daeunContext}
                                 </div>
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between ml-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Markdown)</label>
-                                    <div className="flex gap-2">
-                                      <button 
-                                        onClick={() => insertMarkdown('image', true)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
-                                        title="이미지 삽입"
-                                      >
-                                        <ImageIcon className="w-3 h-3" />
-                                        이미지
-                                      </button>
-                                      <button 
-                                        onClick={() => insertMarkdown('size-image', true)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition-all"
-                                        title="크기 조절 이미지 삽입"
-                                      >
-                                        <Maximize className="w-3 h-3" />
-                                        크기조절
-                                      </button>
-                                    </div>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Rich Text / Markdown)</label>
                                   </div>
-                                  <textarea 
-                                    placeholder="내용을 입력하세요"
-                                    rows={12}
-                                    className="w-full p-6 rounded-3xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed transition-all"
-                                    value={isEditingPost.content}
-                                    onChange={e => setIsEditingPost({...isEditingPost, content: e.target.value})}
-                                  />
+                                  <div className="prose-editor dark:prose-editor-dark">
+                                    <SimpleMDE 
+                                      value={isEditingPost.content}
+                                      onChange={value => setIsEditingPost({...isEditingPost, content: value})}
+                                      options={{
+                                        spellChecker: false,
+                                        autofocus: false,
+                                        placeholder: "내용을 입력하세요...",
+                                        status: false,
+                                        minHeight: "300px"
+                                      }}
+                                    />
+                                  </div>
                                 </div>
                                 <button 
                                   onClick={handleUpdatePost}
