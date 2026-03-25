@@ -2844,11 +2844,10 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                             </div>
                             <div className="space-y-4">
                               <p className="text-xl font-bold text-zinc-800 dark:text-zinc-200">
-                                "운명은 정해진 결말이 아니라,<br/>우리가 조종하는 돛의 방향입니다."
+                                "{t('fortunePhilosophy')}"
                               </p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                만세력 기반의 정밀 분석과 AI의 전략적 해석으로,<br/>
-                                당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.
+                                {t('fortunePhilosophyDesc')}
                               </p>
                             </div>
                           </div>
