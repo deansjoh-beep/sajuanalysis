@@ -1601,7 +1601,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           onClick={() => setActiveTab("chat")}
                           className="w-full py-4 rounded-2xl bg-violet-600 text-white font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-700 transition-colors"
                         >
-                          AI 상담 시작하기
+                          {t('startAIChat')}
                         </button>
                       </div>
 
@@ -1609,13 +1609,13 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
                           <FileText className="text-indigo-500 w-8 h-8" />
                         </div>
-                        <h3 className="text-2xl font-bold">유아이가 제공하는 운세리포트</h3>
+                        <h3 className="text-2xl font-bold">{t('fortuneReportTitle')}</h3>
                         <ul className="space-y-3">
                           {[
-                            "8대 카테고리별 정밀 분석 데이터",
-                            "MZ세대 감성의 트렌디하고 명확한 해석",
-                            "인생의 리스크를 예방하는 전략적 가이드",
-                            "PDF 저장을 통한 영구 소장 가능"
+                            t('fortuneReportItem1'),
+                            t('fortuneReportItem2'),
+                            t('fortuneReportItem3'),
+                            t('fortuneReportItem4')
                           ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm opacity-80">
                               <Check className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -1627,7 +1627,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           onClick={() => setActiveTab("report")}
                           className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
                         >
-                          프리미엄 리포트 확인
+                          {t('premiumReportButton')}
                         </button>
                       </div>
                     </div>
@@ -1635,7 +1635,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     {/* Special Services Section */}
                     <div className="space-y-8">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold">유아이가 제공하는 특별서비스</h3>
+                        <h3 className="text-2xl font-bold">{t('specialServicesTitle')}</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <a 
@@ -1647,8 +1647,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                             <Calendar className="text-white w-6 h-6" />
                           </div>
-                          <h3 className="text-xl font-bold mb-2">만세력으로 표시한 달력</h3>
-                          <p className="text-sm opacity-60 mb-6">나의 일진과 절기를 한눈에 확인하는 만세력 달력 서비스입니다.</p>
+                          <h3 className="text-xl font-bold mb-2">{t('calendarServiceTitle')}</h3>
+                          <p className="text-sm opacity-60 mb-6">{t('calendarServiceDesc')}</p>
                           <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
                             바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
@@ -1663,8 +1663,8 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center mb-6 shadow-lg shadow-rose-500/20">
                             <Ticket className="text-white w-6 h-6" />
                           </div>
-                          <h3 className="text-xl font-bold mb-2">내 사주에 맞는 로또 번호는?</h3>
-                          <p className="text-sm opacity-60 mb-6">오늘의 운세와 사주 오행을 분석하여 행운의 번호를 생성해 드립니다.</p>
+                          <h3 className="text-xl font-bold mb-2">{t('lottoServiceTitle')}</h3>
+                          <p className="text-sm opacity-60 mb-6">{t('lottoServiceDesc')}</p>
                           <div className="flex items-center gap-2 text-rose-500 font-bold text-sm">
                             바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
@@ -1681,11 +1681,11 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:scale-110 transition-transform" />
                       <div className="relative z-10 space-y-4">
                         <Sparkles className="w-12 h-12 mx-auto text-indigo-200 animate-pulse" />
-                        <h3 className="text-3xl md:text-5xl font-serif font-bold">운세 분석을 위한 정보 입력</h3>
-                        <p className="text-lg text-indigo-100 opacity-80">단 1분이면 당신의 인생 설계도를 확인할 수 있습니다.</p>
+                        <h3 className="text-3xl md:text-5xl font-serif font-bold">{t('finalCTATitle')}</h3>
+                        <p className="text-lg text-indigo-100 opacity-80">{t('finalCTASubtitle')}</p>
                         <div className="pt-4">
                           <span className="inline-flex items-center gap-3 px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xl shadow-xl">
-                            지금 바로 시작하기
+                            {t('startAIChat')}
                             <ArrowRight className="w-6 h-6" />
                           </span>
                         </div>
@@ -1699,12 +1699,12 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       className={`flex items-center gap-2 text-sm font-bold mb-4 ${isDarkMode ? 'text-zinc-500 hover:text-white' : 'text-zinc-400 hover:text-zinc-900'} transition-colors`}
                     >
                       <ArrowLeft className="w-4 h-4" />
-                      랜딩페이지로 돌아가기
+                      {t('goToLandingButton')}
                     </button>
                     <div className="text-center space-y-2 py-4">
-                      <h2 className={`text-3xl md:text-4xl font-handwriting leading-tight ${isDarkMode ? 'text-indigo-400' : 'text-cobalt'}`}>안녕하세요.<br/>유아이 사주상담입니다.</h2>
+                      <h2 className={`text-3xl md:text-4xl font-handwriting leading-tight ${isDarkMode ? 'text-indigo-400' : 'text-cobalt'}`}>{t('welcomeBackTitle')}</h2>
                       <p className={`text-xs md:text-sm leading-relaxed px-4 ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
-                        정보를 입력하여<br/>당신의 삶을 분석해 보세요.
+                        {t('welcomeBackDesc')}
                       </p>
                     </div>
 
