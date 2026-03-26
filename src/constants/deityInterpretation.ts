@@ -40,23 +40,33 @@ export const getDeityLocalizedInterpretation = (koreanTerm: string, locale = 'en
     : getDeityWesternInterpretation(koreanTerm);
 };
 
-export const getCareerExpression = (koreanTerm: string) => {
+export const getCareerExpression = (koreanTerm: string, locale: string = 'ko') => {
+  const isKorean = locale.startsWith('ko');
+
   if (koreanTerm === '정관' || koreanTerm === '편관') {
-    return 'Professional recognition / authority in the workplace / leadership visibility';
+    return isKorean
+      ? '직업적 인정과 조직 내 권위, 리더십 가시성이 강조됩니다.'
+      : 'Professional recognition / authority in the workplace / leadership visibility';
   }
   if (koreanTerm === '편재' || koreanTerm === '정재') {
-    return 'Financial stability and opportunity for career-based gain';
+    return isKorean
+      ? '재정 안정성과 커리어 기반의 수익 기회가 강화됩니다.'
+      : 'Financial stability and opportunity for career-based gain';
   }
   if (koreanTerm === '식신' || koreanTerm === '상관') {
-    return 'Career creativity and innovation potential in role execution';
+    return isKorean
+      ? '직무 수행에서 창의성과 혁신 잠재력이 돋보입니다.'
+      : 'Career creativity and innovation potential in role execution';
   }
   return '';
 };
 
-export const getDeityCareerSummary = (koreanTerm: string) => {
-  const career = getCareerExpression(koreanTerm);
+export const getDeityCareerSummary = (koreanTerm: string, locale: string = 'ko') => {
+  const career = getCareerExpression(koreanTerm, locale);
   if (!career) {
-    return 'Broad career potential with unique strengths to leverage.';
+    return locale.startsWith('ko')
+      ? '고유 강점을 활용할 수 있는 폭넓은 커리어 잠재력이 있습니다.'
+      : 'Broad career potential with unique strengths to leverage.';
   }
   return career;
 };

@@ -344,9 +344,11 @@ export const getDeityEnglishExplanation = (deity: string) => {
   return getDeityLocalizedInterpretation(deity, 'en') || '';
 };
 
-export const getCareerFocus = (sajuData: any[]) => {
+export const getCareerFocus = (sajuData: any[], locale: string = 'ko') => {
   if (!sajuData || sajuData.length === 0) {
-    return 'General professional potential with emphasis on your core capabilities.';
+    return locale.startsWith('ko')
+      ? '핵심 역량을 중심으로 한 전반적 직업 잠재력이 보입니다.'
+      : 'General professional potential with emphasis on your core capabilities.';
   }
 
   const careerItems = new Set<string>();
@@ -354,14 +356,16 @@ export const getCareerFocus = (sajuData: any[]) => {
     const stems = [p.stem?.deity, p.branch?.deity];
     stems.forEach(d => {
       if (d) {
-        const desc = getCareerExpression(d);
+        const desc = getCareerExpression(d, locale);
         if (desc) careerItems.add(desc);
       }
     });
   });
 
   if (careerItems.size === 0) {
-    return 'General professional potential with emphasis on your core capabilities.';
+    return locale.startsWith('ko')
+      ? '핵심 역량을 중심으로 한 전반적 직업 잠재력이 보입니다.'
+      : 'General professional potential with emphasis on your core capabilities.';
   }
 
   return Array.from(careerItems).join(' | ');

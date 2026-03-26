@@ -146,7 +146,7 @@ const calculateSajuForPerson = (args: any) => {
       daeun: daeunText,
       yongshin: `${yongshin.yongshin} (기운: ${yongshin.strength}, 점수: ${yongshin.score})`,
       gyeok: `${gyeok.gyeok} (구성: ${gyeok.composition})`,
-      careerFocus: getCareerFocus(saju)
+      careerFocus: getCareerFocus(saju, i18next.language || 'ko')
     };
   } catch (e) {
     return { error: i18next.t('calculateError') };
@@ -981,7 +981,7 @@ const App: React.FC = () => {
       setSajuResult(result);
       setDaeunResult(daeun);
       setYongshinResult(yongshin);
-      setCareerFocus(getCareerFocus(result));
+      setCareerFocus(getCareerFocus(result, i18n.language || 'ko'));
       setReportContent(null);
       setActiveTab("dashboard");
       setShowInputForm(false);
