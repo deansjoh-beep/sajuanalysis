@@ -271,14 +271,13 @@ export const getSajuData = (
     );
   }
 
-  const utcDateTime = trueSolarDateTime.toUTC();
   const adjustedSolar = Solar.fromYmdHms(
-    utcDateTime.year,
-    utcDateTime.month,
-    utcDateTime.day,
-    utcDateTime.hour,
-    utcDateTime.minute,
-    utcDateTime.second
+    trueSolarDateTime.year,
+    trueSolarDateTime.month,
+    trueSolarDateTime.day,
+    trueSolarDateTime.hour,
+    trueSolarDateTime.minute,
+    trueSolarDateTime.second
   );
   
   const lunar = adjustedSolar.getLunar();
@@ -424,14 +423,13 @@ export const getDaeunData = (
     );
   }
 
-  const utcDateTime = trueSolarDateTime.toUTC();
   const adjustedSolar = Solar.fromYmdHms(
-    utcDateTime.year,
-    utcDateTime.month,
-    utcDateTime.day,
-    utcDateTime.hour,
-    utcDateTime.minute,
-    utcDateTime.second
+    trueSolarDateTime.year,
+    trueSolarDateTime.month,
+    trueSolarDateTime.day,
+    trueSolarDateTime.hour,
+    trueSolarDateTime.minute,
+    trueSolarDateTime.second
   );
   
   const lunar = adjustedSolar.getLunar();
