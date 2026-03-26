@@ -543,6 +543,11 @@ const App: React.FC = () => {
   }, []);
 
   const changeLanguage = (lng: 'ko' | 'en') => {
+    // 영어 버전은 준비중이므로 한국어만 사용 가능
+    if (lng === 'en') {
+      alert('영어 버전은 현재 준비중입니다. 곧 오픈예정입니다.');
+      return;
+    }
     i18next.changeLanguage(lng);
     setLanguage(lng);
     localStorage.setItem('language', lng);
@@ -1451,13 +1456,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
           </nav>
 
           <div className="flex items-center gap-1 md:gap-4">
-            <button 
-              onClick={() => changeLanguage(language === 'ko' ? 'en' : 'ko')}
-              className="px-3 py-2 rounded-full border border-gray-300 hover:border-indigo-500 text-sm font-bold transition-all"
-              title={language === 'ko' ? 'Switch to English' : '한국어로 전환'}
-            >
-              {language === 'ko' ? 'EN' : 'KO'}
-            </button>
+            {/* 영어 버전 준비중 - 버튼 숨김 */}
 
             {activeTab === "chat" && (
               <button 
