@@ -38,9 +38,35 @@ const applyTrueSolarTime = (dateTime: DateTime, longitude?: number) => {
 };
 
 export const hiddenStems: Record<string, string[]> = {
-  '子': ['임', '계'], '丑': ['계', '신', '기'], '寅': ['무', '병', '갑'], '卯': ['갑', '을'],
-  '辰': ['을', '계', '무'], '巳': ['무', '경', '병'], '午': ['병', '기', '정'], '未': ['정', '을', '기'],
-  '申': ['무', '임', '경'], '酉': ['경', '신'], '戌': ['신', '정', '무'], '亥': ['무', '갑', '임']
+  '子': ['계'], '丑': ['신', '계', '기'], '寅': ['무', '병', '갑'], '卯': ['을'],
+  '辰': ['계', '을', '무'], '巳': ['무', '경', '병'], '午': ['기', '정'], '未': ['을', '정', '기'],
+  '申': ['무', '임', '경'], '酉': ['신'], '戌': ['정', '신', '무'], '亥': ['갑', '임']
+};
+
+const getSolarFromBirthInput = (
+  dateTime: DateTime,
+  isLunar: boolean,
+  isLeap: boolean
+) => {
+  if (isLunar) {
+    return Lunar.fromYmdHms(
+      dateTime.year,
+      isLeap ? -dateTime.month : dateTime.month,
+      dateTime.day,
+      dateTime.hour,
+      dateTime.minute,
+      dateTime.second
+    ).getSolar();
+  }
+
+  return Solar.fromYmdHms(
+    dateTime.year,
+    dateTime.month,
+    dateTime.day,
+    dateTime.hour,
+    dateTime.minute,
+    dateTime.second
+  );
 };
 
 export const calculateDeity = (dayStem: string, targetChar: string, isBranch: boolean = false) => {
@@ -248,37 +274,7 @@ export const getSajuData = (
   }
 
   const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
-
-  let solar: Solar;
-  if (isLunar) {
-    const tempLunar = Lunar.fromYmdHms(
-      trueSolarDateTime.year,
-      isLeap ? -trueSolarDateTime.month : trueSolarDateTime.month,
-      trueSolarDateTime.day,
-      trueSolarDateTime.hour,
-      trueSolarDateTime.minute,
-      0
-    );
-    solar = tempLunar.getSolar();
-  } else {
-    solar = Solar.fromYmdHms(
-      trueSolarDateTime.year,
-      trueSolarDateTime.month,
-      trueSolarDateTime.day,
-      trueSolarDateTime.hour,
-      trueSolarDateTime.minute,
-      0
-    );
-  }
-
-  const adjustedSolar = Solar.fromYmdHms(
-    trueSolarDateTime.year,
-    trueSolarDateTime.month,
-    trueSolarDateTime.day,
-    trueSolarDateTime.hour,
-    trueSolarDateTime.minute,
-    trueSolarDateTime.second
-  );
+  const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
   
   const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
@@ -535,37 +531,7 @@ export const getDaeunData = (
 
   let localDateTime = DateTime.fromObject({ year, month, day, hour, minute }, { zone: timezone });
   const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
-
-  let solar: Solar;
-  if (isLunar) {
-    const tempLunar = Lunar.fromYmdHms(
-      trueSolarDateTime.year,
-      isLeap ? -trueSolarDateTime.month : trueSolarDateTime.month,
-      trueSolarDateTime.day,
-      trueSolarDateTime.hour,
-      trueSolarDateTime.minute,
-      0
-    );
-    solar = tempLunar.getSolar();
-  } else {
-    solar = Solar.fromYmdHms(
-      trueSolarDateTime.year,
-      trueSolarDateTime.month,
-      trueSolarDateTime.day,
-      trueSolarDateTime.hour,
-      trueSolarDateTime.minute,
-      0
-    );
-  }
-
-  const adjustedSolar = Solar.fromYmdHms(
-    trueSolarDateTime.year,
-    trueSolarDateTime.month,
-    trueSolarDateTime.day,
-    trueSolarDateTime.hour,
-    trueSolarDateTime.minute,
-    trueSolarDateTime.second
-  );
+  const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
   
   const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
@@ -616,7 +582,7 @@ export const getDaeunData = (
     
     daeuns.push({
       startAge: startAge,
-      startYear: year + startAge,
+      startYear: adjustedSolar.getYear() + startAge,
       stem: stem,
       branch: branch,
       description: branchDescription[branch] || ''
