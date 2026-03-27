@@ -370,6 +370,141 @@ export const getCareerFocus = (sajuData: any[], locale: string = 'ko') => {
   return Array.from(careerItems).join(' | ');
 };
 
+export const getGyeokInterpretation = (sajuData: any[], locale: string = 'ko') => {
+  const isKorean = locale.startsWith('ko');
+  const { gyeok } = calculateGyeok(sajuData);
+
+  const key = gyeok.replace('격', '');
+  const koMap: Record<string, { summary: string; caution: string; usage: string }> = {
+    '비견': {
+      summary: '자기주도성과 독립성이 강한 격으로, 스스로 기준을 세울 때 성과가 큽니다.',
+      caution: '고집이 강해져 협업 리듬이 깨지지 않도록 의견 조율이 필요합니다.',
+      usage: '주도권을 갖는 역할, 독립 프로젝트, 책임이 분명한 업무에서 강점을 살리세요.'
+    },
+    '겁재': {
+      summary: '경쟁과 협업이 동시에 작동하는 격으로, 관계망 속 기회 포착력이 좋습니다.',
+      caution: '과한 경쟁심이나 자원 분산으로 체력과 재정이 새지 않게 관리해야 합니다.',
+      usage: '팀 기반 영업, 파트너십, 네트워크 비즈니스에서 선택과 집중 전략을 쓰세요.'
+    },
+    '식신': {
+      summary: '꾸준한 생산성과 실행력이 강점인 격으로, 성실한 누적이 큰 결과로 이어집니다.',
+      caution: '안정 지향이 과해 변화 타이밍을 놓치지 않도록 주기적 점검이 필요합니다.',
+      usage: '장기 프로젝트, 전문직 실무, 콘텐츠 축적형 업무에서 꾸준함을 무기로 삼으세요.'
+    },
+    '상관': {
+      summary: '아이디어와 표현력, 문제해결력이 두드러지는 격으로 창의적 전개에 강합니다.',
+      caution: '직설적 표현이 갈등으로 번지지 않도록 메시지 톤과 타이밍을 조절하세요.',
+      usage: '기획, 마케팅, 브랜딩, 문제 해결형 업무에서 창의성을 구조화해 성과로 연결하세요.'
+    },
+    '편재': {
+      summary: '기회 포착과 유연한 수익화 감각이 뛰어난 격으로, 실전 감각이 좋습니다.',
+      caution: '단기 기회 추종이 과해지면 리스크가 커지므로 분산과 손절 기준이 필요합니다.',
+      usage: '신사업, 거래, 투자, 영업 영역에서 빠른 판단과 포트폴리오 전략을 활용하세요.'
+    },
+    '정재': {
+      summary: '안정적 재정 운영과 현실 감각이 강한 격으로, 관리 능력이 우수합니다.',
+      caution: '안전성만 추구하면 성장 기회를 놓칠 수 있으니 적정 위험을 허용하세요.',
+      usage: '재무, 운영, 관리 직무에서 계획적 축적과 루틴 최적화로 강점을 극대화하세요.'
+    },
+    '편관': {
+      summary: '압박 상황에서 대응력이 좋은 격으로, 위기에서 통제력과 결단력이 빛납니다.',
+      caution: '긴장도가 높아지면 대인 마찰이 생길 수 있으니 유연한 소통을 의식하세요.',
+      usage: '리더십, 운영 총괄, 위기 대응 역할에서 규율과 민첩성을 함께 활용하세요.'
+    },
+    '정관': {
+      summary: '규범과 신뢰를 기반으로 성장하는 격으로, 조직 내 평판 자산이 큽니다.',
+      caution: '원칙 중심이 과하면 변화 대응이 늦어질 수 있어 유연성을 확보해야 합니다.',
+      usage: '공공/대기업/전문직처럼 신뢰와 절차가 중요한 환경에서 장점을 살리세요.'
+    },
+    '편인': {
+      summary: '직관과 통찰, 기획력이 강한 격으로 깊이 있는 분석 역량이 돋보입니다.',
+      caution: '생각이 과해 실행 속도가 떨어지지 않게 의사결정 마감선을 두세요.',
+      usage: '전략기획, 연구, 컨설팅, 콘텐츠 설계 등 고차원 분석 업무에 집중하세요.'
+    },
+    '정인': {
+      summary: '학습력과 안정적 전문성 구축에 강한 격으로 지식 기반 경쟁력이 좋습니다.',
+      caution: '준비가 길어져 실행이 늦어지지 않도록 학습-실행 사이클을 짧게 운영하세요.',
+      usage: '자격/학위/전문기술 축적형 커리어에서 체계적 성장 전략을 가져가세요.'
+    }
+  };
+
+  const enMap: Record<string, { summary: string; caution: string; usage: string }> = {
+    '비견': {
+      summary: 'This pattern emphasizes self-direction and independence with strong ownership.',
+      caution: 'Avoid becoming overly rigid in collaboration and decision-making.',
+      usage: 'Use your strength in owner-type roles and independently driven projects.'
+    },
+    '겁재': {
+      summary: 'Competition and collaboration coexist, with strong network-driven opportunities.',
+      caution: 'Prevent resource leakage from over-competition or scattered focus.',
+      usage: 'Apply selective focus in team sales, partnerships, and relationship-based business.'
+    },
+    '식신': {
+      summary: 'Steady productivity and execution are your core assets.',
+      caution: 'Do not miss turning points by staying only in safe routines.',
+      usage: 'Leverage consistency in long-term projects and skill-compounding work.'
+    },
+    '상관': {
+      summary: 'Idea power, expression, and problem-solving stand out strongly.',
+      caution: 'Manage tone and timing so direct communication does not create friction.',
+      usage: 'Use structured creativity in planning, marketing, and brand/problem-solving roles.'
+    },
+    '편재': {
+      summary: 'Opportunity sensing and flexible monetization ability are strong.',
+      caution: 'Control downside risk with clear diversification and stop-loss rules.',
+      usage: 'Use fast judgement in business development, sales, and portfolio strategies.'
+    },
+    '정재': {
+      summary: 'Stable financial discipline and operational realism are notable strengths.',
+      caution: 'Do not over-prioritize safety at the cost of growth opportunities.',
+      usage: 'Maximize strengths in finance, operations, and structured management roles.'
+    },
+    '편관': {
+      summary: 'You are strong under pressure, with decisive control in complex situations.',
+      caution: 'High tension can create interpersonal friction without flexible communication.',
+      usage: 'Perform best in leadership, operations, and crisis-response positions.'
+    },
+    '정관': {
+      summary: 'Growth comes through trust, standards, and institutional credibility.',
+      caution: 'Balance principles with adaptability to avoid slow responses to change.',
+      usage: 'Excel in environments where reputation, process, and reliability matter.'
+    },
+    '편인': {
+      summary: 'Insight, intuition, and strategic thinking are dominant strengths.',
+      caution: 'Set decision deadlines to avoid overthinking and delayed execution.',
+      usage: 'Focus on strategy, research, consulting, and high-level analytical work.'
+    },
+    '정인': {
+      summary: 'Learning capacity and stable expertise-building are major assets.',
+      caution: 'Avoid prolonged preparation without practical execution.',
+      usage: 'Use structured learning paths in certification and expert-track careers.'
+    }
+  };
+
+  if (gyeok === '특수격' || gyeok === '분석 불가') {
+    if (isKorean) {
+      return `## ${gyeok}\n### ${gyeok}에 대한 요약 결론\n격국 성향이 복합적으로 나타나므로 핵심 십성과 대운 흐름을 함께 보는 종합 해석이 필요합니다.\n### 주의점\n단일 키워드로 단정하지 말고 시기별 흐름과 현실 상황을 함께 점검하세요.\n### 활용법\n주요 의사결정 전에는 사주 원국, 대운, 현재 환경을 함께 비교해 전략을 세우세요.`;
+    }
+    return `## ${gyeok}\n### Summary Conclusion\nThe chart shows a mixed structure and should be interpreted with major deity and luck-cycle context together.\n### Caution\nAvoid single-keyword conclusions without timing and real-world context.\n### How to Use\nBefore major decisions, compare natal chart patterns with current luck flow and environment.`;
+  }
+
+  const map = isKorean ? koMap : enMap;
+  const item = map[key];
+
+  if (!item) {
+    if (isKorean) {
+      return `## ${gyeok}\n### ${gyeok}에 대한 요약 결론\n${gyeok}의 성향이 나타나며 강점 활용 시 성과가 커집니다.\n### 주의점\n강점이 과해지면 균형이 무너질 수 있어 조절이 필요합니다.\n### 활용법\n핵심 강점을 중심으로 역할과 실행 방식을 설계하세요.`;
+    }
+    return `## ${gyeok}\n### Summary Conclusion\nTraits of ${gyeok} are present and can produce strong outcomes when leveraged well.\n### Caution\nBalance overactive tendencies so strengths do not become weaknesses.\n### How to Use\nDesign your role and execution style around your strongest pattern.`;
+  }
+
+  if (isKorean) {
+    return `## ${gyeok}\n### ${gyeok}에 대한 요약 결론\n${item.summary}\n### 주의점\n${item.caution}\n### 활용법\n${item.usage}`;
+  }
+
+  return `## ${gyeok}\n### Summary Conclusion\n${item.summary}\n### Caution\n${item.caution}\n### How to Use\n${item.usage}`;
+};
+
 export const branchDescription: Record<string, string> = {
   '子': '지혜와 유연함의 시기입니다. 내면의 성장을 도모하고 새로운 시작을 준비하는 환경입니다.',
   '丑': '인내와 결실의 시기입니다. 묵묵히 노력하여 결과를 만들어내고 기반을 다지는 환경입니다.',

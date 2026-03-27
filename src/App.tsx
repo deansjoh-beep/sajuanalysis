@@ -42,7 +42,7 @@ import "easymde/dist/easymde.min.css";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
-import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok, getDeityEnglishExplanation, getCareerFocus } from "./utils/saju";
+import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok, getDeityEnglishExplanation, getGyeokInterpretation } from "./utils/saju";
 import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
 import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
@@ -489,6 +489,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('재물/사업');
+  const [consultMode, setConsultMode] = useState<'beginner' | 'advanced'>('beginner');
   const [blogCategory, setBlogCategory] = useState<string>('전체');
   const [language, setLanguage] = useState<'ko' | 'en'>('ko');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -496,7 +497,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
-  const [careerFocus, setCareerFocus] = useState<string>("");
+  const [gyeokInterpretation, setGyeokInterpretation] = useState<string>("");
   const [guidelines, setGuidelines] = useState<Guidelines | null>({
     saju: SAJU_GUIDELINE,
     consulting: CONSULTING_GUIDELINE,
@@ -505,6 +506,7 @@ const App: React.FC = () => {
   const [guidelinesError, setGuidelinesError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [showAdminGate, setShowAdminGate] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -611,27 +613,35 @@ const App: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const daeunScrollRef = useRef<HTMLDivElement>(null);
+  const currentDaeunCardRef = useRef<HTMLDivElement>(null);
+  const prevConsultModeRef = useRef<'beginner' | 'advanced' | null>(null);
+
+  const currentAge = useMemo(() => {
+    const birthYear = parseInt(userData.birthYear, 10);
+    if (Number.isNaN(birthYear)) return 0;
+    return new Date().getFullYear() - birthYear + 1;
+  }, [userData.birthYear]);
+
+  const currentDaeunIndex = useMemo(() => {
+    if (daeunResult.length === 0 || currentAge <= 0) return -1;
+    return daeunResult.findIndex((dy, i) =>
+      currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i + 1].startAge)
+    );
+  }, [daeunResult, currentAge]);
 
   useEffect(() => {
-    if (activeTab === "dashboard" && daeunScrollRef.current && daeunResult.length > 0) {
-      const timer = setTimeout(() => {
-        const currentAge = 2026 - parseInt(userData.birthYear) + 1;
-        const activeIndex = daeunResult.findIndex((dy, i) => 
-          currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge)
-        );
-        
-        if (activeIndex !== -1) {
-          const container = daeunScrollRef.current;
-          if (container && container.children[activeIndex]) {
-            const activeElement = container.children[activeIndex] as HTMLElement;
-            const scrollLeft = activeElement.offsetLeft - (container.offsetWidth / 2) + (activeElement.offsetWidth / 2);
-            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-          }
-        }
-      }, 300); // Give enough time for the tab transition animation
-      return () => clearTimeout(timer);
-    }
-  }, [activeTab, daeunResult, userData.birthYear]);
+    if (activeTab !== "dashboard" || currentDaeunIndex === -1) return;
+
+    const timer = setTimeout(() => {
+      currentDaeunCardRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest'
+      });
+    }, 350); // wait for transition/render to settle
+
+    return () => clearTimeout(timer);
+  }, [activeTab, currentDaeunIndex]);
 
   const [showInputForm, setShowInputForm] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
@@ -930,6 +940,20 @@ const App: React.FC = () => {
     // Guidelines are now hardcoded in src/constants/guidelines.ts
   }, []);
 
+  // Re-generate report when consult mode changes (only if analysis has been done)
+  useEffect(() => {
+    if (prevConsultModeRef.current === null) {
+      prevConsultModeRef.current = consultMode;
+      return;
+    }
+    if (prevConsultModeRef.current === consultMode) return;
+    prevConsultModeRef.current = consultMode;
+    if (sajuResult.length > 0) {
+      handleGenerateReport();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consultMode]);
+
   // Auto scroll
   // Force rebuild
   useEffect(() => {
@@ -982,14 +1006,23 @@ const App: React.FC = () => {
         userData.latitude
       );
       const yongshin = calculateYongshin(result);
+      const gyeokInterp = getGyeokInterpretation(result, i18n.language || 'ko');
       
       setSajuResult(result);
       setDaeunResult(daeun);
       setYongshinResult(yongshin);
-      setCareerFocus(getCareerFocus(result, i18n.language || 'ko'));
+      setGyeokInterpretation(gyeokInterp);
       setReportContent(null);
       setActiveTab("dashboard");
       setShowInputForm(false);
+
+      // Auto-generate report in background with fresh data
+      handleGenerateReport({
+        sajuOverride: result,
+        daeunOverride: daeun,
+        gyeokOverride: gyeokInterp,
+        modeOverride: consultMode,
+      });
       
       // Reset chat with context
       setMessages([
@@ -1077,8 +1110,15 @@ const App: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'chat') {
       const currentYear = new Date().getFullYear();
-      const birthYear = parseInt(userData.birthYear);
-      const age = currentYear - birthYear + 1;
+      const birthYearNum = parseInt(userData.birthYear);
+      
+      // Validate birthYear - check if it's a valid year (not current year or invalid)
+      if (isNaN(birthYearNum) || birthYearNum < 1900 || birthYearNum >= currentYear) {
+        setSuggestions([]);
+        return;
+      }
+      
+      const age = currentYear - birthYearNum + 1;
       
       let ageGroup = '10대';
       if (age >= 70) ageGroup = '70대↑';
@@ -1087,16 +1127,16 @@ const App: React.FC = () => {
       else if (age >= 40) ageGroup = '40대';
       else if (age >= 30) ageGroup = '30대';
       else if (age >= 20) ageGroup = '20대';
-      else ageGroup = '10대';
+      else if (age >= 10) ageGroup = '10대';
 
       const genderKey = userData.gender === 'M' ? '남' : '여';
-      console.log("[DEBUG] Questions:", { ageGroup, genderKey, selectedCategory });
+      console.log("[DEBUG] Questions Updated:", { ageGroup, genderKey, selectedCategory, age });
       
       const groupData = SUGGESTED_QUESTIONS[ageGroup as keyof typeof SUGGESTED_QUESTIONS];
       
       if (groupData && groupData[genderKey as keyof typeof groupData]) {
         const categoryQuestions = groupData[genderKey as keyof typeof groupData][selectedCategory as keyof typeof groupData[keyof typeof groupData]];
-        if (categoryQuestions) {
+        if (categoryQuestions && categoryQuestions.length > 0) {
           // Shuffle and pick 3 questions
           const shuffled = [...categoryQuestions].sort(() => 0.5 - Math.random());
           setSuggestions(shuffled.slice(0, 3));
@@ -1154,6 +1194,14 @@ const App: React.FC = () => {
   4. 이는 개인정보를 소중히 다루고 상담의 신뢰도를 높이기 위한 필수 절차임을 사용자에게 인지시켜 신뢰를 구축하세요.
 - **MZ 말투:** "반말"은 지양하되, 세련되고 깔끔한 말투를 사용하세요. 적절한 이모지(✨, 🍀, 🔥 등)를 섞어주세요.
 - **전문성:** 사주 명리학적 근거(음양오행, 십성 등)를 언급하되, 어려운 용어는 현대적인 비유로 풀어서 설명하세요.
+${consultMode === 'beginner'
+  ? `- **[초급 모드 활성화]** 사용자가 사주 초보자입니다. 다음 규칙을 반드시 따르세요:
+  1. 모든 전문 용어(甲木, 식신, 편관, 충, 형, 용신 등)를 처음 사용할 때 반드시 괄호 안에 쉬운 설명을 추가하세요. 예: '식신(食神, 나의 재능과 표현력을 나타내는 별)', '편관(偏官, 강한 도전이나 압박을 상징하는 별)'
+  2. 추상적인 개념은 일상적인 비유로 설명하세요. 예: '오행의 균형'→'몸의 영양소 균형처럼', '충(沖)'→'두 기운이 정면충돌하는 상황'
+  3. 핵심 포인트를 먼저 말하고, 전문 설명은 뒤에 붙이세요.
+  4. 문장은 짧고 명확하게 유지하세요.`
+  : `- **[고급 모드 활성화]** 사용자가 사주에 익숙한 고급 사용자입니다. 전문 명리학 용어를 그대로 사용하고, 깊이 있는 분석을 제공하세요. 괄호 설명 없이 전문적인 언어로 상담하세요.`
+}
 - **서양적 재해석:** "관운(官運)"은 'career luck'만으로 끝내지 말고, 가능한 경우 "professional recognition", "authority in the workplace", "leadership opportunity" 같은 구체적이고 현실적인 비즈니스/커리어 용어로 확장 설명하세요.
 - **맥락 유지:** 이전 대화 내용을 기억하고 연결해서 답변하세요.
 ${isFirstMessage 
@@ -1167,8 +1215,8 @@ ${isFirstMessage
 ${sajuContext}
 [대운 정보]
 ${daeunContext}
-[관운 커리어 포커스]
-${careerFocus || '직업적 잠재력 분석이 필요합니다.'}
+[격국 해설]
+${gyeokInterpretation || '격국 해설 데이터가 필요합니다.'}
 `;
 
       const contents: any[] = messages.map(m => ({
@@ -1233,49 +1281,60 @@ ${careerFocus || '직업적 잠재력 분석이 필요합니다.'}
     }
   };
 
-  const handleGenerateReport = async () => {
-    if (loading) return;
+  const handleGenerateReport = async (opts?: {
+    sajuOverride?: any[];
+    daeunOverride?: any[];
+    gyeokOverride?: string;
+    modeOverride?: 'beginner' | 'advanced';
+  }) => {
+    const effectiveSaju = opts?.sajuOverride ?? sajuResult;
+    const effectiveDaeun = opts?.daeunOverride ?? daeunResult;
+    const effectiveGyeok = opts?.gyeokOverride !== undefined ? opts.gyeokOverride : gyeokInterpretation;
+    const effectiveMode = opts?.modeOverride ?? consultMode;
 
-    if (!guidelines) {
-      alert(guidelinesError || "지침 파일을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
-      return;
-    }
+    if (reportLoading) return;
+    if (!guidelines) return;
+    if (effectiveSaju.length === 0) return;
 
-    if (sajuResult.length === 0) {
-      alert(t('analysisRequiredAlert'));
-      setActiveTab("welcome");
-      return;
-    }
-
-    setLoading(true);
-    setActiveTab("report");
+    setReportLoading(true);
 
     try {
-      console.log("[DEBUG] Starting report generation...");
       const ai = getGeminiAI();
-      const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja})`).join('\n');
-      
+      const sajuContext = effectiveSaju.map((p: any) => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja})`).join('\n');
+
       const birthYearInt = parseInt(userData.birthYear);
       const currentYear = new Date().getFullYear();
       const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt + 1;
-      
-      const daeunContext = daeunResult.map((dy, i) => {
-        const isCurrent = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
+
+      const daeunContext = effectiveDaeun.map((dy: any, i: number) => {
+        const isCurrent = currentAge >= dy.startAge && (i === effectiveDaeun.length - 1 || currentAge < effectiveDaeun[i + 1].startAge);
         const stemHangul = hanjaToHangul[dy.stem] || dy.stem;
         const branchHangul = hanjaToHangul[dy.branch] || dy.branch;
-        return `${dy.startAge}세~${daeunResult[i+1]?.startAge || dy.startAge + 9}세: ${stemHangul}${branchHangul}${isCurrent ? ' (현재 대운)' : ''}`;
+        return `${dy.startAge}세~${effectiveDaeun[i + 1]?.startAge || dy.startAge + 9}세: ${stemHangul}${branchHangul}${isCurrent ? ' (현재 대운)' : ''}`;
       }).join('\n');
 
-      console.log("[DEBUG] Saju Context:", sajuContext);
-      console.log("[DEBUG] Daeun Context:", daeunContext);
+      const modeInstruction = effectiveMode === 'beginner'
+        ? `**[초급 모드 - 리포트 작성 규칙]**
+- 이 리포트는 사주를 처음 접하는 초보자를 위한 쉬운 리포트입니다. 다음 규칙을 반드시 따르십시오:
+1. 모든 전문 용어(갑목, 식신, 용신, 편관, 충, 형 등)를 처음 사용할 때 반드시 괄호 안에 쉬운 설명을 추가하십시오. 예: '식신(食神, 나의 재능과 창의력을 상징하는 에너지)', '용신(用神, 내 사주를 보완해주는 핵심 기운)'
+2. 추상적인 명리학 개념은 일상적인 비유로 설명하십시오. 예: '오행의 균형' → '몸의 영양소 균형처럼', '충(沖)' → '두 기운이 정면충돌하는 상황'
+3. 핵심 메시지를 먼저 말하고, 전문 설명은 뒤에 붙이십시오.
+4. 문장은 짧고 명확하게 유지하십시오.`
+        : `**[고급 모드 - 리포트 작성 규칙]**
+- 이 리포트는 명리학에 익숙한 고급 사용자를 위한 것입니다.
+1. 전문 명리학 용어(갑목, 식신, 용신, 충, 합, 형, 파, 해, 신살 등)를 괄호 설명 없이 그대로 사용하십시오.
+2. 음양오행, 십성, 신살, 대운 분석 등 심층적인 명리학적 근거를 상세히 서술하십시오.
+3. 전문가 수준의 분석 깊이를 유지하십시오.`;
 
       const systemInstruction = `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다. 
 현재 날짜: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-제공된 사용자의 사주 데이터와 대운 정보를 **철저하게 분석한 결과에만 입각하여** 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오. 
+제공된 사용자의 사주 데이터와 대운 정보를 **철저하게 분석한 결과에만 입각하여** 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오.
+
+${modeInstruction}
 
 **[핵심 원칙: 정직과 예방]**
 - '좋은 말'만 늘어놓는 리포트가 되어서는 안 됩니다. 사주 원국과 운의 흐름에서 보이는 **리스크, 취약점, 주의해야 할 시기**를 가감 없이 식별하십시오.
-- 발견된 부정적인 요소는 사용자가 미리 준비하여 피해를 최소화하거나 예방할 수 있도록 **'전략적 조언'**의 관점에서 서술하십시오. (예: "이 시기에는 재물 손실의 기운이 강하니 무리한 투자는 피하고 내실을 기하는 것이 최고의 개운법입니다.")
+- 발견된 부정적인 요소는 사용자가 미리 준비하여 피해를 최소화하거나 예방할 수 있도록 **'전략적 조언'**의 관점에서 서술하십시오.
 
 [지침 사항]
 ${guidelines.report}
@@ -1284,7 +1343,7 @@ ${guidelines.report}
 1. **절대로 HTML 태그(<div>, <strong> 등)를 사용하지 마십시오.** 오직 마크다운 텍스트만 사용하십시오.
 2. **카테고리 제목에 #, ##, ### 등 마크다운 헤더 기호를 사용하지 마십시오.**
 3. 아래에 제공된 [Output Format] 구조를 한 글자도 틀리지 말고 정확히 지켜주십시오. 파싱 로직이 이 태그들에 의존합니다.
-4. 모든 답변은 MZ세대의 감성을 담아 트렌디하고 친근하면서도 전문성을 잃지 않아야 합니다. (예: '갓생', '럭키비키', '오운완' 등의 표현을 적절히 섞어 쓰되 명리학적 깊이를 유지)
+4. 모든 답변은 MZ세대의 감성을 담아 트렌디하고 친근하면서도 전문성을 잃지 않아야 합니다.
 
 [Output Format]
 [인사말]
@@ -1304,8 +1363,8 @@ ${sajuContext}
 대운 흐름:
 ${daeunContext}
 
-관운 커리어 포커스:
-${careerFocus || '직업적 경향 분석이 필요합니다.'}
+격국 해설:
+${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
 
 현재 나이: ${currentAge}세
 
@@ -1320,28 +1379,24 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
 8. 운명을 이끄는 가장 중요한 조언
 `;
 
-      console.log("[DEBUG] Sending request to Gemini...");
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
-        config: { 
+        config: {
           systemInstruction,
           maxOutputTokens: 4096,
           temperature: 0.8
         }
       });
-      
-      console.log("[DEBUG] Gemini response received.");
+
       const text = result.text || "리포트 생성 실패";
-      console.log("[DEBUG] Gemini response text length:", text.length);
-      console.log("[DEBUG] Gemini response text preview:", text.substring(0, 200));
       setReportContent(text);
     } catch (err: any) {
       console.error("[ERROR] Report generation failed:", err);
       const errorMessage = err?.message || String(err);
       setReportContent(`리포트 생성 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.`);
     } finally {
-      setLoading(false);
+      setReportLoading(false);
     }
   };
 
@@ -1472,7 +1527,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
             <button 
               onClick={handleReset} 
               className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-rose-500/10 text-rose-500 transition-all flex items-center gap-2 group"
-              title="상담 종료 및 데이터 삭제"
+              title={t('closeConsultation')}
             >
               <Trash2 className="w-5 h-5 opacity-70 group-hover:opacity-100" />
               <span className="hidden md:block text-sm font-bold">{t('resetButton')}</span>
@@ -1505,7 +1560,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         animate={{ scale: 1, opacity: 1 }}
                         className="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-2"
                       >
-                        Premium AI Saju Consulting
+                        {t('premiumAISajuConsulting')}
                       </motion.div>
                       <h2 className={`text-4xl ${language === 'ko' ? 'md:text-5xl' : 'md:text-6xl'} font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
                         {t('heroTitle')}
@@ -1527,7 +1582,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <h3 className="text-xl font-bold mb-2">{t('inputCardTitle')}</h3>
                         <p className="text-sm opacity-60 mb-6">{t('inputCardDesc')}</p>
                         <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
-                          바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          {t('goLink')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </button>
 
@@ -1541,7 +1596,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <h3 className="text-xl font-bold mb-2">{t('blogCardTitle')}</h3>
                         <p className="text-sm opacity-60 mb-6">{t('blogCardDesc')}</p>
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                          바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          {t('goLink')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </button>
 
@@ -1662,7 +1717,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           <h3 className="text-xl font-bold mb-2">{t('calendarServiceTitle')}</h3>
                           <p className="text-sm opacity-60 mb-6">{t('calendarServiceDesc')}</p>
                           <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
-                            바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            {t('goLink')} <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </a>
 
@@ -1678,7 +1733,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                           <h3 className="text-xl font-bold mb-2">{t('lottoServiceTitle')}</h3>
                           <p className="text-sm opacity-60 mb-6">{t('lottoServiceDesc')}</p>
                           <div className="flex items-center gap-2 text-rose-500 font-bold text-sm">
-                            바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            {t('goLink')} <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </a>
                       </div>
@@ -1953,7 +2008,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         return (
                           <div key={i} className={`p-3 md:p-5 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-md'} flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
                             <span className={`text-[10px] md:text-xs font-bold ${isDarkMode ? 'text-zinc-500' : 'opacity-50'}`}>{p.title}</span>
-                            <div className="flex flex-col gap-4 py-2">
+                            <div className="flex flex-col gap-0 py-2">
                               {[p.stem, p.branch].map((item, j) => (
                                 <HanjaBox 
                                   key={j} 
@@ -1985,7 +2040,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         <div className="space-y-2">
                           <p className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">사주팔자 분석 결론</p>
                           <h4 className={`text-base md:text-xl font-bold leading-tight ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
-                            {userData.name}{t('sajuCompositionText')} <span className="text-indigo-500">{calculateGyeok(sajuResult).composition}</span> {t('sajuTypeSuffix')}
+                            {userData.name}님의 사주는 {calculateGyeok(sajuResult).composition}로 <span className="text-indigo-500">{calculateGyeok(sajuResult).gyeok}</span> 사주입니다.
                           </h4>
                         </div>
                         
@@ -2010,20 +2065,23 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     </div>
                   </div>
 
-                  {/* Career Focus */}
+                  {/* Gyeok Interpretation */}
                   <div className={`p-6 md:p-8 rounded-[2.5rem] border shadow-xl ${
                     isDarkMode 
                       ? 'bg-amber-500/5 border-amber-500/20' 
                       : 'bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20'
                   }`}>
-                    <div className="flex items-center gap-3 mb-3">
-                      <Sun className="w-5 h-5 text-amber-400" />
-                      <h4 className={`text-sm md:text-base font-title font-bold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>{t('careerFocusHeader')}</h4>
+                    <div className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
+                      <ReactMarkdown
+                        components={{
+                          h2: ({ children }) => <h2 className="text-base md:text-lg font-bold text-amber-500 mt-1 mb-2">{children}</h2>,
+                          h3: ({ children }) => <h3 className={`text-sm md:text-base font-semibold mt-3 mb-1 ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>{children}</h3>,
+                          p: ({ children }) => <p className="text-sm leading-relaxed">{children}</p>
+                        }}
+                      >
+                        {gyeokInterpretation || t('gyeokInterpretationFallback')}
+                      </ReactMarkdown>
                     </div>
-                    <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
-                      {careerFocus || t('careerFocusFallback')}
-                    </p>
-                    <p className={`text-xs opacity-60 mt-2 ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600'}`}>{t('careerFocusInfo')}</p>
                   </div>
 
                   {/* Five Elements Distribution */}
@@ -2110,7 +2168,7 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('daewoonAnalysisTitle')}</h3>
                       {daeunResult.length > 0 && (
                         <span className="text-[10px] md:text-xs font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
-                          {daeunResult[0].startAge}대운
+                          {currentDaeunIndex !== -1 ? `현재 ${daeunResult[currentDaeunIndex].startAge}대운` : `${daeunResult[0].startAge}대운`}
                         </span>
                       )}
                     </div>
@@ -2118,19 +2176,18 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                     <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}>
                       <div ref={daeunScrollRef} className="flex overflow-x-auto horizontal-scrollbar gap-6 pb-6 snap-x snap-mandatory scroll-smooth">
                         {daeunResult.length > 0 ? daeunResult.map((dy, i) => {
-                          const currentAge = 2026 - parseInt(userData.birthYear) + 1;
-                          const isCurrentDaeun = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
+                          const isCurrentDaeun = i === currentDaeunIndex;
                           const isTransitioning = Math.abs(currentAge - dy.startAge) <= 1 || 
                                                 (daeunResult[i+1] && Math.abs(currentAge - daeunResult[i+1].startAge) <= 1);
 
                           return (
-                            <div key={i} className={`w-24 shrink-0 snap-center p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
+                            <div key={i} ref={isCurrentDaeun ? currentDaeunCardRef : null} className={`w-24 shrink-0 snap-center p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
                               isCurrentDaeun 
                                 ? 'border-indigo-500 bg-indigo-600/30 shadow-2xl shadow-indigo-500/40 ring-4 ring-indigo-500/30 scale-110 z-10' 
                                 : isDarkMode ? 'border-transparent bg-white/5 opacity-40 hover:opacity-100' : 'border-transparent bg-black/5 opacity-40 hover:opacity-100'
                             }`}>
                               <div className={`text-[10px] md:text-xs font-bold ${isDarkMode && isCurrentDaeun ? 'text-indigo-300' : ''}`}>{dy.startAge}세</div>
-                              <div className="flex flex-col gap-4 py-2">
+                              <div className="flex flex-col gap-0 py-2">
                                 {daeunResult.length > 0 && [dy.stem, dy.branch].map((hanja, j) => {
                                   const dayStem = sajuResult.find(p => p.title === '일주')?.stem.hanja || '';
                                   const deity = calculateDeity(dayStem, hanja);
@@ -2147,11 +2204,6 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                                 })}
                               </div>
                               <div className={`text-[10px] md:text-xs font-bold opacity-70 ${isDarkMode && isCurrentDaeun ? 'text-indigo-300/70' : ''}`}>{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
-                              {isCurrentDaeun && isTransitioning && (
-                                <div className="mt-1 px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[8px] md:text-[10px] font-bold rounded-full animate-pulse">
-                                  교운기
-                                </div>
-                              )}
                             </div>
                           );
                         }) : (
@@ -2167,13 +2219,12 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         animate={{ opacity: 1, y: 0 }}
                         className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200'} shadow-sm`}
                       >
-                        {daeunResult.map((dy, i) => {
-                          const currentAge = 2026 - parseInt(userData.birthYear) + 1;
-                          const isCurrentDaeun = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
-                          if (!isCurrentDaeun) return null;
-                          
-                          return (
-                            <div key={i} className="space-y-4">
+                        {currentDaeunIndex !== -1 && (
+                          <div className="space-y-4">
+                            {(() => {
+                              const dy = daeunResult[currentDaeunIndex];
+                              return (
+                                <>
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-6 bg-indigo-500 rounded-full" />
                                 <h4 className={`text-sm md:text-base font-bold ${isDarkMode ? 'text-indigo-300' : 'text-indigo-900'}`}>현재 대운: {dy.startAge}세 {hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}대운</h4>
@@ -2189,9 +2240,11 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                                   </p>
                                 </div>
                               )}
-                            </div>
-                          );
-                        })}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </div>
@@ -2404,16 +2457,60 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                       </button>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {suggestions.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSuggestionClick(s)}
-                          className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[13px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
-                        >
-                          {s}
-                        </button>
-                      ))}
+                      {suggestions.length > 0 ? (
+                        suggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleSuggestionClick(s)}
+                            className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[13px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
+                          >
+                            {s}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/30 text-center">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
+                            {t('noSuggestionMessage')}
+                          </p>
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Consult Mode Selector */}
+                  <div className="space-y-2 pt-4 border-t border-black/5 dark:border-white/5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">{t('consultMode')}</h4>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setConsultMode('beginner')}
+                        className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
+                          consultMode === 'beginner'
+                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                            : isDarkMode
+                              ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-emerald-400'
+                              : 'bg-white border-gray-200 text-zinc-500 hover:text-emerald-600'
+                        }`}
+                      >
+                        {t('consultModeBeginner')}
+                      </button>
+                      <button
+                        onClick={() => setConsultMode('advanced')}
+                        className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
+                          consultMode === 'advanced'
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                            : isDarkMode
+                              ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-indigo-400'
+                              : 'bg-white border-gray-200 text-zinc-500 hover:text-indigo-600'
+                        }`}
+                      >
+                        {t('consultModeAdvanced')}
+                      </button>
+                    </div>
+                    <p className={`text-[10px] px-1 leading-relaxed ${
+                      isDarkMode ? 'text-zinc-500' : 'text-zinc-400'
+                    }`}>
+                      {consultMode === 'beginner' ? t('consultModeBeginnerDesc') : t('consultModeAdvancedDesc')}
+                    </p>
                   </div>
 
                   {/* Consultation Tips */}
@@ -2479,6 +2576,29 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                   <div className={`p-2 border-t md:pb-4 ${
                     isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
                   }`}>
+                    {/* Quick Fortune Buttons */}
+                    <div className="max-w-4xl mx-auto mb-2 flex gap-1.5 overflow-x-auto hide-scrollbar">
+                      {(
+                        [
+                          { label: t('fortuneToday'),     question: t('fortuneTodayQuestion') },
+                          { label: t('fortuneThisMonth'), question: t('fortuneThisMonthQuestion') },
+                          { label: t('fortuneThisYear'),  question: t('fortuneThisYearQuestion') },
+                          { label: t('fortuneNextYear'),  question: t('fortuneNextYearQuestion') },
+                        ] as { label: string; question: string }[]
+                      ).map(({ label, question }) => (
+                        <button
+                          key={label}
+                          onClick={() => handleSend(question)}
+                          className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-all active:scale-95 ${
+                            isDarkMode
+                              ? 'bg-white/5 border-white/10 text-zinc-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 hover:text-indigo-300'
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                     <div className="max-w-4xl mx-auto relative">
                       <input 
                         value={input}
@@ -2521,19 +2641,25 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                         </div>
                         {/* Right: Suggestions */}
                         <div className="flex flex-col items-end gap-1">
-                          {suggestions.slice(0, 3).map((s, i) => (
-                            <button
-                              key={i}
-                              onClick={() => handleSuggestionClick(s)}
-                              className={`w-fit text-right px-2 py-1 rounded-lg border text-[12px] leading-tight transition-all flex items-center min-h-[28px] ${
-                                isDarkMode 
-                                  ? 'bg-white/5 border-white/10 text-zinc-200'
-                                  : 'bg-white border-gray-200 text-gray-700 shadow-sm'
-                              }`}
-                            >
-                              <span className="line-clamp-2">{s}</span>
-                            </button>
-                          ))}
+                          {suggestions.length > 0 ? (
+                            suggestions.slice(0, 3).map((s, i) => (
+                              <button
+                                key={i}
+                                onClick={() => handleSuggestionClick(s)}
+                                className={`w-fit text-right px-2 py-1 rounded-lg border text-[12px] leading-tight transition-all flex items-center min-h-[28px] ${
+                                  isDarkMode 
+                                    ? 'bg-white/5 border-white/10 text-zinc-200'
+                                    : 'bg-white border-gray-200 text-gray-700 shadow-sm'
+                                }`}
+                              >
+                                <span className="line-clamp-2">{s}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 text-right leading-tight">
+                              {t('noSuggestionMessage')}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -2561,42 +2687,72 @@ ${careerFocus || '직업적 경향 분석이 필요합니다.'}
                 <div className="flex flex-col md:flex-row gap-8">
                   {/* Desktop Sidebar Actions */}
                   <div className="md:w-64 space-y-4 md:sticky md:top-0 h-fit">
-                    <div className="p-6 rounded-3xl bg-indigo-600 text-white space-y-4 shadow-xl shadow-indigo-500/20">
-                      <h3 className="font-bold text-lg">{t('reportSidebarTitle')}</h3>
-                      <p className="text-xs opacity-80 leading-relaxed">{t('reportSidebarDesc')}</p>
-                      <button 
-                        onClick={handleGenerateReport}
-                        disabled={loading || sajuResult.length === 0}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-white text-indigo-600 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                      >
-                        <Compass className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        {t('reportGenerateButton')}
-                      </button>
+                    {/* Mode Selector Card */}
+                    <div className={`p-5 rounded-3xl border space-y-3 ${isDarkMode ? 'bg-zinc-900/60 border-white/10' : 'bg-white border-black/5 shadow-md'}`}>
+                      <div className="flex items-center justify-between">
+                        <h3 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-zinc-800'}`}>{t('reportModeTitle')}</h3>
+                        {reportLoading && (
+                          <div className="flex items-center gap-1.5 text-indigo-400">
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span className="text-[10px] font-bold">{t('reportRegenerating')}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => setConsultMode('beginner')}
+                          className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
+                            consultMode === 'beginner'
+                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                              : isDarkMode
+                                ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-emerald-400'
+                                : 'bg-zinc-50 border-gray-200 text-zinc-500 hover:text-emerald-600'
+                          }`}
+                        >
+                          {t('consultModeBeginner')}
+                        </button>
+                        <button
+                          onClick={() => setConsultMode('advanced')}
+                          className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
+                            consultMode === 'advanced'
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                              : isDarkMode
+                                ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-indigo-400'
+                                : 'bg-zinc-50 border-gray-200 text-zinc-500 hover:text-indigo-600'
+                          }`}
+                        >
+                          {t('consultModeAdvanced')}
+                        </button>
+                      </div>
+                      <p className={`text-[10px] leading-relaxed ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                        {consultMode === 'beginner' ? t('consultModeBeginnerDesc') : t('consultModeAdvancedDesc')}
+                      </p>
+                      <p className={`text-[10px] leading-relaxed ${isDarkMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                        {t('reportModeChangeNote')}
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <button 
+                      <button
                         onClick={handleDownloadPDF}
-                        disabled={loading || isPrinting || !reportContent}
+                        disabled={reportLoading || isPrinting || !reportContent}
                         className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm disabled:opacity-50"
                       >
                         <Download className={`w-5 h-5 ${isPrinting ? 'animate-bounce' : ''}`} />
                         <span className="text-[10px] font-bold">{t('reportDownloadPdf')}</span>
                       </button>
-                      <button 
-                        onClick={() => alert(t('reportEmailNotImplemented'))}
-                        className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm"
-                      >
+                      <div className="relative flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-300 dark:text-zinc-600 shadow-sm cursor-not-allowed">
                         <Mail className="w-5 h-5" />
                         <span className="text-[10px] font-bold">{t('reportEmail')}</span>
-                      </button>
+                        <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 px-1.5 py-0.5 rounded-full">{t('reportComingSoon')}</span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Main Content Area */}
                   <div className="flex-1">
                     <AnimatePresence mode="wait">
-                      {loading ? (
+                      {reportLoading ? (
                         <motion.div 
                           key="loading"
                           initial={{ opacity: 0 }}
