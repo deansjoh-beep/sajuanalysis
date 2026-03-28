@@ -976,19 +976,24 @@ const App: React.FC = () => {
       return;
     }
 
-    if (!newBoardPost.authorName?.trim() || !newBoardPost.content?.trim()) {
-      alert("닉네임과 내용을 입력해 주세요.");
+    const noticeRequested = !!newBoardPost.isNotice;
+    if (noticeRequested && !isAdmin) {
+      alert("공지 등록은 관리자만 가능합니다.");
+      return;
+    }
+
+    if (!noticeRequested && !newBoardPost.authorName?.trim()) {
+      alert("닉네임을 입력해 주세요.");
+      return;
+    }
+
+    if (!newBoardPost.content?.trim()) {
+      alert("내용을 입력해 주세요.");
       return;
     }
 
     if (hasBlockedWord(`${newBoardPost.title || ""} ${newBoardPost.content}`)) {
       alert("금칙어가 포함되어 등록할 수 없습니다.");
-      return;
-    }
-
-    const noticeRequested = !!newBoardPost.isNotice;
-    if (noticeRequested && !isAdmin) {
-      alert("공지 등록은 관리자만 가능합니다.");
       return;
     }
 
@@ -3780,10 +3785,12 @@ ${daeunContext}
                     <h3 className="text-lg font-bold">방명록 작성</h3>
                     <div className="grid grid-cols-1 md:grid-cols-[160px_1fr_1fr] gap-3">
                       <select
-                        value={newBoardPost.category || '자유'}
+                        value={newBoardPost.isNotice ? '공지' : (newBoardPost.category || '자유')}
                         onChange={(e) => setNewBoardPost({ ...newBoardPost, category: e.target.value })}
+                        disabled={!!newBoardPost.isNotice}
                         className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
                       >
+                        {isAdmin && <option value="공지">공지</option>}
                         <option value="자유">자유</option>
                         <option value="질문">질문</option>
                         <option value="후기">후기</option>
@@ -3816,7 +3823,11 @@ ${daeunContext}
                         <input
                           type="checkbox"
                           checked={!!newBoardPost.isNotice}
-                          onChange={(e) => setNewBoardPost({ ...newBoardPost, isNotice: e.target.checked })}
+                          onChange={(e) => setNewBoardPost({
+                            ...newBoardPost,
+                            isNotice: e.target.checked,
+                            category: e.target.checked ? "공지" : (newBoardPost.category || "자유")
+                          })}
                           className="accent-amber-500"
                         />
                         공지사항으로 등록
