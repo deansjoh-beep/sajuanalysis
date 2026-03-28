@@ -606,8 +606,19 @@ const App: React.FC = () => {
   }, [blogPosts]);
 
   const filteredBoardPosts = useMemo(() => {
+    const getBoardPostTime = (post: BoardPost) => {
+      return post.createdAt?.toDate?.()?.getTime() || new Date(post.date).getTime() || 0;
+    };
+
     return [...boardPosts]
-      .sort((a, b) => Number(!!b.isNotice) - Number(!!a.isNotice))
+      .sort((a, b) => {
+        const noticeOrder = Number(!!b.isNotice) - Number(!!a.isNotice);
+        if (noticeOrder !== 0) {
+          return noticeOrder;
+        }
+
+        return getBoardPostTime(b) - getBoardPostTime(a);
+      })
       .filter(post => boardViewMode === "notice" ? !!post.isNotice : true)
       .filter(post => boardCategory === '전체' || post.category === boardCategory);
   }, [boardPosts, boardViewMode, boardCategory]);
