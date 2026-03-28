@@ -56,7 +56,8 @@ import {
   serverTimestamp, 
   getDocFromServer, 
   increment,
-  doc 
+  doc,
+  where
 } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
@@ -64,6 +65,40 @@ import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 interface Message {
   role: "user" | "model";
   text: string;
+}
+
+interface BoardPost {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  date: string;
+  authorName: string;
+  authorUid: string;
+  isNotice?: boolean;
+  createdAt?: any;
+  views?: number;
+}
+
+interface BoardComment {
+  id: string;
+  postId: string;
+  content: string;
+  date: string;
+  authorName: string;
+  authorUid: string;
+  createdAt?: any;
+}
+
+interface BoardReport {
+  id: string;
+  targetType: "post" | "comment";
+  targetId: string;
+  postId: string;
+  reporterName: string;
+  reason: string;
+  date: string;
+  createdAt?: any;
 }
 
 enum OperationType {
@@ -444,8 +479,27 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
 };
 
 const App: React.FC = () => {
+  const BLOCKED_WORDS = ["시발", "병신", "개새", "fuck", "sex", "광고문의"];
+  const RATE_LIMIT_POST_MS = 30000;
+  const RATE_LIMIT_COMMENT_MS = 15000;
+  const RATE_LIMIT_REPORT_MS = 10000;
+
+  const hasBlockedWord = (text: string) => {
+    const lowered = text.toLowerCase();
+    return BLOCKED_WORDS.some(word => lowered.includes(word.toLowerCase()));
+  };
+
+  const isRateLimited = (key: string, limitMs: number) => {
+    const last = Number(localStorage.getItem(key) || "0");
+    return Date.now() - last < limitMs;
+  };
+
+  const markActionTime = (key: string) => {
+    localStorage.setItem(key, String(Date.now()));
+  };
+
   // Navigation
-  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog">("welcome");
+  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog" | "board">("welcome");
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact">("main");
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   
@@ -486,6 +540,24 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
+  const [selectedBoardPost, setSelectedBoardPost] = useState<BoardPost | null>(null);
+  const [isAddingBoardPost, setIsAddingBoardPost] = useState(false);
+  const [boardViewMode, setBoardViewMode] = useState<"all" | "notice">("all");
+  const [boardCategory, setBoardCategory] = useState<string>('전체');
+  const [boardComments, setBoardComments] = useState<BoardComment[]>([]);
+  const [boardReports, setBoardReports] = useState<BoardReport[]>([]);
+  const [newBoardComment, setNewBoardComment] = useState<{ authorName: string; content: string }>({
+    authorName: "",
+    content: ""
+  });
+  const [newBoardPost, setNewBoardPost] = useState<Partial<BoardPost>>({
+    title: "",
+    content: "",
+    category: "자유",
+    authorName: "",
+    isNotice: false
+  });
   
   // Weekly Recommended Content Logic
   const recommendedPosts = useMemo(() => {
@@ -539,6 +611,13 @@ const App: React.FC = () => {
     
     return result;
   }, [blogPosts]);
+
+  const filteredBoardPosts = useMemo(() => {
+    return [...boardPosts]
+      .sort((a, b) => Number(!!b.isNotice) - Number(!!a.isNotice))
+      .filter(post => boardViewMode === "notice" ? !!post.isNotice : true)
+      .filter(post => boardCategory === '전체' || post.category === boardCategory);
+  }, [boardPosts, boardViewMode, boardCategory]);
 
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
@@ -621,6 +700,70 @@ const App: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Fetch Board Posts from Firestore
+  useEffect(() => {
+    const q = query(collection(db, "boardPosts"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const posts = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      })) as BoardPost[];
+      setBoardPosts(posts);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "boardPosts");
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch comments for selected board post
+  useEffect(() => {
+    if (!selectedBoardPost) {
+      setBoardComments([]);
+      return;
+    }
+
+    const q = query(collection(db, "boardComments"), where("postId", "==", selectedBoardPost.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const comments = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      })) as BoardComment[];
+
+      comments.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
+        const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
+        return aTime - bTime;
+      });
+
+      setBoardComments(comments);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `boardComments:${selectedBoardPost.id}`);
+    });
+
+    return () => unsubscribe();
+  }, [selectedBoardPost]);
+
+  // Fetch reports for admin moderation
+  useEffect(() => {
+    if (!isAdmin) {
+      setBoardReports([]);
+      return;
+    }
+
+    const q = query(collection(db, "boardReports"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const reports = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      })) as BoardReport[];
+      setBoardReports(reports);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "boardReports");
+    });
+
+    return () => unsubscribe();
+  }, [isAdmin]);
 
   // Admin Functions
   const handleLogin = async () => {
@@ -813,6 +956,178 @@ const App: React.FC = () => {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `blogPosts/${postId}`);
       alert("블로그 글 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleBoardPostClick = async (post: BoardPost) => {
+    setSelectedBoardPost(post);
+    try {
+      await updateDoc(doc(db, "boardPosts", post.id), {
+        views: increment(1)
+      });
+    } catch (error) {
+      console.error("Error incrementing board post views:", error);
+    }
+  };
+
+  const handleAddBoardPost = async () => {
+    if (isRateLimited("guestbook:lastPostAt", RATE_LIMIT_POST_MS)) {
+      alert("도배 방지를 위해 잠시 후 다시 작성해 주세요.");
+      return;
+    }
+
+    if (!newBoardPost.authorName?.trim() || !newBoardPost.content?.trim()) {
+      alert("닉네임과 내용을 입력해 주세요.");
+      return;
+    }
+
+    if (hasBlockedWord(`${newBoardPost.title || ""} ${newBoardPost.content}`)) {
+      alert("금칙어가 포함되어 등록할 수 없습니다.");
+      return;
+    }
+
+    const noticeRequested = !!newBoardPost.isNotice;
+    if (noticeRequested && !isAdmin) {
+      alert("공지 등록은 관리자만 가능합니다.");
+      return;
+    }
+
+    if (noticeRequested && !newBoardPost.title?.trim()) {
+      alert("공지사항은 제목을 입력해 주세요.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "boardPosts"), {
+        title: (newBoardPost.title || "방문 인사").trim(),
+        content: newBoardPost.content.trim(),
+        category: noticeRequested ? "공지" : (newBoardPost.category || "자유"),
+        date: new Date().toISOString().split('T')[0],
+        authorName: noticeRequested ? "관리자" : newBoardPost.authorName.trim(),
+        authorUid: noticeRequested ? (user?.uid || "admin") : "guest",
+        isNotice: noticeRequested,
+        createdAt: serverTimestamp(),
+        views: 0
+      });
+
+      markActionTime("guestbook:lastPostAt");
+
+      setIsAddingBoardPost(false);
+      setNewBoardPost({ title: "", content: "", category: "자유", authorName: "", isNotice: false });
+      alert("방명록이 등록되었습니다.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "boardPosts");
+      alert("방명록 등록 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleAddBoardComment = async () => {
+    if (!selectedBoardPost) return;
+
+    if (isRateLimited("guestbook:lastCommentAt", RATE_LIMIT_COMMENT_MS)) {
+      alert("도배 방지를 위해 잠시 후 다시 댓글을 남겨주세요.");
+      return;
+    }
+
+    if (!newBoardComment.authorName.trim() || !newBoardComment.content.trim()) {
+      alert("댓글 작성에는 닉네임과 내용이 필요합니다.");
+      return;
+    }
+
+    if (hasBlockedWord(newBoardComment.content)) {
+      alert("금칙어가 포함되어 댓글을 등록할 수 없습니다.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "boardComments"), {
+        postId: selectedBoardPost.id,
+        content: newBoardComment.content.trim(),
+        date: new Date().toISOString().split('T')[0],
+        authorName: newBoardComment.authorName.trim(),
+        authorUid: "guest",
+        createdAt: serverTimestamp()
+      });
+
+      markActionTime("guestbook:lastCommentAt");
+      setNewBoardComment(prev => ({ ...prev, content: "" }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `boardComments:${selectedBoardPost.id}`);
+      alert("댓글 등록 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleReport = async (targetType: "post" | "comment", targetId: string, postId: string) => {
+    if (isRateLimited("guestbook:lastReportAt", RATE_LIMIT_REPORT_MS)) {
+      alert("신고는 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
+    const reporterName = window.prompt("신고자 닉네임을 입력해 주세요.", "익명")?.trim() || "익명";
+    const reason = window.prompt("신고 사유를 입력해 주세요.", "부적절한 내용")?.trim() || "부적절한 내용";
+
+    try {
+      await addDoc(collection(db, "boardReports"), {
+        targetType,
+        targetId,
+        postId,
+        reporterName,
+        reason,
+        date: new Date().toISOString().split('T')[0],
+        createdAt: serverTimestamp()
+      });
+
+      markActionTime("guestbook:lastReportAt");
+      alert("신고가 접수되었습니다.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "boardReports");
+      alert("신고 접수 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleResolveReport = async (reportId: string) => {
+    if (!isAdmin) return;
+    try {
+      await deleteDoc(doc(db, "boardReports", reportId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `boardReports/${reportId}`);
+      alert("신고 항목 정리 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDeleteBoardComment = async (commentId: string) => {
+    if (!isAdmin) {
+      alert("관리자만 댓글을 삭제할 수 있습니다.");
+      return;
+    }
+
+    if (!window.confirm("댓글을 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteDoc(doc(db, "boardComments", commentId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `boardComments/${commentId}`);
+      alert("댓글 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDeleteBoardPost = async (post: BoardPost) => {
+    if (!isAdmin) {
+      alert("관리자만 삭제할 수 있습니다.");
+      return;
+    }
+
+    if (!window.confirm("정말 이 게시글을 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteDoc(doc(db, "boardPosts", post.id));
+      if (selectedBoardPost?.id === post.id) {
+        setSelectedBoardPost(null);
+      }
+      alert("게시글이 삭제되었습니다.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `boardPosts/${post.id}`);
+      alert("게시글 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -1307,6 +1622,7 @@ ${daeunContext}
               { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
               { id: "chat", icon: MessageCircle, label: "상담" },
               { id: "report", icon: FileText, label: "리포트" },
+              { id: "board", icon: Ticket, label: "게시판" },
               { id: "blog", icon: Newspaper, label: "블로그" },
               { id: "guide", icon: Info, label: "가이드" }
             ].map((tab) => (
@@ -1322,6 +1638,20 @@ ${daeunContext}
           </nav>
 
           <div className="flex items-center gap-1 md:gap-4">
+            <button
+              onClick={() => {
+                setShowAdminGate(prev => !prev);
+                setActiveTab("board");
+              }}
+              className={`px-2 py-1 md:px-3 md:py-1.5 rounded-full border text-[10px] md:text-xs font-bold transition-all ${showAdminGate || isAdmin ? 'bg-amber-500/15 text-amber-500 border-amber-500/40' : isDarkMode ? 'border-white/15 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30' : 'border-black/10 text-zinc-500 hover:text-amber-600 hover:border-amber-500/40'}`}
+              title="관리자 모드"
+            >
+              <span className="flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">관리자모드</span>
+              </span>
+            </button>
+
             {activeTab === "chat" && (
               <button 
                 onClick={handleDownloadChat}
@@ -3349,6 +3679,300 @@ ${daeunContext}
               </div>
             </motion.div>
           )}
+
+          {activeTab === "board" && (
+            <motion.div
+              key="board"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-zinc-50 dark:bg-[#0a0a0a]"
+            >
+              <div className="max-w-6xl mx-auto pb-20 space-y-8">
+                <div className={`p-6 md:p-10 rounded-[2.5rem] border ${isDarkMode ? 'bg-zinc-900/70 border-white/10' : 'bg-white border-black/5 shadow-xl'} space-y-4`}>
+                  <h2 className="text-3xl md:text-5xl font-title font-bold tracking-tight">방명록</h2>
+                  <p className={`text-sm md:text-base ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                    로그인 없이 닉네임으로 인사와 의견을 남길 수 있습니다.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setBoardViewMode("all")}
+                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${boardViewMode === "all" ? 'bg-indigo-600 text-white' : isDarkMode ? 'bg-white/5 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}
+                    >
+                      전체 방명록
+                    </button>
+                    <button
+                      onClick={() => {
+                        setBoardViewMode("notice");
+                        setBoardCategory("전체");
+                      }}
+                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${boardViewMode === "notice" ? 'bg-amber-500 text-white' : isDarkMode ? 'bg-white/5 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}
+                    >
+                      공지사항 전용
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {['전체', '공지', '자유', '질문', '후기'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setBoardCategory(cat)}
+                        disabled={boardViewMode === "notice"}
+                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${boardCategory === cat ? 'bg-indigo-600 text-white' : isDarkMode ? 'bg-white/5 text-zinc-300 hover:bg-white/10' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                    <div className="ml-auto flex gap-2">
+                      {showAdminGate && !user && (
+                        <button
+                          onClick={handleLogin}
+                          disabled={isLoggingIn}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-60"
+                        >
+                          {isLoggingIn ? '로그인 중...' : '관리자 로그인'}
+                        </button>
+                      )}
+                      {isAdmin && user && (
+                        <button
+                          onClick={handleLogout}
+                          className="px-4 py-2 rounded-xl bg-zinc-700 text-white text-xs font-bold hover:bg-zinc-800 transition-all"
+                        >
+                          관리자 로그아웃
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setIsAddingBoardPost(prev => !prev)}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all"
+                      >
+                        {isAddingBoardPost ? '작성 닫기' : '방명록 남기기'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {isAdmin && boardReports.length > 0 && (
+                  <div className={`p-5 rounded-3xl border ${isDarkMode ? 'bg-rose-500/10 border-rose-500/30' : 'bg-rose-50 border-rose-200'} space-y-3`}>
+                    <h3 className="text-sm font-bold text-rose-500">신고 접수함 ({boardReports.length})</h3>
+                    <div className="space-y-2 max-h-52 overflow-y-auto hide-scrollbar">
+                      {boardReports.slice(0, 20).map(report => (
+                        <div key={report.id} className={`p-3 rounded-xl border ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-rose-100'} flex items-center justify-between gap-3`}>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold line-clamp-1">
+                              [{report.targetType === 'post' ? '게시글' : '댓글'}] {report.reason}
+                            </p>
+                            <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                              신고자: {report.reporterName} · {report.date}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleResolveReport(report.id)}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500 text-white hover:bg-rose-600 transition-all"
+                          >
+                            처리완료
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isAddingBoardPost && (
+                  <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/60 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-4`}>
+                    <h3 className="text-lg font-bold">방명록 작성</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-[160px_1fr_1fr] gap-3">
+                      <select
+                        value={newBoardPost.category || '자유'}
+                        onChange={(e) => setNewBoardPost({ ...newBoardPost, category: e.target.value })}
+                        className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
+                      >
+                        <option value="자유">자유</option>
+                        <option value="질문">질문</option>
+                        <option value="후기">후기</option>
+                      </select>
+                      <input
+                        value={newBoardPost.authorName || ''}
+                        onChange={(e) => setNewBoardPost({ ...newBoardPost, authorName: e.target.value })}
+                        placeholder="닉네임"
+                        maxLength={20}
+                        className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
+                      />
+                      <input
+                        value={newBoardPost.title || ''}
+                        onChange={(e) => setNewBoardPost({ ...newBoardPost, title: e.target.value })}
+                        placeholder="제목 (선택)"
+                        maxLength={100}
+                        className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
+                      />
+                    </div>
+                    <textarea
+                      value={newBoardPost.content || ''}
+                      onChange={(e) => setNewBoardPost({ ...newBoardPost, content: e.target.value })}
+                      placeholder="방문 인사나 의견을 남겨주세요"
+                      rows={6}
+                      maxLength={1000}
+                      className={`w-full px-4 py-3 rounded-2xl border text-sm resize-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
+                    />
+                    {isAdmin && (
+                      <label className={`flex items-center gap-2 text-xs font-bold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                        <input
+                          type="checkbox"
+                          checked={!!newBoardPost.isNotice}
+                          onChange={(e) => setNewBoardPost({ ...newBoardPost, isNotice: e.target.checked })}
+                          className="accent-amber-500"
+                        />
+                        공지사항으로 등록
+                      </label>
+                    )}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleAddBoardPost}
+                        className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all"
+                      >
+                        등록하기
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedBoardPost ? (
+                  <div className={`p-6 md:p-8 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/70 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-6`}>
+                    <button
+                      onClick={() => setSelectedBoardPost(null)}
+                      className="text-sm font-bold text-indigo-500 hover:underline"
+                    >
+                      목록으로 돌아가기
+                    </button>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs opacity-60">
+                        {selectedBoardPost.isNotice && (
+                          <span className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-500 font-bold">공지</span>
+                        )}
+                        <span className="px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">{selectedBoardPost.category}</span>
+                        <span>{selectedBoardPost.date}</span>
+                        <span>조회 {selectedBoardPost.views || 0}</span>
+                      </div>
+                      <h3 className="text-2xl md:text-3xl font-bold">{selectedBoardPost.title}</h3>
+                      <p className={`text-sm ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>작성자: {selectedBoardPost.authorName}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border whitespace-pre-wrap leading-relaxed ${isDarkMode ? 'bg-white/5 border-white/10 text-zinc-200' : 'bg-zinc-50 border-zinc-200 text-zinc-700'}`}>
+                      {selectedBoardPost.content}
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleReport("post", selectedBoardPost.id, selectedBoardPost.id)}
+                        className="px-4 py-2 rounded-xl bg-zinc-600 text-white text-sm font-bold hover:bg-zinc-700 transition-all"
+                      >
+                        신고
+                      </button>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => handleDeleteBoardPost(selectedBoardPost)}
+                          className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 transition-all"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t border-black/5 dark:border-white/10 space-y-4">
+                      <h4 className="text-base font-bold">댓글 {boardComments.length}개</h4>
+
+                      <div className="space-y-3">
+                        {boardComments.map(comment => (
+                          <div
+                            key={comment.id}
+                            className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
+                          >
+                            <div className="flex items-center justify-between text-xs opacity-60 mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold">{comment.authorName}</span>
+                                <span>{comment.date}</span>
+                              </div>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleDeleteBoardComment(comment.id)}
+                                  className="text-rose-500 hover:underline"
+                                >
+                                  삭제
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleReport("comment", comment.id, selectedBoardPost.id)}
+                                className="text-zinc-500 hover:underline"
+                              >
+                                신고
+                              </button>
+                            </div>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                          </div>
+                        ))}
+                        {boardComments.length === 0 && (
+                          <p className={`text-sm ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>첫 댓글을 남겨보세요.</p>
+                        )}
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border space-y-3 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}>
+                        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-3">
+                          <input
+                            value={newBoardComment.authorName}
+                            onChange={(e) => setNewBoardComment(prev => ({ ...prev, authorName: e.target.value }))}
+                            placeholder="닉네임"
+                            maxLength={20}
+                            className={`px-4 py-3 rounded-xl border text-sm ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-zinc-200'}`}
+                          />
+                          <div className="flex gap-2">
+                            <input
+                              value={newBoardComment.content}
+                              onChange={(e) => setNewBoardComment(prev => ({ ...prev, content: e.target.value }))}
+                              placeholder="댓글을 입력하세요"
+                              maxLength={500}
+                              className={`flex-1 px-4 py-3 rounded-xl border text-sm ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-zinc-200'}`}
+                            />
+                            <button
+                              onClick={handleAddBoardComment}
+                              className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all"
+                            >
+                              댓글 등록
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredBoardPosts.map(post => (
+                        <button
+                          key={post.id}
+                          onClick={() => handleBoardPostClick(post)}
+                          className={`w-full text-left p-5 md:p-6 rounded-3xl border transition-all ${post.isNotice ? (isDarkMode ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15' : 'bg-amber-50 border-amber-200 hover:bg-amber-100') : (isDarkMode ? 'bg-zinc-900/60 border-white/10 hover:bg-zinc-800/60' : 'bg-white border-black/5 hover:shadow-md')} space-y-3`}
+                        >
+                          <div className="flex flex-wrap items-center gap-2 text-xs opacity-60">
+                            {post.isNotice && <span className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-500 font-bold">공지</span>}
+                            <span className="px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">{post.category}</span>
+                            <span>{post.authorName}</span>
+                            <span>{post.date}</span>
+                            <span>조회 {post.views || 0}</span>
+                          </div>
+                          <h4 className="text-lg md:text-xl font-bold line-clamp-1">{post.title}</h4>
+                          <p className={`text-sm line-clamp-2 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                            {post.content}
+                          </p>
+                        </button>
+                      ))}
+
+                    {filteredBoardPosts.length === 0 && (
+                      <div className="text-center py-20 opacity-50">
+                        <Ticket className="w-12 h-12 mx-auto mb-3" />
+                        <p className="text-sm">등록된 게시글이 없습니다. 첫 글을 작성해 보세요.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -3359,6 +3983,7 @@ ${daeunContext}
             { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
             { id: "chat", icon: MessageCircle, label: "상담" },
             { id: "report", icon: FileText, label: "리포트" },
+            { id: "board", icon: Ticket, label: "게시판" },
             { id: "blog", icon: Newspaper, label: "블로그" },
             { id: "guide", icon: Info, label: "가이드" }
           ].map((tab) => (

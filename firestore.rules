@@ -44,6 +44,40 @@ service cloud.firestore {
              (!('readTime' in data) || (data.readTime is string && data.readTime.size() <= 50));
     }
 
+    function isValidBoardPost(data) {
+      return data.keys().hasAll(['title', 'content', 'category', 'date', 'createdAt', 'authorUid', 'authorName']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 10000 &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 30 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp &&
+             data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() <= 64 &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100 &&
+             (!('isNotice' in data) || data.isNotice is bool) &&
+             (!('views' in data) || (data.views is int && data.views >= 0));
+    }
+
+    function isValidBoardComment(data) {
+      return data.keys().hasAll(['postId', 'content', 'date', 'createdAt', 'authorName', 'authorUid']) &&
+             data.postId is string && data.postId.size() > 0 && data.postId.size() <= 128 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100 &&
+             data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() <= 64;
+    }
+
+    function isValidBoardReport(data) {
+      return data.keys().hasAll(['targetType', 'targetId', 'postId', 'reporterName', 'reason', 'date', 'createdAt']) &&
+             data.targetType is string && (data.targetType == 'post' || data.targetType == 'comment') &&
+             data.targetId is string && data.targetId.size() > 0 && data.targetId.size() <= 128 &&
+             data.postId is string && data.postId.size() > 0 && data.postId.size() <= 128 &&
+             data.reporterName is string && data.reporterName.size() > 0 && data.reporterName.size() <= 100 &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() <= 300 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -56,6 +90,53 @@ service cloud.firestore {
       allow create: if isAdmin() && isValidBlogPost(request.resource.data);
       allow update: if isAdmin() && isValidBlogPost(request.resource.data);
       allow delete: if isAdmin();
+    }
+
+    match /boardPosts/{postId} {
+      // Publicly readable
+      allow read: if true;
+
+      // Guestbook create: allow without login
+      allow create: if isValidBoardPost(request.resource.data) &&
+                    (
+                      !('isNotice' in request.resource.data) ||
+                      request.resource.data.isNotice == false ||
+                      isAdmin()
+                    );
+
+      // Public views increment only
+      allow update: if (
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['views']) &&
+        request.resource.data.views is int &&
+        request.resource.data.views >= resource.data.views
+      );
+
+      // Delete admin only
+      allow delete: if isAdmin();
+    }
+
+    match /boardComments/{commentId} {
+      // Publicly readable
+      allow read: if true;
+
+      // Guest comment create
+      allow create: if isValidBoardComment(request.resource.data) &&
+                    exists(/databases/$(database)/documents/boardPosts/$(request.resource.data.postId));
+
+      // No direct edit for comments
+      allow update: if false;
+
+      // Delete admin only
+      allow delete: if isAdmin();
+    }
+
+    match /boardReports/{reportId} {
+      // Create open for user reports
+      allow create: if isValidBoardReport(request.resource.data);
+
+      // Only admin can review/remove
+      allow read, delete: if isAdmin();
+      allow update: if false;
     }
 
     // Default deny for all other collections
