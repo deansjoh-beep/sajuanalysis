@@ -5,10 +5,52 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+
+  const getManualChunk = (id: string): string | undefined => {
+    if (!id.includes('node_modules')) {
+      return undefined;
+    }
+
+    if (id.includes('firebase')) {
+      return 'firebase-vendor';
+    }
+    if (id.includes('jspdf')) {
+      return 'jspdf-vendor';
+    }
+    if (id.includes('html2canvas') || id.includes('html-to-image')) {
+      return 'html-image-vendor';
+    }
+    if (id.includes('recharts') || id.includes('d3-')) {
+      return 'chart-vendor';
+    }
+    if (id.includes('react-simplemde-editor') || id.includes('easymde') || id.includes('codemirror')) {
+      return 'editor-vendor';
+    }
+    if (id.includes('react-markdown') || id.includes('rehype') || id.includes('remark')) {
+      return 'markdown-vendor';
+    }
+    if (id.includes('i18next') || id.includes('react-i18next')) {
+      return 'i18n-vendor';
+    }
+    if (id.includes('lunar-javascript') || id.includes('luxon') || id.includes('tz-lookup')) {
+      return 'saju-vendor';
+    }
+
+    return undefined;
+  };
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+    },
+    build: {
+      chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          manualChunks: getManualChunk,
+        },
+      },
     },
     resolve: {
       alias: {
