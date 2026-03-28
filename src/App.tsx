@@ -1,8 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useTranslation } from 'react-i18next';
-import i18next from 'i18next';
-import './i18n';
-import tzlookup from 'tz-lookup';
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Send, 
@@ -42,7 +38,7 @@ import "easymde/dist/easymde.min.css";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
-import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok, getDeityEnglishExplanation, getGyeokInterpretation } from "./utils/saju";
+import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
 import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
 import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
@@ -124,20 +120,13 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
 // Saju Calculation Tool for Gemini
 const calculateSajuForPerson = (args: any) => {
   try {
-    const { birthDate, birthTime, isLunar, isLeap, gender, personName, unknownTime, timezone, longitude, latitude } = args;
-    const saju = getSajuData(birthDate, birthTime, isLunar, !!isLeap, !!unknownTime, timezone || 'Asia/Seoul', longitude, latitude);
-    const daeun = getDaeunData(birthDate, birthTime, isLunar, !!isLeap, gender as 'M' | 'F', timezone || 'Asia/Seoul', longitude, latitude);
+    const { birthDate, birthTime, isLunar, isLeap, gender, personName, unknownTime } = args;
+    const saju = getSajuData(birthDate, birthTime, isLunar, !!isLeap, !!unknownTime);
+    const daeun = getDaeunData(birthDate, birthTime, isLunar, !!isLeap, gender as 'M' | 'F');
     const yongshin = calculateYongshin(saju);
     const gyeok = calculateGyeok(saju);
     
-    const sajuText = saju.map(p => {
-      const stemDeityEng = getDeityEnglishExplanation(p.stem.deity);
-      const branchDeityEng = getDeityEnglishExplanation(p.branch.deity);
-      return `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}` +
-        (stemDeityEng ? ` (stem: ${stemDeityEng})` : '') +
-        (branchDeityEng ? ` (branch: ${branchDeityEng})` : '');
-    }).join('\n');
-
+    const sajuText = saju.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`).join('\n');
     const daeunText = daeun.map(d => `${d.startAge}세 대운: ${d.stem.hangul}${d.branch.hangul} (${hanjaToHangul[d.stem]}${hanjaToHangul[d.branch]})`).join(', ');
     
     return {
@@ -145,11 +134,10 @@ const calculateSajuForPerson = (args: any) => {
       saju: sajuText,
       daeun: daeunText,
       yongshin: `${yongshin.yongshin} (기운: ${yongshin.strength}, 점수: ${yongshin.score})`,
-      gyeok: `${gyeok.gyeok} (구성: ${gyeok.composition})`,
-      careerFocus: getCareerFocus(saju, i18next.language || 'ko')
+      gyeok: `${gyeok.gyeok} (구성: ${gyeok.composition})`
     };
   } catch (e) {
-    return { error: i18next.t('calculateError') };
+    return { error: "사주 계산 중 오류가 발생했습니다. 날짜와 시간 형식을 확인해주세요. (예: 1990-01-01, 14:30)" };
   }
 };
 
@@ -157,7 +145,7 @@ const sajuToolDeclaration = {
   name: "calculateSajuForPerson",
   parameters: {
     type: Type.OBJECT,
-    description: i18next.t('sajuToolDescription'),
+    description: "타인의 생년월일시 정보를 바탕으로 사주 팔자와 대운을 계산합니다. 궁합 분석이나 제3자(가족, 친구 등) 상담 시 반드시 이 도구를 사용하여 정확한 데이터를 얻어야 합니다.",
     properties: {
       birthDate: { type: Type.STRING, description: "생년월일 (YYYY-MM-DD 형식)" },
       birthTime: { type: Type.STRING, description: "생시 (HH:mm 형식, 모를 경우 '12:00')" },
@@ -165,10 +153,7 @@ const sajuToolDeclaration = {
       isLeap: { type: Type.BOOLEAN, description: "윤달 여부 (음력일 경우에만 해당)" },
       gender: { type: Type.STRING, description: "성별 ('M': 남성, 'F': 여성)" },
       personName: { type: Type.STRING, description: "대상자의 이름 또는 호칭 (예: '남자친구', '상대방', '어머니')" },
-      unknownTime: { type: Type.BOOLEAN, description: "생시를 모르는지 여부" },
-      timezone: { type: Type.STRING, description: "IANA 타임존 (예: 'Asia/Seoul', 'America/New_York')" },
-      longitude: { type: Type.NUMBER, description: "태어난 장소의 경도 (예: 126.9780)" },
-      latitude: { type: Type.NUMBER, description: "태어난 장소의 위도 (예: 37.5665)" }
+      unknownTime: { type: Type.BOOLEAN, description: "생시를 모르는지 여부" }
     },
     required: ["birthDate", "birthTime", "isLunar", "gender"]
   }
@@ -210,9 +195,6 @@ interface UserData {
   calendarType: 'solar' | 'lunar' | 'leap';
   gender: 'M' | 'F';
   unknownTime: boolean;
-  timezone: string;
-  longitude: number;
-  latitude: number;
 }
 
 const HanjaBox: React.FC<{ 
@@ -462,7 +444,6 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
 };
 
 const App: React.FC = () => {
-  const { t, i18n } = useTranslation();
   // Navigation
   const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog">("welcome");
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact">("main");
@@ -478,10 +459,7 @@ const App: React.FC = () => {
     birthMinute: "0",
     calendarType: 'solar',
     gender: 'M',
-    unknownTime: false,
-    timezone: 'Asia/Seoul',
-    longitude: 126.9780,
-    latitude: 37.5665
+    unknownTime: false
   });
   const [sajuResult, setSajuResult] = useState<any[]>([]);
   const [daeunResult, setDaeunResult] = useState<any[]>([]);
@@ -489,15 +467,12 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('재물/사업');
-  const [consultMode, setConsultMode] = useState<'beginner' | 'advanced'>('beginner');
   const [blogCategory, setBlogCategory] = useState<string>('전체');
-  const [language, setLanguage] = useState<'ko' | 'en'>('ko');
   const [refreshKey, setRefreshKey] = useState(0);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
-  const [gyeokInterpretation, setGyeokInterpretation] = useState<string>("");
   const [guidelines, setGuidelines] = useState<Guidelines | null>({
     saju: SAJU_GUIDELINE,
     consulting: CONSULTING_GUIDELINE,
@@ -506,55 +481,12 @@ const App: React.FC = () => {
   const [guidelinesError, setGuidelinesError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [showAdminGate, setShowAdminGate] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
-
-  const chatCategoryTranslationMap: Record<string, string> = {
-    '재물/사업': t('chatCategoryWealthBusiness'),
-    '건강/가족': t('chatCategoryHealthFamily'),
-    '연애/결혼': t('chatCategoryLoveMarriage')
-  };
-
-  const blogCategoryMap: Record<string, string> = {
-    '전체': t('categoryAll'),
-    '사주기초': t('categorySajuBasics'),
-    '사주이야기': t('categorySajuStories'),
-    '사주책리뷰': t('categoryBookReviews')
-  };
-
-  useEffect(() => {
-    const saved = localStorage.getItem('language');
-    let activeLang: 'ko' | 'en' = 'ko';
-
-    if (saved === 'ko' || saved === 'en') {
-      activeLang = saved;
-    } else {
-      const navLang = navigator.language || navigator.languages?.[0] || 'ko';
-      if (navLang.startsWith('en')) activeLang = 'en';
-      else if (navLang.startsWith('ko')) activeLang = 'ko';
-      else activeLang = 'ko';
-    }
-
-    i18next.changeLanguage(activeLang);
-    setLanguage(activeLang);
-    localStorage.setItem('language', activeLang);
-  }, []);
-
-  const changeLanguage = (lng: 'ko' | 'en') => {
-    // 영어 버전은 준비중이므로 한국어만 사용 가능
-    if (lng === 'en') {
-      alert('영어 버전은 현재 준비중입니다. 곧 오픈예정입니다.');
-      return;
-    }
-    i18next.changeLanguage(lng);
-    setLanguage(lng);
-    localStorage.setItem('language', lng);
-  };
-
+  
   // Weekly Recommended Content Logic
   const recommendedPosts = useMemo(() => {
     const allPosts = blogPosts.length > 0 ? blogPosts : BLOG_POSTS;
@@ -613,35 +545,27 @@ const App: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const daeunScrollRef = useRef<HTMLDivElement>(null);
-  const currentDaeunCardRef = useRef<HTMLDivElement>(null);
-  const prevConsultModeRef = useRef<'beginner' | 'advanced' | null>(null);
-
-  const currentAge = useMemo(() => {
-    const birthYear = parseInt(userData.birthYear, 10);
-    if (Number.isNaN(birthYear)) return 0;
-    return new Date().getFullYear() - birthYear + 1;
-  }, [userData.birthYear]);
-
-  const currentDaeunIndex = useMemo(() => {
-    if (daeunResult.length === 0 || currentAge <= 0) return -1;
-    return daeunResult.findIndex((dy, i) =>
-      currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i + 1].startAge)
-    );
-  }, [daeunResult, currentAge]);
 
   useEffect(() => {
-    if (activeTab !== "dashboard" || currentDaeunIndex === -1) return;
-
-    const timer = setTimeout(() => {
-      currentDaeunCardRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        inline: 'center',
-        block: 'nearest'
-      });
-    }, 350); // wait for transition/render to settle
-
-    return () => clearTimeout(timer);
-  }, [activeTab, currentDaeunIndex]);
+    if (activeTab === "dashboard" && daeunScrollRef.current && daeunResult.length > 0) {
+      const timer = setTimeout(() => {
+        const currentAge = 2026 - parseInt(userData.birthYear) + 1;
+        const activeIndex = daeunResult.findIndex((dy, i) => 
+          currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge)
+        );
+        
+        if (activeIndex !== -1) {
+          const container = daeunScrollRef.current;
+          if (container && container.children[activeIndex]) {
+            const activeElement = container.children[activeIndex] as HTMLElement;
+            const scrollLeft = activeElement.offsetLeft - (container.offsetWidth / 2) + (activeElement.offsetWidth / 2);
+            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+          }
+        }
+      }, 300); // Give enough time for the tab transition animation
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, daeunResult, userData.birthYear]);
 
   const [showInputForm, setShowInputForm] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
@@ -707,14 +631,14 @@ const App: React.FC = () => {
       console.log("Login successful", result.user.email);
     } catch (error: any) {
       console.error("Login error:", error);
-      let errorMessage = t('loginError');
+      let errorMessage = "로그인 중 오류가 발생했습니다.";
       
       if (error.code === 'auth/unauthorized-domain') {
         errorMessage = `현재 도메인이 Firebase 승인 도메인에 등록되어 있지 않습니다. Firebase 콘솔에서 다음 도메인을 '승인된 도메인'에 추가해 주세요:\n\n${window.location.hostname}`;
       } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = t('loginPopupBlocked');
+        errorMessage = "브라우저에서 팝업이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해 주세요.";
       } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = t('loginPopupClosed');
+        errorMessage = "로그인 창이 닫혔습니다. 다시 시도해 주세요.";
       } else {
         errorMessage = `로그인 실패 (${error.code || 'unknown'}): ${error.message || '알 수 없는 오류가 발생했습니다.'}`;
       }
@@ -726,7 +650,7 @@ const App: React.FC = () => {
   };
 
   const handleReset = () => {
-    if (window.confirm(t('confirmResetMessage'))) {
+    if (window.confirm("상담을 종료하고 모든 입력 데이터를 삭제하시겠습니까? (이 작업은 되돌릴 수 없습니다)")) {
       setUserData({
         name: "사용자",
         birthYear: "1990",
@@ -736,10 +660,7 @@ const App: React.FC = () => {
         birthMinute: "0",
         calendarType: 'solar',
         gender: 'M',
-        unknownTime: false,
-        timezone: 'Asia/Seoul',
-        longitude: 126.9780,
-        latitude: 37.5665
+        unknownTime: false
       });
       setMessages([]);
       setSajuResult([]);
@@ -752,46 +673,6 @@ const App: React.FC = () => {
       setIsAnalyzing(false);
       setAnalysisStep(0);
     }
-  };
-
-  const handleAutoLocation = () => {
-    if (!navigator.geolocation) {
-      alert(t('locationNotSupported'));
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        let detectedTimezone = 'UTC';
-        try {
-          detectedTimezone = tzlookup(latitude, longitude);
-        } catch (err) {
-          console.warn("tz-lookup error", err);
-        }
-
-        setUserData({
-          ...userData,
-          latitude,
-          longitude,
-          timezone: detectedTimezone
-        });
-      },
-      (error) => {
-        console.error("Geolocation error", error);
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            alert(t('locationPermissionDenied'));
-            break;
-          case error.POSITION_UNAVAILABLE:
-            alert(t('locationUnavailable'));
-            break;
-          default:
-            alert(t('locationGeneralError'));
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
   };
 
   const handleLogout = async () => {
@@ -940,20 +821,6 @@ const App: React.FC = () => {
     // Guidelines are now hardcoded in src/constants/guidelines.ts
   }, []);
 
-  // Re-generate report when consult mode changes (only if analysis has been done)
-  useEffect(() => {
-    if (prevConsultModeRef.current === null) {
-      prevConsultModeRef.current = consultMode;
-      return;
-    }
-    if (prevConsultModeRef.current === consultMode) return;
-    prevConsultModeRef.current = consultMode;
-    if (sajuResult.length > 0) {
-      handleGenerateReport();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [consultMode]);
-
   // Auto scroll
   // Force rebuild
   useEffect(() => {
@@ -985,55 +852,27 @@ const App: React.FC = () => {
       const isLunar = userData.calendarType !== 'solar';
       const isLeap = userData.calendarType === 'leap';
       
-      const result = getSajuData(
-        dateStr,
-        timeStr,
-        isLunar,
-        isLeap,
-        userData.unknownTime,
-        userData.timezone,
-        userData.longitude,
-        userData.latitude
-      );
-      const daeun = getDaeunData(
-        dateStr,
-        timeStr,
-        isLunar,
-        isLeap,
-        userData.gender,
-        userData.timezone,
-        userData.longitude,
-        userData.latitude
-      );
+      const result = getSajuData(dateStr, timeStr, isLunar, isLeap, userData.unknownTime);
+      const daeun = getDaeunData(dateStr, timeStr, isLunar, isLeap, userData.gender);
       const yongshin = calculateYongshin(result);
-      const gyeokInterp = getGyeokInterpretation(result, i18n.language || 'ko');
       
       setSajuResult(result);
       setDaeunResult(daeun);
       setYongshinResult(yongshin);
-      setGyeokInterpretation(gyeokInterp);
       setReportContent(null);
       setActiveTab("dashboard");
       setShowInputForm(false);
-
-      // Auto-generate report in background with fresh data
-      handleGenerateReport({
-        sajuOverride: result,
-        daeunOverride: daeun,
-        gyeokOverride: gyeokInterp,
-        modeOverride: consultMode,
-      });
       
       // Reset chat with context
       setMessages([
         { 
           role: "model", 
-          text: t('chatWelcomeMessage') 
+          text: `만세력에서 당신의 사주팔자를 확인하셨습니다. 이 상담창에 무엇이든 물어 보세요. 유아이 AI 전문상담자가 대답해 드립니다.` 
         }
       ]);
     } catch (err: any) {
       console.error("Analysis error:", err);
-      alert(t('calculateError'));
+      alert("사주 분석 중 오류가 발생했습니다. 입력 정보를 확인해 주세요.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -1047,15 +886,15 @@ const App: React.FC = () => {
     if (messages.length === 0) return;
     
     const chatContent = messages.map(msg => {
-      const role = msg.role === 'user' ? t('chatUserLabel') : t('chatAiLabel');
+      const role = msg.role === 'user' ? '나' : '유아이';
       return `[${role}]\n${msg.text}\n`;
     }).join('\n---\n\n');
     
-    const blob = new Blob([`${t('saveChatFilename')}\n${t('saveChatDateLabel')}: ${new Date().toLocaleString()}\n\n${chatContent}`], { type: 'text/plain' });
+    const blob = new Blob([`유아이 사주상담 내역\n날짜: ${new Date().toLocaleString()}\n\n${chatContent}`], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${t('saveChatFilename')}_${new Date().toISOString().slice(0,10)}.txt`;
+    a.download = `유아이_상담내역_${new Date().toISOString().slice(0,10)}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1110,15 +949,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'chat') {
       const currentYear = new Date().getFullYear();
-      const birthYearNum = parseInt(userData.birthYear);
-      
-      // Validate birthYear - check if it's a valid year (not current year or invalid)
-      if (isNaN(birthYearNum) || birthYearNum < 1900 || birthYearNum >= currentYear) {
-        setSuggestions([]);
-        return;
-      }
-      
-      const age = currentYear - birthYearNum + 1;
+      const birthYear = parseInt(userData.birthYear);
+      const age = currentYear - birthYear + 1;
       
       let ageGroup = '10대';
       if (age >= 70) ageGroup = '70대↑';
@@ -1127,16 +959,16 @@ const App: React.FC = () => {
       else if (age >= 40) ageGroup = '40대';
       else if (age >= 30) ageGroup = '30대';
       else if (age >= 20) ageGroup = '20대';
-      else if (age >= 10) ageGroup = '10대';
+      else ageGroup = '10대';
 
       const genderKey = userData.gender === 'M' ? '남' : '여';
-      console.log("[DEBUG] Questions Updated:", { ageGroup, genderKey, selectedCategory, age });
+      console.log("[DEBUG] Questions:", { ageGroup, genderKey, selectedCategory });
       
       const groupData = SUGGESTED_QUESTIONS[ageGroup as keyof typeof SUGGESTED_QUESTIONS];
       
       if (groupData && groupData[genderKey as keyof typeof groupData]) {
         const categoryQuestions = groupData[genderKey as keyof typeof groupData][selectedCategory as keyof typeof groupData[keyof typeof groupData]];
-        if (categoryQuestions && categoryQuestions.length > 0) {
+        if (categoryQuestions) {
           // Shuffle and pick 3 questions
           const shuffled = [...categoryQuestions].sort(() => 0.5 - Math.random());
           setSuggestions(shuffled.slice(0, 3));
@@ -1159,7 +991,7 @@ const App: React.FC = () => {
     }
 
     if (sajuResult.length === 0) {
-      alert(t('analysisRequiredAlert'));
+      alert("먼저 사주 분석을 완료해 주세요.");
       setActiveTab("welcome");
       return;
     }
@@ -1194,15 +1026,6 @@ const App: React.FC = () => {
   4. 이는 개인정보를 소중히 다루고 상담의 신뢰도를 높이기 위한 필수 절차임을 사용자에게 인지시켜 신뢰를 구축하세요.
 - **MZ 말투:** "반말"은 지양하되, 세련되고 깔끔한 말투를 사용하세요. 적절한 이모지(✨, 🍀, 🔥 등)를 섞어주세요.
 - **전문성:** 사주 명리학적 근거(음양오행, 십성 등)를 언급하되, 어려운 용어는 현대적인 비유로 풀어서 설명하세요.
-${consultMode === 'beginner'
-  ? `- **[초급 모드 활성화]** 사용자가 사주 초보자입니다. 다음 규칙을 반드시 따르세요:
-  1. 모든 전문 용어(甲木, 식신, 편관, 충, 형, 용신 등)를 처음 사용할 때 반드시 괄호 안에 쉬운 설명을 추가하세요. 예: '식신(食神, 나의 재능과 표현력을 나타내는 별)', '편관(偏官, 강한 도전이나 압박을 상징하는 별)'
-  2. 추상적인 개념은 일상적인 비유로 설명하세요. 예: '오행의 균형'→'몸의 영양소 균형처럼', '충(沖)'→'두 기운이 정면충돌하는 상황'
-  3. 핵심 포인트를 먼저 말하고, 전문 설명은 뒤에 붙이세요.
-  4. 문장은 짧고 명확하게 유지하세요.`
-  : `- **[고급 모드 활성화]** 사용자가 사주에 익숙한 고급 사용자입니다. 전문 명리학 용어를 그대로 사용하고, 깊이 있는 분석을 제공하세요. 괄호 설명 없이 전문적인 언어로 상담하세요.`
-}
-- **서양적 재해석:** "관운(官運)"은 'career luck'만으로 끝내지 말고, 가능한 경우 "professional recognition", "authority in the workplace", "leadership opportunity" 같은 구체적이고 현실적인 비즈니스/커리어 용어로 확장 설명하세요.
 - **맥락 유지:** 이전 대화 내용을 기억하고 연결해서 답변하세요.
 ${isFirstMessage 
   ? "- 첫 인사는 따뜻하고 힙하게! 마지막은 항상 사용자를 응원하며 다음 질문을 유도하세요."
@@ -1215,8 +1038,6 @@ ${isFirstMessage
 ${sajuContext}
 [대운 정보]
 ${daeunContext}
-[격국 해설]
-${gyeokInterpretation || '격국 해설 데이터가 필요합니다.'}
 `;
 
       const contents: any[] = messages.map(m => ({
@@ -1281,60 +1102,49 @@ ${gyeokInterpretation || '격국 해설 데이터가 필요합니다.'}
     }
   };
 
-  const handleGenerateReport = async (opts?: {
-    sajuOverride?: any[];
-    daeunOverride?: any[];
-    gyeokOverride?: string;
-    modeOverride?: 'beginner' | 'advanced';
-  }) => {
-    const effectiveSaju = opts?.sajuOverride ?? sajuResult;
-    const effectiveDaeun = opts?.daeunOverride ?? daeunResult;
-    const effectiveGyeok = opts?.gyeokOverride !== undefined ? opts.gyeokOverride : gyeokInterpretation;
-    const effectiveMode = opts?.modeOverride ?? consultMode;
+  const handleGenerateReport = async () => {
+    if (loading) return;
 
-    if (reportLoading) return;
-    if (!guidelines) return;
-    if (effectiveSaju.length === 0) return;
+    if (!guidelines) {
+      alert(guidelinesError || "지침 파일을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
 
-    setReportLoading(true);
+    if (sajuResult.length === 0) {
+      alert("먼저 사주 분석을 완료해 주세요.");
+      setActiveTab("welcome");
+      return;
+    }
+
+    setLoading(true);
+    setActiveTab("report");
 
     try {
+      console.log("[DEBUG] Starting report generation...");
       const ai = getGeminiAI();
-      const sajuContext = effectiveSaju.map((p: any) => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja})`).join('\n');
-
+      const sajuContext = sajuResult.map(p => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja})`).join('\n');
+      
       const birthYearInt = parseInt(userData.birthYear);
       const currentYear = new Date().getFullYear();
       const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt + 1;
-
-      const daeunContext = effectiveDaeun.map((dy: any, i: number) => {
-        const isCurrent = currentAge >= dy.startAge && (i === effectiveDaeun.length - 1 || currentAge < effectiveDaeun[i + 1].startAge);
+      
+      const daeunContext = daeunResult.map((dy, i) => {
+        const isCurrent = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
         const stemHangul = hanjaToHangul[dy.stem] || dy.stem;
         const branchHangul = hanjaToHangul[dy.branch] || dy.branch;
-        return `${dy.startAge}세~${effectiveDaeun[i + 1]?.startAge || dy.startAge + 9}세: ${stemHangul}${branchHangul}${isCurrent ? ' (현재 대운)' : ''}`;
+        return `${dy.startAge}세~${daeunResult[i+1]?.startAge || dy.startAge + 9}세: ${stemHangul}${branchHangul}${isCurrent ? ' (현재 대운)' : ''}`;
       }).join('\n');
 
-      const modeInstruction = effectiveMode === 'beginner'
-        ? `**[초급 모드 - 리포트 작성 규칙]**
-- 이 리포트는 사주를 처음 접하는 초보자를 위한 쉬운 리포트입니다. 다음 규칙을 반드시 따르십시오:
-1. 모든 전문 용어(갑목, 식신, 용신, 편관, 충, 형 등)를 처음 사용할 때 반드시 괄호 안에 쉬운 설명을 추가하십시오. 예: '식신(食神, 나의 재능과 창의력을 상징하는 에너지)', '용신(用神, 내 사주를 보완해주는 핵심 기운)'
-2. 추상적인 명리학 개념은 일상적인 비유로 설명하십시오. 예: '오행의 균형' → '몸의 영양소 균형처럼', '충(沖)' → '두 기운이 정면충돌하는 상황'
-3. 핵심 메시지를 먼저 말하고, 전문 설명은 뒤에 붙이십시오.
-4. 문장은 짧고 명확하게 유지하십시오.`
-        : `**[고급 모드 - 리포트 작성 규칙]**
-- 이 리포트는 명리학에 익숙한 고급 사용자를 위한 것입니다.
-1. 전문 명리학 용어(갑목, 식신, 용신, 충, 합, 형, 파, 해, 신살 등)를 괄호 설명 없이 그대로 사용하십시오.
-2. 음양오행, 십성, 신살, 대운 분석 등 심층적인 명리학적 근거를 상세히 서술하십시오.
-3. 전문가 수준의 분석 깊이를 유지하십시오.`;
+      console.log("[DEBUG] Saju Context:", sajuContext);
+      console.log("[DEBUG] Daeun Context:", daeunContext);
 
       const systemInstruction = `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다. 
 현재 날짜: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-제공된 사용자의 사주 데이터와 대운 정보를 **철저하게 분석한 결과에만 입각하여** 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오.
-
-${modeInstruction}
+제공된 사용자의 사주 데이터와 대운 정보를 **철저하게 분석한 결과에만 입각하여** 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오. 
 
 **[핵심 원칙: 정직과 예방]**
 - '좋은 말'만 늘어놓는 리포트가 되어서는 안 됩니다. 사주 원국과 운의 흐름에서 보이는 **리스크, 취약점, 주의해야 할 시기**를 가감 없이 식별하십시오.
-- 발견된 부정적인 요소는 사용자가 미리 준비하여 피해를 최소화하거나 예방할 수 있도록 **'전략적 조언'**의 관점에서 서술하십시오.
+- 발견된 부정적인 요소는 사용자가 미리 준비하여 피해를 최소화하거나 예방할 수 있도록 **'전략적 조언'**의 관점에서 서술하십시오. (예: "이 시기에는 재물 손실의 기운이 강하니 무리한 투자는 피하고 내실을 기하는 것이 최고의 개운법입니다.")
 
 [지침 사항]
 ${guidelines.report}
@@ -1343,7 +1153,7 @@ ${guidelines.report}
 1. **절대로 HTML 태그(<div>, <strong> 등)를 사용하지 마십시오.** 오직 마크다운 텍스트만 사용하십시오.
 2. **카테고리 제목에 #, ##, ### 등 마크다운 헤더 기호를 사용하지 마십시오.**
 3. 아래에 제공된 [Output Format] 구조를 한 글자도 틀리지 말고 정확히 지켜주십시오. 파싱 로직이 이 태그들에 의존합니다.
-4. 모든 답변은 MZ세대의 감성을 담아 트렌디하고 친근하면서도 전문성을 잃지 않아야 합니다.
+4. 모든 답변은 MZ세대의 감성을 담아 트렌디하고 친근하면서도 전문성을 잃지 않아야 합니다. (예: '갓생', '럭키비키', '오운완' 등의 표현을 적절히 섞어 쓰되 명리학적 깊이를 유지)
 
 [Output Format]
 [인사말]
@@ -1363,9 +1173,6 @@ ${sajuContext}
 대운 흐름:
 ${daeunContext}
 
-격국 해설:
-${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
-
 현재 나이: ${currentAge}세
 
 [8대 카테고리 리스트]
@@ -1379,24 +1186,28 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
 8. 운명을 이끄는 가장 중요한 조언
 `;
 
+      console.log("[DEBUG] Sending request to Gemini...");
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
-        config: {
+        config: { 
           systemInstruction,
           maxOutputTokens: 4096,
           temperature: 0.8
         }
       });
-
+      
+      console.log("[DEBUG] Gemini response received.");
       const text = result.text || "리포트 생성 실패";
+      console.log("[DEBUG] Gemini response text length:", text.length);
+      console.log("[DEBUG] Gemini response text preview:", text.substring(0, 200));
       setReportContent(text);
     } catch (err: any) {
       console.error("[ERROR] Report generation failed:", err);
       const errorMessage = err?.message || String(err);
       setReportContent(`리포트 생성 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.`);
     } finally {
-      setReportLoading(false);
+      setLoading(false);
     }
   };
 
@@ -1454,10 +1265,10 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                   className="text-lg font-medium text-white"
                 >
                   {[
-                    t('analysisStep1'),
-                    t('analysisStep2'),
-                    t('analysisStep3'),
-                    t('analysisStep4')
+                    "천문 데이터를 분석하고 있습니다...",
+                    "사주 팔자를 산출하고 있습니다...",
+                    "대운의 흐름을 파악하고 있습니다...",
+                    "현대적 해석을 준비하고 있습니다..."
                   ][analysisStep]}
                 </motion.p>
                 
@@ -1469,7 +1280,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                   />
                 </div>
                 
-                <p className="text-xs text-white/40">{t('analysisWait')}</p>
+                <p className="text-xs text-white/40">잠시만 기다려 주세요. 정밀한 분석이 진행 중입니다.</p>
               </div>
             </div>
           </motion.div>
@@ -1484,20 +1295,20 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
               <Sparkles className="text-white w-4 h-4 md:w-5 h-5" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-base md:text-xl font-title font-bold tracking-tight">{t('uiTitle')}</h1>
-              <p className="hidden md:block text-[10px] opacity-40 uppercase tracking-widest font-bold">{t('uiSubtitle')}</p>
+              <h1 className="text-base md:text-xl font-title font-bold tracking-tight">유아이 사주상담</h1>
+              <p className="hidden md:block text-[10px] opacity-40 uppercase tracking-widest font-bold">전문 사주 분석</p>
             </div>
           </div>
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-2 lg:gap-4">
             {[
-              { id: "welcome", icon: User, label: t('navHome') },
-              { id: "dashboard", icon: LayoutDashboard, label: t('navSaju') },
-              { id: "chat", icon: MessageCircle, label: t('navChat') },
-              { id: "report", icon: FileText, label: t('navReport') },
-              { id: "blog", icon: Newspaper, label: t('navBlog') },
-              { id: "guide", icon: Info, label: t('navGuide') }
+              { id: "welcome", icon: User, label: "HOME" },
+              { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
+              { id: "chat", icon: MessageCircle, label: "상담" },
+              { id: "report", icon: FileText, label: "리포트" },
+              { id: "blog", icon: Newspaper, label: "블로그" },
+              { id: "guide", icon: Info, label: "가이드" }
             ].map((tab) => (
               <button 
                 key={tab.id}
@@ -1511,30 +1322,28 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
           </nav>
 
           <div className="flex items-center gap-1 md:gap-4">
-            {/* 영어 버전 준비중 - 버튼 숨김 */}
-
             {activeTab === "chat" && (
               <button 
                 onClick={handleDownloadChat}
                 disabled={messages.length === 0}
                 className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-indigo-500/10 text-indigo-500 transition-all flex items-center gap-2 disabled:opacity-30 group"
-                title={t('saveText')}
+                title="상담 내용 저장"
               >
                 <Download className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-                <span className="hidden md:block text-sm font-bold">{t('saveTextButton')}</span>
+                <span className="hidden md:block text-sm font-bold">텍스트 저장</span>
               </button>
             )}
             <button 
               onClick={handleReset} 
               className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-rose-500/10 text-rose-500 transition-all flex items-center gap-2 group"
-              title={t('closeConsultation')}
+              title="상담 종료 및 데이터 삭제"
             >
               <Trash2 className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-              <span className="hidden md:block text-sm font-bold">{t('resetButton')}</span>
+              <span className="hidden md:block text-sm font-bold">상담 종료</span>
             </button>
             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all flex items-center gap-2">
               {isDarkMode ? <Sun className="w-5 h-5 opacity-70" /> : <Moon className="w-5 h-5 opacity-70" />}
-              <span className="hidden md:block text-sm font-bold">{isDarkMode ? t('lightMode') : t('darkMode')}</span>
+              <span className="hidden md:block text-sm font-bold">{isDarkMode ? '라이트' : '다크'}</span>
             </button>
           </div>
         </header>
@@ -1560,13 +1369,14 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         animate={{ scale: 1, opacity: 1 }}
                         className="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-2"
                       >
-                        {t('premiumAISajuConsulting')}
+                        Premium AI Saju Consulting
                       </motion.div>
-                      <h2 className={`text-4xl ${language === 'ko' ? 'md:text-5xl' : 'md:text-6xl'} font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
-                        {t('heroTitle')}
+                      <h2 className={`text-4xl md:text-6xl font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
+                        당신의 운명을 읽는<br/>
+                        <span className="text-indigo-500">가장 명료한 시선</span>
                       </h2>
                       <p className={`text-sm md:text-lg max-w-2xl mx-auto opacity-60 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                        {t('heroSubtitle')}
+                        수천 년의 지혜와 첨단 AI 기술이 만나 당신의 삶에 가장 정밀한 전략을 제시합니다.
                       </p>
                     </div>
 
@@ -1579,10 +1389,10 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                           <User className="text-white w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">{t('inputCardTitle')}</h3>
-                        <p className="text-sm opacity-60 mb-6">{t('inputCardDesc')}</p>
+                        <h3 className="text-xl font-bold mb-2">정보 입력하기</h3>
+                        <p className="text-sm opacity-60 mb-6">생년월일시를 입력하여 나만의 정밀 만세력을 확인하세요.</p>
                         <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
-                          {t('goLink')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </button>
 
@@ -1593,10 +1403,10 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
                           <Newspaper className="text-white w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">{t('blogCardTitle')}</h3>
-                        <p className="text-sm opacity-60 mb-6">{t('blogCardDesc')}</p>
+                        <h3 className="text-xl font-bold mb-2">블로그 읽기</h3>
+                        <p className="text-sm opacity-60 mb-6">명리학 기초부터 2026년 운세까지 다양한 지식을 만나보세요.</p>
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                          {t('goLink')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </button>
 
@@ -1607,8 +1417,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20">
                           <Compass className="text-white w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">{t('guideCardTitle')}</h3>
-                        <p className="text-sm opacity-60 mb-6">{t('guideCardDesc')}</p>
+                        <h3 className="text-xl font-bold mb-2">이용 가이드</h3>
+                        <p className="text-sm opacity-60 mb-6">유아이 사주상담을 200% 활용하는 방법을 안내해 드립니다.</p>
                         <div className="flex items-center gap-2 text-amber-500 font-bold text-sm">
                           바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
@@ -1618,8 +1428,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                     {/* Content Cards Section */}
                     <div className="space-y-8">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold">{t('recommendedContent')}</h3>
-                        <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">{t('viewAll')}</button>
+                        <h3 className="text-2xl font-bold">추천 컨텐츠</h3>
+                        <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">전체보기</button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1650,13 +1460,13 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center">
                           <Zap className="text-violet-500 w-8 h-8" />
                         </div>
-                        <h3 className="text-2xl font-bold">{t('benefitsTitle')}</h3>
+                        <h3 className="text-2xl font-bold">상담을 통해 얻을 수 있는 효과</h3>
                         <ul className="space-y-3">
                           {[
-                            t('benefit1'),
-                            t('benefit2'),
-                            t('benefit3'),
-                            t('benefit4')
+                            "나의 타고난 기질과 잠재력의 명확한 파악",
+                            "현재 운의 흐름에 따른 최적의 결정 시기 포착",
+                            "관계의 갈등을 해소하는 명리학적 솔루션",
+                            "심리적 불안 해소와 삶의 방향성 정립"
                           ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm opacity-80">
                               <Check className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -1668,7 +1478,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           onClick={() => setActiveTab("chat")}
                           className="w-full py-4 rounded-2xl bg-violet-600 text-white font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-700 transition-colors"
                         >
-                          {t('startAIChat')}
+                          AI 상담 시작하기
                         </button>
                       </div>
 
@@ -1676,13 +1486,13 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
                           <FileText className="text-indigo-500 w-8 h-8" />
                         </div>
-                        <h3 className="text-2xl font-bold">{t('fortuneReportTitle')}</h3>
+                        <h3 className="text-2xl font-bold">유아이가 제공하는 운세리포트</h3>
                         <ul className="space-y-3">
                           {[
-                            t('fortuneReportItem1'),
-                            t('fortuneReportItem2'),
-                            t('fortuneReportItem3'),
-                            t('fortuneReportItem4')
+                            "8대 카테고리별 정밀 분석 데이터",
+                            "MZ세대 감성의 트렌디하고 명확한 해석",
+                            "인생의 리스크를 예방하는 전략적 가이드",
+                            "PDF 저장을 통한 영구 소장 가능"
                           ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm opacity-80">
                               <Check className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -1694,7 +1504,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           onClick={() => setActiveTab("report")}
                           className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
                         >
-                          {t('premiumReportButton')}
+                          프리미엄 리포트 확인
                         </button>
                       </div>
                     </div>
@@ -1702,7 +1512,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                     {/* Special Services Section */}
                     <div className="space-y-8">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold">{t('specialServicesTitle')}</h3>
+                        <h3 className="text-2xl font-bold">유아이가 제공하는 특별서비스</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <a 
@@ -1714,10 +1524,10 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                             <Calendar className="text-white w-6 h-6" />
                           </div>
-                          <h3 className="text-xl font-bold mb-2">{t('calendarServiceTitle')}</h3>
-                          <p className="text-sm opacity-60 mb-6">{t('calendarServiceDesc')}</p>
+                          <h3 className="text-xl font-bold mb-2">만세력으로 표시한 달력</h3>
+                          <p className="text-sm opacity-60 mb-6">나의 일진과 절기를 한눈에 확인하는 만세력 달력 서비스입니다.</p>
                           <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
-                            {t('goLink')} <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </a>
 
@@ -1730,10 +1540,10 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center mb-6 shadow-lg shadow-rose-500/20">
                             <Ticket className="text-white w-6 h-6" />
                           </div>
-                          <h3 className="text-xl font-bold mb-2">{t('lottoServiceTitle')}</h3>
-                          <p className="text-sm opacity-60 mb-6">{t('lottoServiceDesc')}</p>
+                          <h3 className="text-xl font-bold mb-2">내 사주에 맞는 로또 번호는?</h3>
+                          <p className="text-sm opacity-60 mb-6">오늘의 운세와 사주 오행을 분석하여 행운의 번호를 생성해 드립니다.</p>
                           <div className="flex items-center gap-2 text-rose-500 font-bold text-sm">
-                            {t('goLink')} <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </a>
                       </div>
@@ -1748,11 +1558,11 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:scale-110 transition-transform" />
                       <div className="relative z-10 space-y-4">
                         <Sparkles className="w-12 h-12 mx-auto text-indigo-200 animate-pulse" />
-                        <h3 className="text-3xl md:text-5xl font-serif font-bold">{t('finalCTATitle')}</h3>
-                        <p className="text-lg text-indigo-100 opacity-80">{t('finalCTASubtitle')}</p>
+                        <h3 className="text-3xl md:text-5xl font-serif font-bold">운세 분석을 위한 정보 입력</h3>
+                        <p className="text-lg text-indigo-100 opacity-80">단 1분이면 당신의 인생 설계도를 확인할 수 있습니다.</p>
                         <div className="pt-4">
                           <span className="inline-flex items-center gap-3 px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xl shadow-xl">
-                            {t('startAIChat')}
+                            지금 바로 시작하기
                             <ArrowRight className="w-6 h-6" />
                           </span>
                         </div>
@@ -1766,12 +1576,12 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       className={`flex items-center gap-2 text-sm font-bold mb-4 ${isDarkMode ? 'text-zinc-500 hover:text-white' : 'text-zinc-400 hover:text-zinc-900'} transition-colors`}
                     >
                       <ArrowLeft className="w-4 h-4" />
-                      {t('goToLandingButton')}
+                      랜딩페이지로 돌아가기
                     </button>
                     <div className="text-center space-y-2 py-4">
-                      <h2 className={`text-3xl md:text-4xl font-handwriting leading-tight ${isDarkMode ? 'text-indigo-400' : 'text-cobalt'}`}>{t('welcomeBackTitle')}</h2>
+                      <h2 className={`text-3xl md:text-4xl font-handwriting leading-tight ${isDarkMode ? 'text-indigo-400' : 'text-cobalt'}`}>안녕하세요.<br/>유아이 사주상담입니다.</h2>
                       <p className={`text-xs md:text-sm leading-relaxed px-4 ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
-                        {t('welcomeBackDesc')}
+                        정보를 입력하여<br/>당신의 삶을 분석해 보세요.
                       </p>
                     </div>
 
@@ -1888,50 +1698,6 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             />
                             <label htmlFor="unknownTime" className={`text-sm font-medium ${isDarkMode ? 'text-zinc-400' : 'opacity-70'}`}>생시를 몰라요</label>
                           </div>
-
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>타임존</label>
-                              <input
-                                type="text"
-                                value={userData.timezone}
-                                disabled={!isAgreed}
-                                onChange={(e) => setUserData({ ...userData, timezone: e.target.value })}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
-                                placeholder="Asia/Seoul"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>경도</label>
-                              <input
-                                type="number"
-                                step="0.0001"
-                                value={userData.longitude}
-                                disabled={!isAgreed}
-                                onChange={(e) => setUserData({ ...userData, longitude: parseFloat(e.target.value) || 0 })}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>위도</label>
-                              <input
-                                type="number"
-                                step="0.0001"
-                                value={userData.latitude}
-                                disabled={!isAgreed}
-                                onChange={(e) => setUserData({ ...userData, latitude: parseFloat(e.target.value) || 0 })}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
-                              />
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={handleAutoLocation}
-                            disabled={!isAgreed}
-                            className={`w-full py-2 rounded-xl text-xs font-bold transition-all ${!isAgreed ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-                          >
-                            현재 위치로 타임존/위치 자동 채우기
-                          </button>
                         </div>
 
                         <div className="flex flex-col gap-2">
@@ -1974,7 +1740,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           disabled={!isAgreed}
                           className={`w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all ${!isAgreed ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          {t('sajuAnalysisStart')}
+                          운세 분석 시작
                           <ChevronRight className="w-5 h-5" />
                         </button>
                       </div>
@@ -2001,14 +1767,14 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                 <div className="space-y-8 md:space-y-12">
                   {/* Saju Grid - 2x4 Layout */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('sajuPaljaTitle')}</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>사주팔자 (四柱八字)</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
                         return (
                           <div key={i} className={`p-3 md:p-5 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-md'} flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
                             <span className={`text-[10px] md:text-xs font-bold ${isDarkMode ? 'text-zinc-500' : 'opacity-50'}`}>{p.title}</span>
-                            <div className="flex flex-col gap-0 py-2">
+                            <div className="flex flex-col gap-4 py-2">
                               {[p.stem, p.branch].map((item, j) => (
                                 <HanjaBox 
                                   key={j} 
@@ -2040,7 +1806,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="space-y-2">
                           <p className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">사주팔자 분석 결론</p>
                           <h4 className={`text-base md:text-xl font-bold leading-tight ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
-                            {userData.name}님의 사주는 {calculateGyeok(sajuResult).composition}로 <span className="text-indigo-500">{calculateGyeok(sajuResult).gyeok}</span> 사주입니다.
+                            {userData.name}님의 사주는 <span className="text-indigo-500">{calculateGyeok(sajuResult).composition}</span>로 구성되어 있으며, <br className="hidden md:block"/><span className="text-indigo-500 font-black">[{calculateGyeok(sajuResult).gyeok}]</span>의 사주입니다.
                           </h4>
                         </div>
                         
@@ -2051,47 +1817,28 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
-                            {t('chatWithAI')}
+                            AI와 상담하기
                           </button>
                           <button 
                             onClick={() => setActiveTab("report")}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-700 transition-all"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            {t('generateReport')}
+                            운세리포트 생성
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Gyeok Interpretation */}
-                  <div className={`p-6 md:p-8 rounded-[2.5rem] border shadow-xl ${
-                    isDarkMode 
-                      ? 'bg-amber-500/5 border-amber-500/20' 
-                      : 'bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20'
-                  }`}>
-                    <div className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
-                      <ReactMarkdown
-                        components={{
-                          h2: ({ children }) => <h2 className="text-base md:text-lg font-bold text-amber-500 mt-1 mb-2">{children}</h2>,
-                          h3: ({ children }) => <h3 className={`text-sm md:text-base font-semibold mt-3 mb-1 ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>{children}</h3>,
-                          p: ({ children }) => <p className="text-sm leading-relaxed">{children}</p>
-                        }}
-                      >
-                        {gyeokInterpretation || t('gyeokInterpretationFallback')}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-
                   {/* Five Elements Distribution */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('ohaengDistributionTitle')}</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>오행분포 (五行分布)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-zinc-200 shadow-lg'} flex flex-col justify-center`}>
                         <p className={`text-sm md:text-base leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
-                          {userData.name}{t('fiveElementsComposedOf')} <br className="hidden md:block"/>
-                          {getChartData().map(d => `${d.name} ${d.value}${t('fiveElementsCount')}`).join(', ')}
+                          {userData.name}님의 오행 분포는 <br className="hidden md:block"/>
+                          {getChartData().map(d => `${d.name} ${d.value}개`).join(', ')}으로 구성되어 있습니다.
                         </p>
                       </div>
                       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'} flex items-center justify-center`}>
@@ -2119,7 +1866,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                 <div className="space-y-8 md:space-y-12">
                   {/* Jiji and Jijangan */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('jijiAndJijanganTitle')}</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>지지와 지장간 (地支/地藏干)</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
@@ -2158,17 +1905,17 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       })}
                     </div>
                     <p className={`text-xs md:text-sm leading-relaxed mt-4 italic ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>
-                      {t('branchAndHiddenText')}
+                      지지와 지장간은 사주의 뿌리이자 에너지가 저장된 곳입니다. 지장간은 지지 속에 숨겨진 천간의 기운으로, 당신의 내면적인 성향과 잠재력을 나타냅니다.
                     </p>
                   </div>
 
                   {/* Daeun Analysis */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>{t('daewoonAnalysisTitle')}</h3>
+                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>대운분석 (大運分析)</h3>
                       {daeunResult.length > 0 && (
                         <span className="text-[10px] md:text-xs font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
-                          {currentDaeunIndex !== -1 ? `현재 ${daeunResult[currentDaeunIndex].startAge}대운` : `${daeunResult[0].startAge}대운`}
+                          {daeunResult[0].startAge}대운
                         </span>
                       )}
                     </div>
@@ -2176,18 +1923,19 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                     <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}>
                       <div ref={daeunScrollRef} className="flex overflow-x-auto horizontal-scrollbar gap-6 pb-6 snap-x snap-mandatory scroll-smooth">
                         {daeunResult.length > 0 ? daeunResult.map((dy, i) => {
-                          const isCurrentDaeun = i === currentDaeunIndex;
+                          const currentAge = 2026 - parseInt(userData.birthYear) + 1;
+                          const isCurrentDaeun = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
                           const isTransitioning = Math.abs(currentAge - dy.startAge) <= 1 || 
                                                 (daeunResult[i+1] && Math.abs(currentAge - daeunResult[i+1].startAge) <= 1);
 
                           return (
-                            <div key={i} ref={isCurrentDaeun ? currentDaeunCardRef : null} className={`w-24 shrink-0 snap-center p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
+                            <div key={i} className={`w-24 shrink-0 snap-center p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
                               isCurrentDaeun 
                                 ? 'border-indigo-500 bg-indigo-600/30 shadow-2xl shadow-indigo-500/40 ring-4 ring-indigo-500/30 scale-110 z-10' 
                                 : isDarkMode ? 'border-transparent bg-white/5 opacity-40 hover:opacity-100' : 'border-transparent bg-black/5 opacity-40 hover:opacity-100'
                             }`}>
                               <div className={`text-[10px] md:text-xs font-bold ${isDarkMode && isCurrentDaeun ? 'text-indigo-300' : ''}`}>{dy.startAge}세</div>
-                              <div className="flex flex-col gap-0 py-2">
+                              <div className="flex flex-col gap-4 py-2">
                                 {daeunResult.length > 0 && [dy.stem, dy.branch].map((hanja, j) => {
                                   const dayStem = sajuResult.find(p => p.title === '일주')?.stem.hanja || '';
                                   const deity = calculateDeity(dayStem, hanja);
@@ -2204,6 +1952,11 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                                 })}
                               </div>
                               <div className={`text-[10px] md:text-xs font-bold opacity-70 ${isDarkMode && isCurrentDaeun ? 'text-indigo-300/70' : ''}`}>{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
+                              {isCurrentDaeun && isTransitioning && (
+                                <div className="mt-1 px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[8px] md:text-[10px] font-bold rounded-full animate-pulse">
+                                  교운기
+                                </div>
+                              )}
                             </div>
                           );
                         }) : (
@@ -2219,12 +1972,13 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         animate={{ opacity: 1, y: 0 }}
                         className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200'} shadow-sm`}
                       >
-                        {currentDaeunIndex !== -1 && (
-                          <div className="space-y-4">
-                            {(() => {
-                              const dy = daeunResult[currentDaeunIndex];
-                              return (
-                                <>
+                        {daeunResult.map((dy, i) => {
+                          const currentAge = 2026 - parseInt(userData.birthYear) + 1;
+                          const isCurrentDaeun = currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i+1].startAge);
+                          if (!isCurrentDaeun) return null;
+                          
+                          return (
+                            <div key={i} className="space-y-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-6 bg-indigo-500 rounded-full" />
                                 <h4 className={`text-sm md:text-base font-bold ${isDarkMode ? 'text-indigo-300' : 'text-indigo-900'}`}>현재 대운: {dy.startAge}세 {hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}대운</h4>
@@ -2240,11 +1994,9 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                                   </p>
                                 </div>
                               )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
+                            </div>
+                          );
+                        })}
                       </motion.div>
                     )}
                   </div>
@@ -2321,23 +2073,28 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                 </div>
               </div>
             ) : (
-              <div className="max-w-7xl mx-auto grid grid-cols-1 gap-8 md:gap-12">
                 <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-20 px-6 text-center space-y-8">
                   <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center ${isDarkMode ? 'bg-zinc-800' : 'bg-white shadow-xl'}`}>
                     <LayoutDashboard className={`w-12 h-12 ${isDarkMode ? 'text-zinc-600' : 'text-zinc-300'}`} />
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-2xl font-bold">{t('dashboardNoDataTitle')}</h3>
+                    <h3 className="text-2xl font-bold">사주 데이터가 없습니다</h3>
                     <p className={`max-w-md mx-auto ${isDarkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>
-                      {t('dashboardNoDataDesc')}
+                      HOME 탭에서 생년월일 정보를 입력하시면<br/>
+                      정밀한 만세력 분석과 대운 정보를 확인하실 수 있습니다.
                     </p>
                   </div>
                   <button 
                     onClick={() => setActiveTab("welcome")}
                     className="px-8 py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
                   >
-                    {t('dashboardGoInputButton')}
+                    정보 입력하러 가기
                   </button>
+                </div>
+              )}
+
+              {/* Navigation Guidance for Dashboard */}
+              <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
                 <motion.div 
                   whileHover={{ y: -5 }}
                   onClick={() => setActiveTab("chat")}
@@ -2351,13 +2108,13 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                     <MessageCircle className="text-violet-500 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold">{t('dashboardChatCardTitle')}</h3>
+                    <h3 className="text-2xl font-bold">AI와 더 깊은 대화 나누기</h3>
                     <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
-                      {t('dashboardChatCardDesc')}
+                      분석된 사주를 바탕으로 궁금한 점을 직접 물어보세요. 직업, 연애, 재물운 등 구체적인 조언을 얻을 수 있습니다.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-violet-500 font-bold text-sm">
-                    {t('dashboardChatCardCta')}
+                    AI 상담 시작하기
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </motion.div>
@@ -2375,13 +2132,13 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                     <FileText className="text-indigo-500 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold">{t('dashboardReportCardTitle')}</h3>
+                    <h3 className="text-2xl font-bold">프리미엄 운세 리포트</h3>
                     <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
-                      {t('dashboardReportCardDesc')}
+                      당신의 인생 설계도를 한눈에 볼 수 있는 정밀 리포트를 생성합니다. PDF로 저장하여 언제든 다시 꺼내볼 수 있습니다.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-indigo-500 font-bold text-sm">
-                    {t('dashboardReportCardCta')}
+                    리포트 생성하기
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </motion.div>
@@ -2411,10 +2168,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                   <ExternalLink className="w-4 h-4 opacity-40" />
                 </a>
               </div>
-            </div>
+            </motion.div>
           )}
-          </motion.div>
-        )}
 
           {activeTab === "chat" && (
             <motion.div 
@@ -2428,7 +2183,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                 {/* Desktop Sidebar for Suggestions */}
                 <aside className="hidden md:flex w-64 flex-col border-r border-black/5 dark:border-white/10 p-4 space-y-6 overflow-y-auto relative">
                   <div className="space-y-3">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">{t('consultationCategory')}</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 카테고리</h4>
                     <div className="flex flex-col gap-1">
                       {CATEGORIES.map((cat) => (
                         <button
@@ -2440,7 +2195,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               : 'hover:bg-indigo-500/10 text-zinc-500 dark:text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400'
                           }`}
                         >
-                          {chatCategoryTranslationMap[cat] || cat}
+                          {cat}
                         </button>
                       ))}
                     </div>
@@ -2448,7 +2203,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-2">
-                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">{t('recommendedQuestions')}</h4>
+                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">추천 질문</h4>
                       <button 
                         onClick={() => setRefreshKey(prev => prev + 1)}
                         className="p-1 hover:bg-indigo-500/10 rounded-lg text-indigo-500 transition-colors"
@@ -2457,77 +2212,33 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       </button>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {suggestions.length > 0 ? (
-                        suggestions.map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSuggestionClick(s)}
-                            className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[13px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
-                          >
-                            {s}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="p-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/30 text-center">
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
-                            {t('noSuggestionMessage')}
-                          </p>
-                        </div>
-                      )}
+                      {suggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSuggestionClick(s)}
+                          className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[13px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
+                        >
+                          {s}
+                        </button>
+                      ))}
                     </div>
-                  </div>
-
-                  {/* Consult Mode Selector */}
-                  <div className="space-y-2 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">{t('consultMode')}</h4>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setConsultMode('beginner')}
-                        className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
-                          consultMode === 'beginner'
-                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                            : isDarkMode
-                              ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-emerald-400'
-                              : 'bg-white border-gray-200 text-zinc-500 hover:text-emerald-600'
-                        }`}
-                      >
-                        {t('consultModeBeginner')}
-                      </button>
-                      <button
-                        onClick={() => setConsultMode('advanced')}
-                        className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
-                          consultMode === 'advanced'
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                            : isDarkMode
-                              ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-indigo-400'
-                              : 'bg-white border-gray-200 text-zinc-500 hover:text-indigo-600'
-                        }`}
-                      >
-                        {t('consultModeAdvanced')}
-                      </button>
-                    </div>
-                    <p className={`text-[10px] px-1 leading-relaxed ${
-                      isDarkMode ? 'text-zinc-500' : 'text-zinc-400'
-                    }`}>
-                      {consultMode === 'beginner' ? t('consultModeBeginnerDesc') : t('consultModeAdvancedDesc')}
-                    </p>
                   </div>
 
                   {/* Consultation Tips */}
                   <div className="space-y-3 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">{t('consultationTips')}</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 팁</h4>
                     <ul className="space-y-2 px-2">
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>{t('questionTip1')}</span>
+                        <span>생년월일시나 MBTI 같은 정보를 먼저 주세요. 상담이 더욱 풍성해 집니다.</span>
                       </li>
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>{t('questionTip2')}</span>
+                        <span>구체적으로 질문하면 더욱 상담이 정교해 집니다.</span>
                       </li>
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>{t('questionTip3')}</span>
+                        <span>상대방의 생년월일시를 알려주시면 정확한 궁합 분석이 가능합니다.</span>
                       </li>
                     </ul>
                   </div>
@@ -2535,7 +2246,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                   {/* Privacy Notice (Desktop) */}
                   <div className="mt-auto pt-6">
                     <p className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
-                      {t('privacyNotice')}
+                      상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
                     </p>
                   </div>
                 </aside>
@@ -2546,7 +2257,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                     {messages.length === 0 && (
                       <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
                         <MessageCircle className="w-14 h-14" />
-                        <p className="text-lg">{t('emptyMessage')}<br/>{t('navigateChat')}</p>
+                        <p className="text-lg">궁금한 점을 물어보세요.<br/>당신의 사주를 기반으로 답변해 드립니다.</p>
                       </div>
                     )}
                     {messages.map((msg, i) => (
@@ -2567,7 +2278,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100 border-gray-200'
                       }`}>
                         <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
-                        <span className={`text-sm ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>{t('analyzing')}</span>
+                        <span className={`text-sm ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
                       </div>
                     )}
                   </div>
@@ -2576,35 +2287,12 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                   <div className={`p-2 border-t md:pb-4 ${
                     isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
                   }`}>
-                    {/* Quick Fortune Buttons */}
-                    <div className="max-w-4xl mx-auto mb-2 flex gap-1.5 overflow-x-auto hide-scrollbar">
-                      {(
-                        [
-                          { label: t('fortuneToday'),     question: t('fortuneTodayQuestion') },
-                          { label: t('fortuneThisMonth'), question: t('fortuneThisMonthQuestion') },
-                          { label: t('fortuneThisYear'),  question: t('fortuneThisYearQuestion') },
-                          { label: t('fortuneNextYear'),  question: t('fortuneNextYearQuestion') },
-                        ] as { label: string; question: string }[]
-                      ).map(({ label, question }) => (
-                        <button
-                          key={label}
-                          onClick={() => handleSend(question)}
-                          className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-all active:scale-95 ${
-                            isDarkMode
-                              ? 'bg-white/5 border-white/10 text-zinc-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 hover:text-indigo-300'
-                              : 'bg-white border-gray-200 text-gray-600 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
                     <div className="max-w-4xl mx-auto relative">
                       <input 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder={t('chatPlaceholder')}
+                        placeholder="메시지를 입력하세요..."
                         className={`w-full border rounded-2xl py-3 pl-4 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
                           isDarkMode 
                             ? 'bg-white/5 border-white/10 text-white' 
@@ -2635,38 +2323,32 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                                     : 'bg-white border-gray-200 text-gray-500'
                               }`}
                             >
-                              {chatCategoryTranslationMap[cat] || cat}
+                              {cat}
                             </button>
                           ))}
                         </div>
                         {/* Right: Suggestions */}
                         <div className="flex flex-col items-end gap-1">
-                          {suggestions.length > 0 ? (
-                            suggestions.slice(0, 3).map((s, i) => (
-                              <button
-                                key={i}
-                                onClick={() => handleSuggestionClick(s)}
-                                className={`w-fit text-right px-2 py-1 rounded-lg border text-[12px] leading-tight transition-all flex items-center min-h-[28px] ${
-                                  isDarkMode 
-                                    ? 'bg-white/5 border-white/10 text-zinc-200'
-                                    : 'bg-white border-gray-200 text-gray-700 shadow-sm'
-                                }`}
-                              >
-                                <span className="line-clamp-2">{s}</span>
-                              </button>
-                            ))
-                          ) : (
-                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 text-right leading-tight">
-                              {t('noSuggestionMessage')}
-                            </span>
-                          )}
+                          {suggestions.slice(0, 3).map((s, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleSuggestionClick(s)}
+                              className={`w-fit text-right px-2 py-1 rounded-lg border text-[12px] leading-tight transition-all flex items-center min-h-[28px] ${
+                                isDarkMode 
+                                  ? 'bg-white/5 border-white/10 text-zinc-200'
+                                  : 'bg-white border-gray-200 text-gray-700 shadow-sm'
+                              }`}
+                            >
+                              <span className="line-clamp-2">{s}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
 
                       {/* Privacy Notice (Mobile) */}
                       <div className="pt-1 border-t border-black/5 dark:border-white/5">
                         <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center leading-tight">
-                          {t('chatSystemMessageWarning')}
+                          상담 정보는 상담 종료 시 자동 파기됩니다.
                         </p>
                       </div>
                     </div>
@@ -2687,72 +2369,42 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                 <div className="flex flex-col md:flex-row gap-8">
                   {/* Desktop Sidebar Actions */}
                   <div className="md:w-64 space-y-4 md:sticky md:top-0 h-fit">
-                    {/* Mode Selector Card */}
-                    <div className={`p-5 rounded-3xl border space-y-3 ${isDarkMode ? 'bg-zinc-900/60 border-white/10' : 'bg-white border-black/5 shadow-md'}`}>
-                      <div className="flex items-center justify-between">
-                        <h3 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-zinc-800'}`}>{t('reportModeTitle')}</h3>
-                        {reportLoading && (
-                          <div className="flex items-center gap-1.5 text-indigo-400">
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span className="text-[10px] font-bold">{t('reportRegenerating')}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => setConsultMode('beginner')}
-                          className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
-                            consultMode === 'beginner'
-                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                              : isDarkMode
-                                ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-emerald-400'
-                                : 'bg-zinc-50 border-gray-200 text-zinc-500 hover:text-emerald-600'
-                          }`}
-                        >
-                          {t('consultModeBeginner')}
-                        </button>
-                        <button
-                          onClick={() => setConsultMode('advanced')}
-                          className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all border ${
-                            consultMode === 'advanced'
-                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                              : isDarkMode
-                                ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-indigo-400'
-                                : 'bg-zinc-50 border-gray-200 text-zinc-500 hover:text-indigo-600'
-                          }`}
-                        >
-                          {t('consultModeAdvanced')}
-                        </button>
-                      </div>
-                      <p className={`text-[10px] leading-relaxed ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                        {consultMode === 'beginner' ? t('consultModeBeginnerDesc') : t('consultModeAdvancedDesc')}
-                      </p>
-                      <p className={`text-[10px] leading-relaxed ${isDarkMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
-                        {t('reportModeChangeNote')}
-                      </p>
+                    <div className="p-6 rounded-3xl bg-indigo-600 text-white space-y-4 shadow-xl shadow-indigo-500/20">
+                      <h3 className="font-bold text-lg">운명 리포트</h3>
+                      <p className="text-xs opacity-80 leading-relaxed">AI 디렉터가 분석한 당신의 인생 지도를 확인하고 저장하세요.</p>
+                      <button 
+                        onClick={handleGenerateReport}
+                        disabled={loading || sajuResult.length === 0}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-white text-indigo-600 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+                      >
+                        <Compass className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        리포트 생성하기
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <button
+                      <button 
                         onClick={handleDownloadPDF}
-                        disabled={reportLoading || isPrinting || !reportContent}
+                        disabled={loading || isPrinting || !reportContent}
                         className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm disabled:opacity-50"
                       >
                         <Download className={`w-5 h-5 ${isPrinting ? 'animate-bounce' : ''}`} />
-                        <span className="text-[10px] font-bold">{t('reportDownloadPdf')}</span>
+                        <span className="text-[10px] font-bold">PDF 저장</span>
                       </button>
-                      <div className="relative flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-300 dark:text-zinc-600 shadow-sm cursor-not-allowed">
+                      <button 
+                        onClick={() => alert("이메일 전송 기능은 준비 중입니다.")}
+                        className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm"
+                      >
                         <Mail className="w-5 h-5" />
-                        <span className="text-[10px] font-bold">{t('reportEmail')}</span>
-                        <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 px-1.5 py-0.5 rounded-full">{t('reportComingSoon')}</span>
-                      </div>
+                        <span className="text-[10px] font-bold">이메일</span>
+                      </button>
                     </div>
                   </div>
 
                   {/* Main Content Area */}
                   <div className="flex-1">
                     <AnimatePresence mode="wait">
-                      {reportLoading ? (
+                      {loading ? (
                         <motion.div 
                           key="loading"
                           initial={{ opacity: 0 }}
@@ -2765,8 +2417,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             <Compass className="w-6 h-6 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                           </div>
                           <div className="text-center space-y-2">
-                            <p className="text-lg font-bold animate-pulse">{t('reportLoadingTitle')}</p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('reportLoadingDesc')}</p>
+                            <p className="text-lg font-bold animate-pulse">운명의 지도를 그리는 중...</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
                           </div>
                         </motion.div>
                       ) : reportContent ? (
@@ -2783,7 +2435,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           
                           <div className="mt-10 pt-6 border-t border-black/5 dark:border-white/5">
                             <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
-                              {t('reportDisclaimer')}
+                              본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                             </p>
                           </div>
                         </motion.div>
@@ -2798,9 +2450,10 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             <FileText className="w-10 h-10 text-indigo-500/30" />
                           </div>
                           <div className="space-y-4">
-                            <h3 className="text-2xl font-title font-bold">{t('reportEmptyTitle')}</h3>
+                            <h3 className="text-2xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
                             <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
-                              {t('reportEmptyDesc')}
+                              왼쪽의 <strong>'리포트 생성하기'</strong> 버튼을 눌러보세요.<br/>
+                              AI 디렉터가 당신의 사주 데이터를 기반으로 힙한 MZ 감성 리포트를 생성해 드립니다.
                             </p>
                           </div>
                         </motion.div>
@@ -2846,31 +2499,38 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         </div>
                         <div className="relative z-10 space-y-4">
                           <h2 className="text-white text-3xl font-serif font-bold leading-tight">
-                            {t('ceoGreeting')}
+                            CEO 인사말
                           </h2>
-                          <p className="text-indigo-100 text-xs font-serif opacity-70">{t('ceoMottoTitle')}</p>
+                          <p className="text-indigo-100 text-xs font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
                         </div>
                       </div>
                       <div className="flex-1 p-10 md:p-14 space-y-8">
                         <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700 dark:text-zinc-300">
-                          <p className="font-bold text-zinc-900 dark:text-white text-xl">{t('ceoGreetingContent')}</p>
+                          <p className="font-bold text-zinc-900 dark:text-white text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
                           <div className="space-y-4">
                             <p>
-                              {t('ceoMessage1')}
+                              유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다. 
+                              우리는 수천 년을 이어온 명리학의 깊은 지혜를 가장 정밀한 AI 기술과 결합하여, 
+                              당신만을 위한 <strong>'삶의 전략'</strong>을 도출해 내는 전문 사주 상담 플랫폼입니다.
                             </p>
                             <p>
-                              <strong>{t('ceoMessage2Title')}</strong> {t('ceoMessage2')}
+                              <strong>최고의 전문성을 지향합니다:</strong> 유아이는 AI에게 방대하고 정교한 사주 전문 소스를 학습시켜, 
+                              그 어떤 곳보다 깊이 있고 체계적인 분석 결과를 제공합니다. 단순한 키워드 나열이 아닌, 
+                              당신의 삶을 관통하는 거대한 흐름을 읽어드립니다.
                             </p>
                             <p>
-                              <strong>{t('ceoMessage3Title')}</strong> {t('ceoMessage3')}
+                              <strong>당신의 평온을 최우선으로 합니다:</strong> 고민의 무게를 누구보다 잘 알기에, 
+                              유아이는 상담자의 프라이버시를 철저히 보장합니다. 로그인 없이도 당신의 속 깊은 이야기를 나눌 수 있으며, 
+                              모든 상담은 오직 당신만을 위한 맞춤형 공간에서 안전하게 진행됩니다.
                             </p>
                             <p>
-                              {t('ceoMessage4')}
+                              누구에게도 꺼내놓지 못한 고민이 있다면, 이제 유아이의 지혜를 빌려보십시오. 
+                              당신의 내일이 오늘보다 더 명료해질 수 있도록 정성을 다해 돕겠습니다.
                             </p>
                           </div>
                         </div>
                         <div className="pt-8 border-t border-black/5 dark:border-white/5 text-right">
-                          <p className="text-sm font-serif opacity-60 italic">{t('ceoSignature')}</p>
+                          <p className="text-sm font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
                         </div>
                       </div>
                     </div>
@@ -2881,7 +2541,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
                         <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
-                            {t('guideCard1Title')}
+                            유아이 앱이 다른 앱보다<br/>좋은 세가지 이유
                           </h2>
                         </div>
                         <div className="p-10 space-y-10">
@@ -2894,9 +2554,9 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guidePrivacy')}</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">철저한 프라이버시 보호</p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                {t('guidePrivacyDesc')}
+                                사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
                               </p>
                             </div>
                           </div>
@@ -2906,9 +2566,9 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               <Zap className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guidePrecision')}</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">정밀한 사주 데이터 학습</p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                {t('guidePrecisionDesc')}
+                                AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
                               </p>
                             </div>
                           </div>
@@ -2921,9 +2581,9 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guideCustom')}</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">맞춤형 인생 가이드 제공</p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                {t('guideCustomDesc')}
+                                사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
                               </p>
                             </div>
                           </div>
@@ -2934,7 +2594,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
                         <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
-                            {t('guideCard2Title')}
+                            사용자 정보 입력 방법
                           </h2>
                         </div>
                         <div className="p-10 space-y-10">
@@ -2943,8 +2603,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               <Clock className="w-8 h-8 text-indigo-500" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guideBirthTimeOptional')}</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{t('guideBirthTimeOptionalDesc')}</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">생시 미입력 가능</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
                             </div>
                           </div>
 
@@ -2953,8 +2613,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               <Calendar className="w-8 h-8 text-indigo-500" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t('guideSolarLunar')}</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{t('guideSolarLunarDesc')}</p>
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">양력/음력 자동 인식</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
                             </div>
                           </div>
 
@@ -2963,8 +2623,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                               <Zap className="w-8 h-8 text-white fill-white" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{t('guideAnalysisStart')}</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{t('guideAnalysisStartDesc')}</p>
+                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">분석 시작</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
                             </div>
                           </div>
                         </div>
@@ -2974,7 +2634,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                       <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col md:col-span-2">
                         <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
-                            {t('guideFortune')}
+                            유아이의 운세분석 과정과<br/>운세에 대한 철학
                           </h2>
                         </div>
                         <div className="p-10 flex flex-col md:flex-row items-center justify-around gap-12">
@@ -2993,7 +2653,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                                 <FileText className="w-8 h-8 text-indigo-500" />
                               </div>
                             </div>
-                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">{t('guideAnalysisProcess')}</p>
+                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">분석 프로세스</p>
                           </div>
 
                           <div className="hidden md:block w-px h-40 bg-zinc-100 dark:bg-zinc-800"></div>
@@ -3008,10 +2668,11 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             </div>
                             <div className="space-y-4">
                               <p className="text-xl font-bold text-zinc-800 dark:text-zinc-200">
-                                "{t('fortunePhilosophy')}"
+                                "운명은 정해진 결말이 아니라,<br/>우리가 조종하는 돛의 방향입니다."
                               </p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                {t('fortunePhilosophyDesc')}
+                                만세력 기반의 정밀 분석과 AI의 전략적 해석으로,<br/>
+                                당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.
                               </p>
                             </div>
                           </div>
@@ -3248,8 +2909,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <div className="absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none">
                           <Sparkles className="w-full h-full text-white" />
                         </div>
-                        <h2 className="text-4xl md:text-7xl font-handwriting text-white">{t('blogTitle')}</h2>
-                        <p className="text-sm md:text-lg text-indigo-100/70 max-w-2xl mx-auto">{t('blogSubtitle')}</p>
+                        <h2 className="text-4xl md:text-7xl font-handwriting text-white">유아이 사주 블로그</h2>
+                        <p className="text-sm md:text-lg text-indigo-100/70 max-w-2xl mx-auto">깊이 있는 사주 명리학 이야기와 당신의 삶을 위한 지혜를 만나보세요.</p>
                       </div>
 
                       <div className="flex flex-col lg:flex-row gap-12">
@@ -3257,7 +2918,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                         <aside className="w-full lg:w-64 shrink-0 space-y-10">
                           <div className="space-y-6">
                             <div className="flex items-center justify-between px-2">
-                              <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40">{t('blogCategoryHeader')}</h4>
+                              <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40">글카테고리</h4>
                               {isAdmin && (
                                 <button 
                                   onClick={() => setIsAddingPost(true)}
@@ -3279,7 +2940,7 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                                       : 'bg-white dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 border border-black/5 dark:border-white/5'
                                   }`}
                                 >
-                                  {cat === '전체' ? t('categoryAll') : cat === '사주기초' ? t('categorySajuBasics') : cat === '사주이야기' ? t('categorySajuStories') : t('categoryBookReviews')}
+                                  {cat}
                                 </button>
                               ))}
                             </div>
@@ -3319,8 +2980,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                  <h3 className="text-2xl font-bold">{t('blogNewPostTitle')}</h3>
-                                  <p className="text-xs text-zinc-400">{t('blogNewPostDesc')}</p>
+                                  <h3 className="text-2xl font-bold">새 블로그 글 작성</h3>
+                                  <p className="text-xs text-zinc-400">당신의 지혜를 세상과 공유하세요.</p>
                                 </div>
                                 <button onClick={() => setIsAddingPost(false)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
                                   <X className="w-6 h-6" />
@@ -3446,8 +3107,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                  <h3 className="text-2xl font-bold">{t('blogEditPostTitle')}</h3>
-                                  <p className="text-xs text-zinc-400">{t('blogEditPostDesc')}</p>
+                                  <h3 className="text-2xl font-bold">블로그 글 수정</h3>
+                                  <p className="text-xs text-zinc-400">기존의 지혜를 다듬어 보세요.</p>
                                 </div>
                                 <button onClick={() => setIsEditingPost(null)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
                                   <X className="w-6 h-6" />
@@ -3636,8 +3297,8 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
                           {(blogPosts.length > 0 ? blogPosts : BLOG_POSTS).filter(post => blogCategory === '전체' || post.category === blogCategory).length === 0 && (
                             <div className="text-center py-40 opacity-20">
                               <Newspaper className="w-20 h-20 mx-auto mb-6 text-indigo-500" />
-                              <p className="text-xl font-bold">{t('blogNoPostsTitle')}</p>
-                              <p className="text-sm mt-2">{t('blogNoPostsDesc')}</p>
+                              <p className="text-xl font-bold">해당 카테고리에 게시된 글이 없습니다.</p>
+                              <p className="text-sm mt-2">다른 카테고리를 선택해 보세요.</p>
                             </div>
                           )}
 
@@ -3694,12 +3355,12 @@ ${effectiveGyeok || '격국 해설 데이터가 필요합니다.'}
       <nav className={`md:hidden px-4 pt-1 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30 safe-bottom-px`}>
         <div className="max-w-md mx-auto flex items-center justify-around">
           {[
-            { id: "welcome", icon: User, label: t('navHome') },
-            { id: "dashboard", icon: LayoutDashboard, label: t('navSaju') },
-            { id: "chat", icon: MessageCircle, label: t('navChat') },
-            { id: "report", icon: FileText, label: t('navReport') },
-            { id: "blog", icon: Newspaper, label: t('navBlog') },
-            { id: "guide", icon: Info, label: t('navGuide') }
+            { id: "welcome", icon: User, label: "HOME" },
+            { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
+            { id: "chat", icon: MessageCircle, label: "상담" },
+            { id: "report", icon: FileText, label: "리포트" },
+            { id: "blog", icon: Newspaper, label: "블로그" },
+            { id: "guide", icon: Info, label: "가이드" }
           ].map((tab) => (
             <button 
               key={tab.id}
