@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Send, 
@@ -12,27 +12,39 @@ import {
   LayoutDashboard,
   Compass,
   Calendar,
+  Clock,
   ChevronRight,
   ChevronDown,
   Info,
+  Database,
   Lock,
   Puzzle,
+  Bot,
+  BookOpen,
   Zap,
+  Cpu,
+  Waves,
   Download,
   Mail,
   Check,
+  Mic,
   ExternalLink,
   Ticket
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from 'rehype-raw';
+import SimpleMDE from "react-simplemde-editor";
+import "easymde/dist/easymde.min.css";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { jsPDF } from "jspdf";
+import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
-import { SUGGESTED_QUESTIONS, CATEGORIES } from "./constants/questions";
+import { SUGGESTED_QUESTIONS, CATEGORIES, BASIC_CHAT_CATEGORIES, BASIC_CATEGORY_QUESTION_POOL } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
 import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
 
-import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE } from "./constants/guidelines";
+import { SAJU_GUIDELINE, CONSULTING_GUIDELINE, REPORT_GUIDELINE, BASIC_CONSULTING_GUIDELINE, ADVANCED_CONSULTING_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE } from "./constants/guidelines";
 import { db, auth, googleProvider, signInWithPopup, signOut, ref, uploadBytes, getDownloadURL, storage } from "./firebase";
 import { 
   collection, 
@@ -45,8 +57,7 @@ import {
   serverTimestamp, 
   getDocFromServer, 
   increment,
-  doc,
-  where
+  doc 
 } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
@@ -54,40 +65,6 @@ import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 interface Message {
   role: "user" | "model";
   text: string;
-}
-
-interface BoardPost {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  date: string;
-  authorName: string;
-  authorUid: string;
-  isNotice?: boolean;
-  createdAt?: any;
-  views?: number;
-}
-
-interface BoardComment {
-  id: string;
-  postId: string;
-  content: string;
-  date: string;
-  authorName: string;
-  authorUid: string;
-  createdAt?: any;
-}
-
-interface BoardReport {
-  id: string;
-  targetType: "post" | "comment";
-  targetId: string;
-  postId: string;
-  reporterName: string;
-  reason: string;
-  date: string;
-  createdAt?: any;
 }
 
 enum OperationType {
@@ -198,7 +175,7 @@ const getGeminiAI = () => {
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
     console.error("[ERROR] Gemini API Key is missing.");
-    throw new Error("API 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
+    throw new Error("API 키가 설정되지 않았습니다. 프로젝트 루트의 .env.local 파일에 GEMINI_API_KEY 또는 VITE_GEMINI_API_KEY를 설정한 뒤 개발 서버를 재시작해 주세요.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -221,19 +198,17 @@ interface UserData {
   unknownTime: boolean;
 }
 
-const LazySimpleMDE = lazy(() => import('./components/LazySimpleMDE.tsx'));
-const LazyFiveElementsPieChart = lazy(() => import('./components/FiveElementsPieChart.tsx'));
-const LazyGuideTab = lazy(() => import('./components/GuideTab.tsx'));
-
 const HanjaBox: React.FC<{ 
   hanja: string, 
   size?: 'sm' | 'md' | 'lg', 
   isDarkMode?: boolean,
   deity?: string,
-  deityPosition?: 'top' | 'bottom'
-}> = ({ hanja, size = 'md', isDarkMode = true, deity, deityPosition }) => {
+  deityPosition?: 'top' | 'bottom',
+  highlight?: boolean
+}> = ({ hanja, size = 'md', isDarkMode = true, deity, deityPosition, highlight = false }) => {
   const element = elementMap[hanja];
   const isYang = yinYangMap[hanja] === '+';
+  const emphasisClasses = highlight ? 'ring-2 ring-indigo-500/70 shadow-lg shadow-indigo-500/20 scale-110' : '';
   
   const sizeClasses = {
     sm: 'w-6 h-6 text-[10px] rounded',
@@ -251,7 +226,7 @@ const HanjaBox: React.FC<{
     return (
       <div className="relative">
         {deityPosition === 'top' && deityEl}
-        <div className={`${sizeClasses[size]} border-2 border-zinc-500/30 flex items-center justify-center opacity-30`}>
+        <div className={`${sizeClasses[size]} border-2 border-zinc-500/30 flex items-center justify-center opacity-30 ${emphasisClasses}`}>
           {hanja}
         </div>
         {deityPosition === 'bottom' && deityEl}
@@ -269,7 +244,7 @@ const HanjaBox: React.FC<{
       return (
         <div className="relative">
           {deityPosition === 'top' && deityEl}
-          <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-400'} border flex items-center justify-center font-bold`}>
+          <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-400'} border flex items-center justify-center font-bold ${emphasisClasses}`}>
             {hanja}
           </div>
           {deityPosition === 'bottom' && deityEl}
@@ -280,7 +255,7 @@ const HanjaBox: React.FC<{
       return (
         <div className="relative">
           {deityPosition === 'top' && deityEl}
-          <div className={`${sizeClasses[size]} ${silverColor} ${isDarkMode ? 'text-white' : 'text-zinc-600'} border flex items-center justify-center font-bold`}>
+          <div className={`${sizeClasses[size]} ${silverColor} ${isDarkMode ? 'text-white' : 'text-zinc-600'} border flex items-center justify-center font-bold ${emphasisClasses}`}>
             {hanja}
           </div>
           {deityPosition === 'bottom' && deityEl}
@@ -322,7 +297,7 @@ const HanjaBox: React.FC<{
     return (
       <div className="relative">
         {deityPosition === 'top' && deityEl}
-        <div className={`${sizeClasses[size]} bg-transparent border-2 ${style.border} ${style.text} flex items-center justify-center font-bold`}>
+        <div className={`${sizeClasses[size]} bg-transparent border-2 ${style.border} ${style.text} flex items-center justify-center font-bold ${emphasisClasses}`}>
           {hanja}
         </div>
         {deityPosition === 'bottom' && deityEl}
@@ -332,7 +307,7 @@ const HanjaBox: React.FC<{
     return (
       <div className="relative">
         {deityPosition === 'top' && deityEl}
-        <div className={`${sizeClasses[size]} ${style.bg} border-2 ${style.border} ${style.yinText} flex items-center justify-center font-bold`}>
+        <div className={`${sizeClasses[size]} ${style.bg} border-2 ${style.border} ${style.yinText} flex items-center justify-center font-bold ${emphasisClasses}`}>
           {hanja}
         </div>
         {deityPosition === 'bottom' && deityEl}
@@ -471,28 +446,30 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
   );
 };
 
+const renderChatPlainText = (text: string) => {
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map(block => block.trim())
+    .filter(Boolean);
+
+  if (blocks.length === 0) {
+    return <p className="whitespace-pre-line">{text}</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {blocks.map((block, idx) => (
+        <p key={idx} className="whitespace-pre-line leading-relaxed">
+          {block}
+        </p>
+      ))}
+    </div>
+  );
+};
+
 const App: React.FC = () => {
-  const BLOCKED_WORDS = ["시발", "병신", "개새", "fuck", "sex", "광고문의"];
-  const RATE_LIMIT_POST_MS = 30000;
-  const RATE_LIMIT_COMMENT_MS = 15000;
-  const RATE_LIMIT_REPORT_MS = 10000;
-
-  const hasBlockedWord = (text: string) => {
-    const lowered = text.toLowerCase();
-    return BLOCKED_WORDS.some(word => lowered.includes(word.toLowerCase()));
-  };
-
-  const isRateLimited = (key: string, limitMs: number) => {
-    const last = Number(localStorage.getItem(key) || "0");
-    return Date.now() - last < limitMs;
-  };
-
-  const markActionTime = (key: string) => {
-    localStorage.setItem(key, String(Date.now()));
-  };
-
   // Navigation
-  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog" | "board">("welcome");
+  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog">("welcome");
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact">("main");
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   
@@ -513,11 +490,20 @@ const App: React.FC = () => {
   const [yongshinResult, setYongshinResult] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [consultationMode, setConsultationMode] = useState<'basic' | 'advanced'>('basic');
+  const [basicSelectedCategory, setBasicSelectedCategory] = useState<string>(BASIC_CHAT_CATEGORIES[0]);
+  const [basicAskedByCategory, setBasicAskedByCategory] = useState<Record<string, string[]>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>('재물/사업');
   const [blogCategory, setBlogCategory] = useState<string>('전체');
   const [refreshKey, setRefreshKey] = useState(0);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const activeChatRequestIdRef = useRef(0);
+  const consultationModeRef = useRef<'basic' | 'advanced'>('basic');
+  const preservedChatContextRef = useRef<Message[]>([]);
+  const [modeNotice, setModeNotice] = useState<string | null>(null);
+  const modeNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoGenerateReportRef = useRef(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
   const [guidelines, setGuidelines] = useState<Guidelines | null>({
@@ -533,24 +519,6 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
-  const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
-  const [selectedBoardPost, setSelectedBoardPost] = useState<BoardPost | null>(null);
-  const [isAddingBoardPost, setIsAddingBoardPost] = useState(false);
-  const [boardViewMode, setBoardViewMode] = useState<"all" | "notice">("all");
-  const [boardCategory, setBoardCategory] = useState<string>('전체');
-  const [boardComments, setBoardComments] = useState<BoardComment[]>([]);
-  const [boardReports, setBoardReports] = useState<BoardReport[]>([]);
-  const [newBoardComment, setNewBoardComment] = useState<{ authorName: string; content: string }>({
-    authorName: "",
-    content: ""
-  });
-  const [newBoardPost, setNewBoardPost] = useState<Partial<BoardPost>>({
-    title: "",
-    content: "",
-    category: "자유",
-    authorName: "",
-    isNotice: false
-  });
   
   // Weekly Recommended Content Logic
   const recommendedPosts = useMemo(() => {
@@ -605,29 +573,14 @@ const App: React.FC = () => {
     return result;
   }, [blogPosts]);
 
-  const filteredBoardPosts = useMemo(() => {
-    const getBoardPostTime = (post: BoardPost) => {
-      return post.createdAt?.toDate?.()?.getTime() || new Date(post.date).getTime() || 0;
-    };
-
-    return [...boardPosts]
-      .sort((a, b) => {
-        const noticeOrder = Number(!!b.isNotice) - Number(!!a.isNotice);
-        if (noticeOrder !== 0) {
-          return noticeOrder;
-        }
-
-        return getBoardPostTime(b) - getBoardPostTime(a);
-      })
-      .filter(post => boardViewMode === "notice" ? !!post.isNotice : true)
-      .filter(post => boardCategory === '전체' || post.category === boardCategory);
-  }, [boardPosts, boardViewMode, boardCategory]);
-
   const [isEditingPost, setIsEditingPost] = useState<BlogPost | null>(null);
   const [isAddingPost, setIsAddingPost] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStatusMessage, setVoiceStatusMessage] = useState<string | null>(null);
   const daeunScrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (activeTab === "dashboard" && daeunScrollRef.current && daeunResult.length > 0) {
@@ -673,6 +626,14 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
   // Firebase Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -704,70 +665,6 @@ const App: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
-
-  // Fetch Board Posts from Firestore
-  useEffect(() => {
-    const q = query(collection(db, "boardPosts"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const posts = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })) as BoardPost[];
-      setBoardPosts(posts);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "boardPosts");
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Fetch comments for selected board post
-  useEffect(() => {
-    if (!selectedBoardPost) {
-      setBoardComments([]);
-      return;
-    }
-
-    const q = query(collection(db, "boardComments"), where("postId", "==", selectedBoardPost.id));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const comments = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })) as BoardComment[];
-
-      comments.sort((a, b) => {
-        const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
-        const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
-        return aTime - bTime;
-      });
-
-      setBoardComments(comments);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `boardComments:${selectedBoardPost.id}`);
-    });
-
-    return () => unsubscribe();
-  }, [selectedBoardPost]);
-
-  // Fetch reports for admin moderation
-  useEffect(() => {
-    if (!isAdmin) {
-      setBoardReports([]);
-      return;
-    }
-
-    const q = query(collection(db, "boardReports"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reports = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })) as BoardReport[];
-      setBoardReports(reports);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "boardReports");
-    });
-
-    return () => unsubscribe();
-  }, [isAdmin]);
 
   // Admin Functions
   const handleLogin = async () => {
@@ -813,6 +710,7 @@ const App: React.FC = () => {
       setSajuResult([]);
       setDaeunResult([]);
       setYongshinResult(null);
+      preservedChatContextRef.current = [];
       setReportContent(null);
       setActiveTab("welcome");
       setInput("");
@@ -963,183 +861,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleBoardPostClick = async (post: BoardPost) => {
-    setSelectedBoardPost(post);
-    try {
-      await updateDoc(doc(db, "boardPosts", post.id), {
-        views: increment(1)
-      });
-    } catch (error) {
-      console.error("Error incrementing board post views:", error);
-    }
-  };
-
-  const handleAddBoardPost = async () => {
-    if (isRateLimited("guestbook:lastPostAt", RATE_LIMIT_POST_MS)) {
-      alert("도배 방지를 위해 잠시 후 다시 작성해 주세요.");
-      return;
-    }
-
-    const noticeRequested = !!newBoardPost.isNotice;
-    if (noticeRequested && !isAdmin) {
-      alert("공지 등록은 관리자만 가능합니다.");
-      return;
-    }
-
-    if (!noticeRequested && !newBoardPost.authorName?.trim()) {
-      alert("닉네임을 입력해 주세요.");
-      return;
-    }
-
-    if (!newBoardPost.content?.trim()) {
-      alert("내용을 입력해 주세요.");
-      return;
-    }
-
-    if (hasBlockedWord(`${newBoardPost.title || ""} ${newBoardPost.content}`)) {
-      alert("금칙어가 포함되어 등록할 수 없습니다.");
-      return;
-    }
-
-    if (noticeRequested && !newBoardPost.title?.trim()) {
-      alert("공지사항은 제목을 입력해 주세요.");
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, "boardPosts"), {
-        title: (newBoardPost.title || "방문 인사").trim(),
-        content: newBoardPost.content.trim(),
-        category: noticeRequested ? "공지" : (newBoardPost.category || "자유"),
-        date: new Date().toISOString().split('T')[0],
-        authorName: noticeRequested ? "관리자" : newBoardPost.authorName.trim(),
-        authorUid: noticeRequested ? (user?.uid || "admin") : "guest",
-        isNotice: noticeRequested,
-        createdAt: serverTimestamp(),
-        views: 0
-      });
-
-      markActionTime("guestbook:lastPostAt");
-
-      setIsAddingBoardPost(false);
-      setNewBoardPost({ title: "", content: "", category: "자유", authorName: "", isNotice: false });
-      alert("방명록이 등록되었습니다.");
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, "boardPosts");
-      alert("방명록 등록 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleAddBoardComment = async () => {
-    if (!selectedBoardPost) return;
-
-    if (isRateLimited("guestbook:lastCommentAt", RATE_LIMIT_COMMENT_MS)) {
-      alert("도배 방지를 위해 잠시 후 다시 댓글을 남겨주세요.");
-      return;
-    }
-
-    if (!newBoardComment.authorName.trim() || !newBoardComment.content.trim()) {
-      alert("댓글 작성에는 닉네임과 내용이 필요합니다.");
-      return;
-    }
-
-    if (hasBlockedWord(newBoardComment.content)) {
-      alert("금칙어가 포함되어 댓글을 등록할 수 없습니다.");
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, "boardComments"), {
-        postId: selectedBoardPost.id,
-        content: newBoardComment.content.trim(),
-        date: new Date().toISOString().split('T')[0],
-        authorName: newBoardComment.authorName.trim(),
-        authorUid: "guest",
-        createdAt: serverTimestamp()
-      });
-
-      markActionTime("guestbook:lastCommentAt");
-      setNewBoardComment(prev => ({ ...prev, content: "" }));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `boardComments:${selectedBoardPost.id}`);
-      alert("댓글 등록 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleReport = async (targetType: "post" | "comment", targetId: string, postId: string) => {
-    if (isRateLimited("guestbook:lastReportAt", RATE_LIMIT_REPORT_MS)) {
-      alert("신고는 잠시 후 다시 시도해 주세요.");
-      return;
-    }
-
-    const reporterName = window.prompt("신고자 닉네임을 입력해 주세요.", "익명")?.trim() || "익명";
-    const reason = window.prompt("신고 사유를 입력해 주세요.", "부적절한 내용")?.trim() || "부적절한 내용";
-
-    try {
-      await addDoc(collection(db, "boardReports"), {
-        targetType,
-        targetId,
-        postId,
-        reporterName,
-        reason,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: serverTimestamp()
-      });
-
-      markActionTime("guestbook:lastReportAt");
-      alert("신고가 접수되었습니다.");
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, "boardReports");
-      alert("신고 접수 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleResolveReport = async (reportId: string) => {
-    if (!isAdmin) return;
-    try {
-      await deleteDoc(doc(db, "boardReports", reportId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `boardReports/${reportId}`);
-      alert("신고 항목 정리 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleDeleteBoardComment = async (commentId: string) => {
-    if (!isAdmin) {
-      alert("관리자만 댓글을 삭제할 수 있습니다.");
-      return;
-    }
-
-    if (!window.confirm("댓글을 삭제하시겠습니까?")) return;
-
-    try {
-      await deleteDoc(doc(db, "boardComments", commentId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `boardComments/${commentId}`);
-      alert("댓글 삭제 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleDeleteBoardPost = async (post: BoardPost) => {
-    if (!isAdmin) {
-      alert("관리자만 삭제할 수 있습니다.");
-      return;
-    }
-
-    if (!window.confirm("정말 이 게시글을 삭제하시겠습니까?")) return;
-
-    try {
-      await deleteDoc(doc(db, "boardPosts", post.id));
-      if (selectedBoardPost?.id === post.id) {
-        setSelectedBoardPost(null);
-      }
-      alert("게시글이 삭제되었습니다.");
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `boardPosts/${post.id}`);
-      alert("게시글 삭제 중 오류가 발생했습니다.");
-    }
-  };
-
   // Fetch guidelines with retry logic - REMOVED for hardcoded reliability
   useEffect(() => {
     // Guidelines are now hardcoded in src/constants/guidelines.ts
@@ -1184,14 +905,27 @@ const App: React.FC = () => {
       setDaeunResult(daeun);
       setYongshinResult(yongshin);
       setReportContent(null);
-      setActiveTab("dashboard");
+      setConsultationMode('basic');
+      consultationModeRef.current = 'basic';
+      setActiveTab("report");
       setShowInputForm(false);
+      autoGenerateReportRef.current = true;
       
       // Reset chat with context
+      if (consultationMode === 'basic') {
+        setBasicSelectedCategory(BASIC_CHAT_CATEGORIES[0]);
+        setBasicAskedByCategory({});
+        setSuggestions(getBasicCategorySuggestions(BASIC_CHAT_CATEGORIES[0]));
+      } else {
+        setRefreshKey(prev => prev + 1);
+      }
+      preservedChatContextRef.current = [];
       setMessages([
         { 
           role: "model", 
-          text: `만세력에서 당신의 사주팔자를 확인하셨습니다. 이 상담창에 무엇이든 물어 보세요. 유아이 AI 전문상담자가 대답해 드립니다.` 
+          text: consultationMode === 'basic'
+            ? `만세력 분석이 완료되었습니다. 무엇이 궁금하신가요? 아래 추천 질문을 선택하거나 음성/직접 입력으로 질문해 주세요.`
+            : `만세력에서 당신의 사주팔자를 확인하셨습니다. 이 상담창에 무엇이든 물어 보세요. 유아이 AI 전문상담자가 대답해 드립니다.` 
         }
       ]);
     } catch (err: any) {
@@ -1204,6 +938,117 @@ const App: React.FC = () => {
 
   const handleSuggestionClick = (suggestion: string) => {
     handleSend(suggestion);
+  };
+
+  const pickRandomQuestions = (source: string[], count: number, exclude: string[] = []) => {
+    const excluded = new Set(exclude);
+    const filtered = source.filter(q => !excluded.has(q));
+    const base = filtered.length >= count ? filtered : source;
+    return [...base].sort(() => 0.5 - Math.random()).slice(0, Math.min(count, base.length));
+  };
+
+  const getBasicCategorySuggestions = (category: string, exclude: string[] = []) => {
+    const pool = BASIC_CATEGORY_QUESTION_POOL[category] || [];
+    if (pool.length === 0) return [];
+    return pickRandomQuestions(pool, 3, exclude);
+  };
+
+  const getCurrentAgeGroup = () => {
+    const currentYear = new Date().getFullYear();
+    const birthYear = parseInt(userData.birthYear);
+    const age = currentYear - birthYear + 1;
+
+    if (age >= 70) return '70대↑';
+    if (age >= 60) return '60대';
+    if (age >= 50) return '50대';
+    if (age >= 40) return '40대';
+    if (age >= 30) return '30대';
+    if (age >= 20) return '20대';
+    return '10대';
+  };
+
+  const getProfileCategoryQuestions = () => {
+    const ageGroup = getCurrentAgeGroup();
+    const genderKey = userData.gender === 'M' ? '남' : '여';
+    const groupData = SUGGESTED_QUESTIONS[ageGroup as keyof typeof SUGGESTED_QUESTIONS];
+    const genderData = groupData?.[genderKey as keyof typeof groupData];
+    const categoryQuestions = genderData?.[selectedCategory as keyof typeof genderData] as string[] | undefined;
+    return categoryQuestions || [];
+  };
+
+  const handleVoiceInput = () => {
+    setVoiceStatusMessage(null);
+
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!window.isSecureContext && !isLocalhost) {
+      setVoiceStatusMessage('음성 입력은 HTTPS 또는 localhost 환경에서만 동작합니다.');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceStatusMessage('현재 브라우저는 음성 입력(Web Speech API)을 지원하지 않습니다.');
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceStatusMessage('듣고 있습니다... 말씀해 주세요.');
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      setVoiceStatusMessage(null);
+    };
+    recognition.onerror = (event: any) => {
+      setIsListening(false);
+      const code = event?.error;
+      const mapped =
+        code === 'not-allowed'
+          ? '마이크 권한이 거부되었습니다. 브라우저 주소창의 권한 설정에서 마이크를 허용해 주세요.'
+          : code === 'no-speech'
+            ? '음성이 감지되지 않았습니다. 다시 시도해 주세요.'
+            : code === 'network'
+              ? '음성 인식 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+              : `음성 입력 오류가 발생했습니다(${code || 'unknown'}).`;
+      setVoiceStatusMessage(mapped);
+    };
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const current = event.results[i];
+        const text = current?.[0]?.transcript || '';
+        if (current.isFinal) {
+          finalTranscript += text;
+        } else {
+          interimTranscript += text;
+        }
+      }
+
+      const merged = (finalTranscript || interimTranscript).trim();
+      if (merged) {
+        setInput(merged);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch (err) {
+      setIsListening(false);
+      setVoiceStatusMessage('음성 입력을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
   };
 
   const handleDownloadChat = () => {
@@ -1234,11 +1079,6 @@ const App: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     try {
-      const [{ jsPDF }, htmlToImage] = await Promise.all([
-        import('jspdf'),
-        import('html-to-image'),
-      ]);
-
       const dataUrl = await htmlToImage.toPng(reportRef.current, {
         backgroundColor: isDarkMode ? '#000000' : '#f9fafb',
         quality: 1,
@@ -1277,42 +1117,116 @@ const App: React.FC = () => {
   // Update suggestions based on user profile and selected category
   useEffect(() => {
     if (activeTab === 'chat') {
-      const currentYear = new Date().getFullYear();
-      const birthYear = parseInt(userData.birthYear);
-      const age = currentYear - birthYear + 1;
-      
-      let ageGroup = '10대';
-      if (age >= 70) ageGroup = '70대↑';
-      else if (age >= 60) ageGroup = '60대';
-      else if (age >= 50) ageGroup = '50대';
-      else if (age >= 40) ageGroup = '40대';
-      else if (age >= 30) ageGroup = '30대';
-      else if (age >= 20) ageGroup = '20대';
-      else ageGroup = '10대';
+      if (consultationMode === 'basic') {
+        const asked = basicAskedByCategory[basicSelectedCategory] || [];
+        setSuggestions(getBasicCategorySuggestions(basicSelectedCategory, asked));
+        return;
+      }
 
-      const genderKey = userData.gender === 'M' ? '남' : '여';
-      console.log("[DEBUG] Questions:", { ageGroup, genderKey, selectedCategory });
-      
-      const groupData = SUGGESTED_QUESTIONS[ageGroup as keyof typeof SUGGESTED_QUESTIONS];
-      
-      if (groupData && groupData[genderKey as keyof typeof groupData]) {
-        const categoryQuestions = groupData[genderKey as keyof typeof groupData][selectedCategory as keyof typeof groupData[keyof typeof groupData]];
-        if (categoryQuestions) {
-          // Shuffle and pick 3 questions
-          const shuffled = [...categoryQuestions].sort(() => 0.5 - Math.random());
-          setSuggestions(shuffled.slice(0, 3));
-        } else {
-          setSuggestions([]);
-        }
+      const categoryQuestions = getProfileCategoryQuestions();
+      if (categoryQuestions.length > 0) {
+        setSuggestions(pickRandomQuestions(categoryQuestions, 3));
       } else {
         setSuggestions([]);
       }
     }
-  }, [activeTab, selectedCategory, userData.birthYear, userData.gender, refreshKey]);
+  }, [activeTab, selectedCategory, userData.birthYear, userData.gender, refreshKey, consultationMode, basicSelectedCategory, basicAskedByCategory]);
+
+  useEffect(() => {
+    consultationModeRef.current = consultationMode;
+  }, [consultationMode]);
+
+  useEffect(() => {
+    return () => {
+      if (modeNoticeTimerRef.current) {
+        clearTimeout(modeNoticeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showTransientNotice = (message: string) => {
+    setModeNotice(message);
+
+    if (modeNoticeTimerRef.current) {
+      clearTimeout(modeNoticeTimerRef.current);
+    }
+
+    modeNoticeTimerRef.current = setTimeout(() => {
+      setModeNotice(null);
+    }, 2500);
+  };
+
+  const refreshSuggestionsAfterChatClear = (resetBasicAsked: boolean) => {
+    if (consultationModeRef.current === 'basic') {
+      if (resetBasicAsked) {
+        setBasicAskedByCategory({});
+        setSuggestions(getBasicCategorySuggestions(basicSelectedCategory));
+      } else {
+        const asked = basicAskedByCategory[basicSelectedCategory] || [];
+        setSuggestions(getBasicCategorySuggestions(basicSelectedCategory, asked));
+      }
+      return;
+    }
+
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const clearChatWindowOnly = () => {
+    if (loading) {
+      activeChatRequestIdRef.current += 1;
+      setLoading(false);
+    }
+
+    if (messages.length > 0) {
+      preservedChatContextRef.current = [...preservedChatContextRef.current, ...messages];
+    }
+
+    setMessages([]);
+    setInput("");
+    refreshSuggestionsAfterChatClear(false);
+    showTransientNotice("채팅창을 비웠습니다. 이전 상담 맥락은 유지됩니다.");
+  };
+
+  const clearChatWindowAndContext = () => {
+    if (loading) {
+      activeChatRequestIdRef.current += 1;
+      setLoading(false);
+    }
+
+    preservedChatContextRef.current = [];
+    setMessages([]);
+    setInput("");
+    refreshSuggestionsAfterChatClear(true);
+    showTransientNotice("채팅창과 상담 맥락을 모두 초기화했습니다.");
+  };
+
+  const switchConsultationMode = (mode: 'basic' | 'advanced') => {
+    if (mode === consultationMode) return;
+
+    // 모드 변경 시 기존 요청을 무효화해, 다음 질문부터 새 모드가 즉시 반영되도록 합니다.
+    if (loading) {
+      activeChatRequestIdRef.current += 1;
+      setLoading(false);
+    }
+
+    setConsultationMode(mode);
+    showTransientNotice(`상담 모드가 ${mode === 'basic' ? '초급자' : '고급자'}로 변경되었습니다. 다음 질문부터 바로 적용됩니다.`);
+  };
+
+  useEffect(() => {
+    if (consultationMode === 'basic') {
+      const asked = basicAskedByCategory[basicSelectedCategory] || [];
+      setSuggestions(getBasicCategorySuggestions(basicSelectedCategory, asked));
+    } else {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [consultationMode, basicSelectedCategory, basicAskedByCategory, selectedCategory, userData.birthYear, userData.gender]);
 
   const handleSend = async (overrideInput?: string) => {
     const userMessage = (overrideInput || input).trim();
     if (!userMessage || loading) return;
+    const requestId = ++activeChatRequestIdRef.current;
+    const modeAtRequest = consultationModeRef.current;
 
     if (!guidelines) {
       alert(guidelinesError || "지침 파일을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
@@ -1337,10 +1251,19 @@ const App: React.FC = () => {
       const daeunContext = daeunResult.map(d => `${d.age}세 대운: ${d.stem.hangul}${d.branch.hangul} (${d.deity})`).join(', ');
 
       const isFirstMessage = messages.length === 0;
+      const modeSpecificGuideline = modeAtRequest === 'basic'
+        ? BASIC_CONSULTING_GUIDELINE
+        : ADVANCED_CONSULTING_GUIDELINE;
+      const personaInstruction = modeAtRequest === 'basic'
+        ? "당신의 상담 스타일은 초급자 친화형입니다. 사주를 처음 접하는 사람 기준으로 쉽게 설명합니다."
+        : "당신의 상담 스타일은 **'MZ세대 감성'**입니다. 힙하고, 트렌디하며, 때로는 직설적이지만 따뜻한 공감을 잊지 않습니다.";
+      const toneInstruction = modeAtRequest === 'basic'
+        ? "- **초급자 말투:** 사주 용어를 모르는 사람도 이해할 수 있는 쉬운 한국어로 설명하세요."
+        : "- **고급자 말투:** 반말은 지양하고, 전문성을 유지하되 과장 없이 명확하게 설명하세요.\n- **간지 한자 병기(고급자 전용 필수):** 천간(갑·을·병·정·무·기·경·신·임·계)과 지지(자·축·인·묘·진·사·오·미·신(申)·유·술·해)를 본문에서 언급할 때는 반드시 한자를 괄호에 병기하세요. 단독 표기: 갑(甲)·을(乙)·병(丙)·정(丁)·무(戊)·기(己)·경(庚)·신(辛)·임(壬)·계(癸)·자(子)·축(丑)·인(寅)·묘(卯)·진(辰)·사(巳)·오(午)·미(未)·신(申)·유(酉)·술(戌)·해(亥). 두 글자 간지 조합 예시: 갑자(甲子)·을축(乙丑). 사용자가 이미 한자로 표기된 용어를 쓴 경우에도 한글(한자) 형태로 통일하여 응답하세요.";
       const systemInstruction = `
 [Role: UI Premium 1:1 Spiritual Counselor - MZ Edition]
 당신은 '유아이(UI) 사주상담'의 전문 상담가입니다. 
-당신의 상담 스타일은 **'MZ세대 감성'**입니다. 힙하고, 트렌디하며, 때로는 직설적이지만 따뜻한 공감을 잊지 않습니다.
+${personaInstruction}
 
 현재 날짜: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
 
@@ -1353,7 +1276,7 @@ const App: React.FC = () => {
   2. 사용자가 동의(승인)한 후에만 \`calculateSajuForPerson\` 도구를 사용하여 데이터를 가져오십시오. 
   3. 당신이 임의로 계산한 데이터로 상담하는 것은 엄격히 금지됩니다. 반드시 도구를 통해 얻은 정밀 데이터를 바탕으로 분석하세요. 
   4. 이는 개인정보를 소중히 다루고 상담의 신뢰도를 높이기 위한 필수 절차임을 사용자에게 인지시켜 신뢰를 구축하세요.
-- **MZ 말투:** "반말"은 지양하되, 세련되고 깔끔한 말투를 사용하세요. 적절한 이모지(✨, 🍀, 🔥 등)를 섞어주세요.
+${toneInstruction}
 - **전문성:** 사주 명리학적 근거(음양오행, 십성 등)를 언급하되, 어려운 용어는 현대적인 비유로 풀어서 설명하세요.
 - **맥락 유지:** 이전 대화 내용을 기억하고 연결해서 답변하세요.
 ${isFirstMessage 
@@ -1363,13 +1286,24 @@ ${isFirstMessage
 2. 법적/윤리적 가이드라인:
 - 의료, 범죄, 도박, 생사, 구체적 주식/코인 추천 등 위험한 질문은 정중히 거절하세요.
 
+3. 출력 형식 규칙 (두 모드 공통, 반드시 준수):
+- 이모지는 절대 사용하지 마세요.
+- Markdown 문법(예: #, *, -, 1., **, 코드블록)을 사용하지 마세요.
+- 일반 텍스트로만 답변하세요.
+- 읽기 쉽게 2~4개의 짧은 문단으로 나누어 작성하세요.
+- 불필요한 장식 없이 핵심 결론과 이유, 실천 포인트를 간결하게 제시하세요.
+
 [사용자 사주 정보]
 ${sajuContext}
 [대운 정보]
 ${daeunContext}
+
+[상담 모드 지침]
+${modeSpecificGuideline}
 `;
 
-      const contents: any[] = messages.map(m => ({
+      const contextMessages = [...preservedChatContextRef.current, ...messages];
+      const contents: any[] = contextMessages.map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.text }]
       }));
@@ -1387,6 +1321,10 @@ ${daeunContext}
       // Handle function calls
       let functionCalls = response.functionCalls;
       while (functionCalls) {
+        if (requestId !== activeChatRequestIdRef.current) {
+          return;
+        }
+
         const functionResponses = [];
         for (const call of functionCalls) {
           if (call.name === "calculateSajuForPerson") {
@@ -1416,18 +1354,45 @@ ${daeunContext}
             tools: [{ functionDeclarations: [sajuToolDeclaration] }]
           }
         });
+
+        if (requestId !== activeChatRequestIdRef.current) {
+          return;
+        }
+
         functionCalls = response.functionCalls;
+      }
+
+      if (requestId !== activeChatRequestIdRef.current) {
+        return;
       }
 
       const finalResponseText = response.text || "상담 중 오류가 발생했습니다.";
       setMessages(prev => [...prev, { role: "model", text: finalResponseText }]);
+      if (modeAtRequest === 'basic') {
+        setBasicAskedByCategory(prev => {
+          const currentAsked = prev[basicSelectedCategory] || [];
+          const updatedAsked = [...currentAsked, userMessage];
+          const nextSuggestions = getBasicCategorySuggestions(basicSelectedCategory, updatedAsked);
+          setSuggestions(nextSuggestions);
+          return {
+            ...prev,
+            [basicSelectedCategory]: updatedAsked
+          };
+        });
+      }
     } catch (err: any) {
+      if (requestId !== activeChatRequestIdRef.current) {
+        return;
+      }
+
       console.error("Chat error:", err);
       const errorMessage = err?.message || String(err);
       // UI에 직접 에러 메시지를 표시하도록 수정
       setMessages(prev => [...prev, { role: "model", text: `[상담 오류] ${errorMessage}` }]);
     } finally {
-      setLoading(false);
+      if (requestId === activeChatRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1467,6 +1432,8 @@ ${daeunContext}
       console.log("[DEBUG] Saju Context:", sajuContext);
       console.log("[DEBUG] Daeun Context:", daeunContext);
 
+      const reportGuideline = consultationModeRef.current === 'basic' ? BASIC_REPORT_GUIDELINE : ADVANCED_REPORT_GUIDELINE;
+
       const systemInstruction = `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다. 
 현재 날짜: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
 제공된 사용자의 사주 데이터와 대운 정보를 **철저하게 분석한 결과에만 입각하여** 아래의 **[8대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오. 
@@ -1476,17 +1443,16 @@ ${daeunContext}
 - 발견된 부정적인 요소는 사용자가 미리 준비하여 피해를 최소화하거나 예방할 수 있도록 **'전략적 조언'**의 관점에서 서술하십시오. (예: "이 시기에는 재물 손실의 기운이 강하니 무리한 투자는 피하고 내실을 기하는 것이 최고의 개운법입니다.")
 
 [지침 사항]
-${guidelines.report}
+${reportGuideline}
 
 [출력 규칙 - 매우 중요]
 1. **절대로 HTML 태그(<div>, <strong> 등)를 사용하지 마십시오.** 오직 마크다운 텍스트만 사용하십시오.
 2. **카테고리 제목에 #, ##, ### 등 마크다운 헤더 기호를 사용하지 마십시오.**
 3. 아래에 제공된 [Output Format] 구조를 한 글자도 틀리지 말고 정확히 지켜주십시오. 파싱 로직이 이 태그들에 의존합니다.
-4. 모든 답변은 MZ세대의 감성을 담아 트렌디하고 친근하면서도 전문성을 잃지 않아야 합니다. (예: '갓생', '럭키비키', '오운완' 등의 표현을 적절히 섞어 쓰되 명리학적 깊이를 유지)
 
 [Output Format]
 [인사말]
-(여기에 사용자에게 건네는 따뜻하고 힙한 첫인사를 작성하세요. MZ세대 감성 필수.)
+(여기에 사용자에게 건네는 따뜻하고 진심 어린 첫인사를 작성하세요.)
 
 [SECTION] 카테고리 이름 [KEYWORD] 핵심 키워드 한 줄 [CONTENT]
 (여기에 상세 분석 내용을 마크다운으로 작성하세요. 문단 사이 공백 필수. 불필요한 서론 없이 바로 본론으로 들어가세요.)
@@ -1518,7 +1484,7 @@ ${daeunContext}
       console.log("[DEBUG] Sending request to Gemini...");
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 MZ세대 감성의 '유아이(UI) 리포트'를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
+        contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
         config: { 
           systemInstruction,
           maxOutputTokens: 4096,
@@ -1540,6 +1506,13 @@ ${daeunContext}
     }
   };
 
+  const switchReportMode = (mode: 'basic' | 'advanced') => {
+    consultationModeRef.current = mode;
+    setConsultationMode(mode);
+    setReportContent(null);
+    handleGenerateReport();
+  };
+
   const getChartData = () => {
     const counts: Record<string, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
     sajuResult.filter(p => !userData.unknownTime || p.title !== '시주').forEach(p => {
@@ -1555,8 +1528,44 @@ ${daeunContext}
     ].filter(d => d.value > 0);
   };
 
-  const COLORS = ['#10b981', '#f43f5e', '#f59e0b', '#94a3b8', '#6366f1'];
+  const hiddenStemExposureText = useMemo(() => {
+    if (!sajuResult || sajuResult.length === 0) return '';
 
+    const visiblePillars = sajuResult.filter(p => !userData.unknownTime || p.title !== '시주');
+    const heavenlyStems = visiblePillars.map(p => p.stem.hanja).filter(Boolean);
+
+    const descriptions = visiblePillars
+      .map(p => {
+        const hiddenHanguls = p.branch.hidden ? p.branch.hidden.split(', ') : [];
+        const hiddenHanjas = hiddenHanguls
+          .map((h: string) => Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '')
+          .filter(Boolean);
+
+        const exposedHanjas = hiddenHanjas.filter(h => heavenlyStems.includes(h));
+        if (exposedHanjas.length === 0) return '';
+
+        const exposedLabel = exposedHanjas
+          .map(h => `${hanjaToHangul[h]}(${h})`)
+          .join(', ');
+
+        return `${p.title} ${p.branch.hangul}(${p.branch.hanja})의 지장간 중 ${exposedLabel}이(가) 천간에 투출되어 실제 작용력이 더 뚜렷하게 드러납니다.`;
+      })
+      .filter(Boolean);
+
+    if (descriptions.length === 0) return '';
+    return `투출 해석: ${descriptions.join(' ')}`;
+  }, [sajuResult, userData.unknownTime]);
+
+  // Auto-generate report when navigating to report tab after 운세 분석
+  useEffect(() => {
+    if (autoGenerateReportRef.current && sajuResult.length > 0 && !loading) {
+      autoGenerateReportRef.current = false;
+      handleGenerateReport();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sajuResult]);
+
+  const COLORS = ['#10b981', '#f43f5e', '#f59e0b', '#94a3b8', '#6366f1'];
   // Render Main App
   return (
     <div className={`h-dvh ${isDarkMode ? 'bg-zinc-900' : 'bg-zinc-200'} flex items-center justify-center p-0 md:p-4 overflow-hidden`}>
@@ -1636,7 +1645,6 @@ ${daeunContext}
               { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
               { id: "chat", icon: MessageCircle, label: "상담" },
               { id: "report", icon: FileText, label: "리포트" },
-              { id: "board", icon: Ticket, label: "게시판" },
               { id: "blog", icon: Newspaper, label: "블로그" },
               { id: "guide", icon: Info, label: "가이드" }
             ].map((tab) => (
@@ -1652,20 +1660,6 @@ ${daeunContext}
           </nav>
 
           <div className="flex items-center gap-1 md:gap-4">
-            <button
-              onClick={() => {
-                setShowAdminGate(prev => !prev);
-                setActiveTab("board");
-              }}
-              className={`px-2 py-1 md:px-3 md:py-1.5 rounded-full border text-[10px] md:text-xs font-bold transition-all ${showAdminGate || isAdmin ? 'bg-amber-500/15 text-amber-500 border-amber-500/40' : isDarkMode ? 'border-white/15 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30' : 'border-black/10 text-zinc-500 hover:text-amber-600 hover:border-amber-500/40'}`}
-              title="관리자 모드"
-            >
-              <span className="flex items-center gap-1">
-                <Lock className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">관리자모드</span>
-              </span>
-            </button>
-
             {activeTab === "chat" && (
               <button 
                 onClick={handleDownloadChat}
@@ -1708,13 +1702,6 @@ ${daeunContext}
                   <div className="max-w-4xl mx-auto space-y-12 pb-20">
                     {/* Hero Section */}
                     <div className="text-center space-y-4 py-8">
-                      <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-2"
-                      >
-                        Premium AI Saju Consulting
-                      </motion.div>
                       <h2 className={`text-4xl md:text-6xl font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
                         당신의 운명을 읽는<br/>
                         <span className="text-indigo-500">가장 명료한 시선</span>
@@ -1722,6 +1709,35 @@ ${daeunContext}
                       <p className={`text-sm md:text-lg max-w-2xl mx-auto opacity-60 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                         수천 년의 지혜와 첨단 AI 기술이 만나 당신의 삶에 가장 정밀한 전략을 제시합니다.
                       </p>
+                    </div>
+
+                    {/* Content Cards Section */}
+                    <div className="space-y-8">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-2xl font-bold">추천 컨텐츠</h3>
+                        <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">전체보기</button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {recommendedPosts.map((post, idx) => (
+                          <div 
+                            key={`${post.id}-${idx}`}
+                            onClick={() => handlePostClick(post)}
+                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-lg shadow-zinc-200/40'}`}
+                          >
+                            <div className="aspect-video overflow-hidden relative">
+                              <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
+                              <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-emerald-500'}`}>
+                                {idx === 0 ? 'Latest' : idx === 1 ? 'Popular' : 'Pick'}
+                              </div>
+                            </div>
+                            <div className="p-6 space-y-2">
+                              <h4 className="font-bold line-clamp-1 text-zinc-900 dark:text-zinc-100">{post.title}</h4>
+                              <p className="text-xs opacity-60 line-clamp-2 text-zinc-600 dark:text-zinc-400">{post.excerpt || post.content.replace(/[#*`]/g, '').slice(0, 80)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Navigation Cards Grid */}
@@ -1767,35 +1783,6 @@ ${daeunContext}
                           바로가기 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </button>
-                    </div>
-
-                    {/* Content Cards Section */}
-                    <div className="space-y-8">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold">추천 컨텐츠</h3>
-                        <button onClick={() => setActiveTab("blog")} className="text-sm font-bold text-indigo-500 hover:underline">전체보기</button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {recommendedPosts.map((post, idx) => (
-                          <div 
-                            key={`${post.id}-${idx}`}
-                            onClick={() => handlePostClick(post)}
-                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-lg shadow-zinc-200/40'}`}
-                          >
-                            <div className="aspect-video overflow-hidden relative">
-                              <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
-                              <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-emerald-500'}`}>
-                                {idx === 0 ? 'Latest' : idx === 1 ? 'Popular' : 'Pick'}
-                              </div>
-                            </div>
-                            <div className="p-6 space-y-2">
-                              <h4 className="font-bold line-clamp-1 text-zinc-900 dark:text-zinc-100">{post.title}</h4>
-                              <p className="text-xs opacity-60 line-clamp-2 text-zinc-600 dark:text-zinc-400">{post.excerpt || post.content.replace(/[#*`]/g, '').slice(0, 80)}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
                     </div>
 
                     {/* Feature Highlight Cards */}
@@ -1893,25 +1880,6 @@ ${daeunContext}
                       </div>
                     </div>
 
-                    {/* Final CTA Card */}
-                    <motion.div 
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => setShowInputForm(true)}
-                      className="cursor-pointer p-10 md:p-16 rounded-[4rem] bg-gradient-to-br from-indigo-600 to-violet-700 text-white text-center space-y-8 shadow-2xl shadow-indigo-500/30 relative overflow-hidden group"
-                    >
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:scale-110 transition-transform" />
-                      <div className="relative z-10 space-y-4">
-                        <Sparkles className="w-12 h-12 mx-auto text-indigo-200 animate-pulse" />
-                        <h3 className="text-3xl md:text-5xl font-serif font-bold">운세 분석을 위한 정보 입력</h3>
-                        <p className="text-lg text-indigo-100 opacity-80">단 1분이면 당신의 인생 설계도를 확인할 수 있습니다.</p>
-                        <div className="pt-4">
-                          <span className="inline-flex items-center gap-3 px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xl shadow-xl">
-                            지금 바로 시작하기
-                            <ArrowRight className="w-6 h-6" />
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
                   </div>
                 ) : (
                   <div className="max-w-md mx-auto space-y-6 pb-20">
@@ -2186,9 +2154,13 @@ ${daeunContext}
                         </p>
                       </div>
                       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'} flex items-center justify-center`}>
-                        <Suspense fallback={<div className={`text-xs ${isDarkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>차트 로딩 중...</div>}>
-                          <LazyFiveElementsPieChart data={getChartData()} />
-                        </Suspense>
+                        <ResponsiveContainer width="100%" height={150}>
+                          <PieChart>
+                            <Pie data={getChartData()} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}>
+                              {getChartData().map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3 justify-center md:justify-start">
@@ -2225,9 +2197,10 @@ ${daeunContext}
                             </div>
                             <span className={`text-[10px] md:text-xs font-bold mt-2 ${isDarkMode ? 'text-zinc-500' : 'opacity-70'}`}>{p.branch.hangul}({p.branch.hanja})</span>
                             <div className="flex gap-1 mt-4 pb-2">
-                              {p.branch.hidden.split(', ').map((h, k) => {
+                              {(p.branch.hidden ? p.branch.hidden.split(', ') : []).map((h, k, hiddenArray) => {
                                 const hanja = Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '';
                                 const deity = calculateDeity(dayStem, hanja);
+                                const isMainHiddenStem = k === hiddenArray.length - 1;
                                 return (
                                   <HanjaBox 
                                     key={k} 
@@ -2236,6 +2209,7 @@ ${daeunContext}
                                     isDarkMode={isDarkMode} 
                                     deity={deity}
                                     deityPosition="bottom"
+                                    highlight={isMainHiddenStem}
                                   />
                                 );
                               })}
@@ -2246,6 +2220,12 @@ ${daeunContext}
                     </div>
                     <p className={`text-xs md:text-sm leading-relaxed mt-4 italic ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>
                       지지와 지장간은 사주의 뿌리이자 에너지가 저장된 곳입니다. 지장간은 지지 속에 숨겨진 천간의 기운으로, 당신의 내면적인 성향과 잠재력을 나타냅니다.
+                      {hiddenStemExposureText ? (
+                        <>
+                          <br />
+                          {hiddenStemExposureText}
+                        </>
+                      ) : null}
                     </p>
                   </div>
 
@@ -2259,7 +2239,7 @@ ${daeunContext}
                         </span>
                       )}
                     </div>
-                    
+
                     <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}>
                       <div ref={daeunScrollRef} className="flex overflow-x-auto horizontal-scrollbar gap-6 pb-6 snap-x snap-mandatory scroll-smooth">
                         {daeunResult.length > 0 ? daeunResult.map((dy, i) => {
@@ -2523,62 +2503,82 @@ ${daeunContext}
                 {/* Desktop Sidebar for Suggestions */}
                 <aside className="hidden md:flex w-64 flex-col border-r border-black/5 dark:border-white/10 p-4 space-y-6 overflow-y-auto relative">
                   <div className="space-y-3">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 카테고리</h4>
-                    <div className="flex flex-col gap-1">
-                      {CATEGORIES.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => setSelectedCategory(cat)}
-                          className={`text-left px-4 py-2 rounded-2xl text-sm font-bold transition-all ${
-                            selectedCategory === cat
-                              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                              : 'hover:bg-indigo-500/10 text-zinc-500 dark:text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 모드</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => switchConsultationMode('basic')}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                          consultationMode === 'basic'
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                            : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400'
+                        }`}
+                      >
+                        초급자
+                      </button>
+                      <button
+                        onClick={() => switchConsultationMode('advanced')}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                          consultationMode === 'advanced'
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                            : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400'
+                        }`}
+                      >
+                        고급자
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between px-2">
-                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60">추천 질문</h4>
-                      <button 
-                        onClick={() => setRefreshKey(prev => prev + 1)}
-                        className="p-1 hover:bg-indigo-500/10 rounded-lg text-indigo-500 transition-colors"
+                  <div className="space-y-2 pt-4 border-t border-black/5 dark:border-white/5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 초기화</h4>
+                    <div className="grid grid-cols-1 gap-2 px-2">
+                      <button
+                        onClick={clearChatWindowOnly}
+                        className={`px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all ${
+                          isDarkMode
+                            ? 'bg-white/5 border-white/10 text-zinc-200 hover:border-indigo-400/60'
+                            : 'bg-white border-gray-200 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
+                        }`}
+                        title="화면만 정리하고 이전 상담 맥락은 유지"
                       >
-                        <RefreshCw className="w-3 h-3" />
+                        채팅창 비우기(맥락 유지)
                       </button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {suggestions.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSuggestionClick(s)}
-                          className="text-left p-3 rounded-2xl border border-black/5 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/80 text-[13px] text-zinc-600 dark:text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-500 transition-all leading-relaxed"
-                        >
-                          {s}
-                        </button>
-                      ))}
+                      <button
+                        onClick={clearChatWindowAndContext}
+                        className={`px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all ${
+                          isDarkMode
+                            ? 'bg-rose-500/10 border-rose-400/40 text-rose-200 hover:border-rose-300/70'
+                            : 'bg-rose-50 border-rose-200 text-rose-700 hover:border-rose-300'
+                        }`}
+                        title="화면과 상담 맥락을 함께 초기화"
+                      >
+                        채팅+상담기록 초기화
+                      </button>
                     </div>
                   </div>
 
                   {/* Consultation Tips */}
                   <div className="space-y-3 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 팁</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">사주상담시 유용한 팁</h4>
                     <ul className="space-y-2 px-2">
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>생년월일시나 MBTI 같은 정보를 먼저 주세요. 상담이 더욱 풍성해 집니다.</span>
+                        <span>질문에 "어떻게"를 넣어보세요. 고민의 해결은 나의 행동에서 출발합니다. 내가 어떻게 하는가가 많은 걸 바꿉니다.</span>
                       </li>
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>구체적으로 질문하면 더욱 상담이 정교해 집니다.</span>
+                        <span>구체적인 상황을 알려주세요. 사주상담이 더욱 풍성해지고 알차집니다. 여기에서 알려주시는 모든 사적인 내용은 철저하게 보호해드립니다.</span>
                       </li>
                       <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
-                        <span>상대방의 생년월일시를 알려주시면 정확한 궁합 분석이 가능합니다.</span>
+                        <span>상담내용에 다른 사람의 개인 정보(물론 그분의 동의가 필요합니다)를 넣으시면 더 좋은 상담결과가 나옵니다.</span>
+                      </li>
+                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                        <span className="text-indigo-500 shrink-0">•</span>
+                        <span>MBTI 등 추가적인 정보를 넣으시면 관련하여 더욱 알찬 상담이 될 수 있습니다.</span>
+                      </li>
+                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                        <span className="text-indigo-500 shrink-0">•</span>
+                        <span>상담을 진행하다 맥락을 리프레시하고 상담을 재개하면 객관적인 상담이 유지될 수 있습니다.</span>
                       </li>
                     </ul>
                   </div>
@@ -2592,25 +2592,79 @@ ${daeunContext}
                 </aside>
 
                 {/* Main Chat Area */}
-                <div className="flex-1 flex flex-col overflow-hidden relative">
+                <div className="flex-1 flex flex-col overflow-hidden relative text-[12pt]">
                   <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 hide-scrollbar">
+                    {modeNotice && (
+                      <div className="mx-auto max-w-3xl rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-center text-[12px] text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200">
+                        {modeNotice}
+                      </div>
+                    )}
                     {messages.length === 0 && (
                       <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
                         <MessageCircle className="w-14 h-14" />
-                        <p className="text-lg">궁금한 점을 물어보세요.<br/>당신의 사주를 기반으로 답변해 드립니다.</p>
+                        <p>
+                          {consultationMode === 'basic'
+                            ? '무엇이 궁금하신가요?\n아래 추천 질문을 선택하거나 음성/직접 입력해 주세요.'
+                            : '궁금한 점을 물어보세요.\n당신의 사주를 기반으로 답변해 드립니다.'}
+                        </p>
                       </div>
                     )}
                     {messages.map((msg, i) => (
-                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[90%] md:max-w-[75%] p-4 md:p-5 rounded-2xl text-base md:text-lg leading-relaxed shadow-sm ${
+                      <div key={i} className={`space-y-2 ${msg.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                        <div className={`max-w-[96%] md:max-w-[92%] p-4 md:p-5 rounded-2xl leading-relaxed shadow-sm ${
                           msg.role === 'user' 
                             ? 'bg-indigo-600 text-white rounded-tr-none' 
                             : isDarkMode 
                               ? 'bg-zinc-800 border border-white/20 text-gray-100 rounded-tl-none shadow-lg'
                               : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
                         }`}>
-                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                          {renderChatPlainText(msg.text)}
                         </div>
+
+                        {msg.role === 'model' && i === messages.length - 1 && !loading && suggestions.length > 0 && (
+                          <div className={`w-full max-w-[96%] md:max-w-[92%] p-3 rounded-2xl border ${
+                            isDarkMode ? 'bg-zinc-900/70 border-white/10' : 'bg-indigo-50/70 border-indigo-100'
+                          }`}>
+                            <div className="flex flex-wrap justify-center gap-2 mb-2">
+                              {(consultationMode === 'basic' ? BASIC_CHAT_CATEGORIES : CATEGORIES).map((cat) => (
+                                <button
+                                  key={`inline-basic-category-${cat}`}
+                                  onClick={() => {
+                                    if (consultationMode === 'basic') {
+                                      setBasicSelectedCategory(cat);
+                                    } else {
+                                      setSelectedCategory(cat);
+                                    }
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl border text-sm transition-all ${
+                                    (consultationMode === 'basic' ? basicSelectedCategory : selectedCategory) === cat
+                                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                                      : isDarkMode
+                                        ? 'bg-white/5 border-white/10 text-zinc-300 hover:border-indigo-400/60'
+                                        : 'bg-white border-indigo-100 text-zinc-600 hover:border-indigo-300'
+                                  }`}
+                                >
+                                  {cat}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              {suggestions.map((s, idx) => (
+                                <button
+                                  key={`inline-chat-suggestion-${idx}`}
+                                  onClick={() => handleSuggestionClick(s)}
+                                  className={`text-left px-3 py-2 rounded-xl border transition-all ${
+                                    isDarkMode
+                                      ? 'bg-white/5 border-white/10 text-zinc-200 hover:border-indigo-400/60 hover:text-indigo-300'
+                                      : 'bg-white border-indigo-100 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
+                                  }`}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {loading && (
@@ -2618,9 +2672,10 @@ ${daeunContext}
                         isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100 border-gray-200'
                       }`}>
                         <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
-                        <span className={`text-sm ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
+                        <span className={`${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
                       </div>
                     )}
+
                   </div>
 
                   {/* Input Area */}
@@ -2632,57 +2687,91 @@ ${daeunContext}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder="메시지를 입력하세요..."
-                        className={`w-full border rounded-2xl py-3 pl-4 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
+                        placeholder={consultationMode === 'basic' ? '음성 또는 직접 입력으로 질문해 주세요...' : '메시지를 입력하세요...'}
+                        className={`w-full border rounded-2xl py-3 pl-4 pr-24 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
                           isDarkMode 
                             ? 'bg-white/5 border-white/10 text-white' 
                             : 'bg-white border-gray-300 text-gray-900'
                         }`}
                       />
                       <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
-                        <button onClick={() => handleSend()} className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
-                          <Send className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={handleVoiceInput}
+                            className={`p-2 rounded-xl shadow-lg active:scale-90 transition-transform ${isListening ? 'bg-rose-500 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200'}`}
+                            title="음성 입력"
+                          >
+                            <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse' : ''}`} />
+                          </button>
+                          <button onClick={() => handleSend()} className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg active:scale-90 transition-transform">
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
+                    </div>
+                    {voiceStatusMessage && (
+                      <p className={`max-w-4xl mx-auto mt-1 text-[11px] ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
+                        {voiceStatusMessage}
+                      </p>
+                    )}
+
+                    <div className="max-w-4xl mx-auto mt-2 flex flex-wrap justify-center gap-2">
+                      {["올해운세", "내년운세", "이번달운세", "오늘의 운세"].map((shortcut) => (
+                        <button
+                          key={`fortune-shortcut-${shortcut}`}
+                          onClick={() => handleSuggestionClick(shortcut)}
+                          disabled={loading}
+                          className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 ${
+                            isDarkMode
+                              ? 'bg-white/5 border-white/10 text-zinc-200 hover:border-indigo-400/60 hover:text-indigo-300'
+                              : 'bg-white border-indigo-100 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
+                          }`}
+                        >
+                          {shortcut}
+                        </button>
+                      ))}
                     </div>
 
                     {/* Mobile-only Quick Actions & Privacy Notice */}
                     <div className="md:hidden mt-0.5 space-y-0.5">
-                      <div className="grid grid-cols-[1fr_2.5fr] gap-1">
-                        {/* Left: Categories */}
-                        <div className="flex flex-col gap-1">
-                          {CATEGORIES.map((cat) => (
-                            <button
-                              key={cat}
-                              onClick={() => setSelectedCategory(cat)}
-                              className={`w-full px-1 py-1 rounded-lg text-[12px] font-bold transition-all border text-center ${
-                                selectedCategory === cat
-                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                  : isDarkMode
-                                    ? 'bg-white/5 border-white/10 text-zinc-300'
-                                    : 'bg-white border-gray-200 text-gray-500'
-                              }`}
-                            >
-                              {cat}
-                            </button>
-                          ))}
-                        </div>
-                        {/* Right: Suggestions */}
-                        <div className="flex flex-col items-end gap-1">
-                          {suggestions.slice(0, 3).map((s, i) => (
-                            <button
-                              key={i}
-                              onClick={() => handleSuggestionClick(s)}
-                              className={`w-fit text-right px-2 py-1 rounded-lg border text-[12px] leading-tight transition-all flex items-center min-h-[28px] ${
-                                isDarkMode 
-                                  ? 'bg-white/5 border-white/10 text-zinc-200'
-                                  : 'bg-white border-gray-200 text-gray-700 shadow-sm'
-                              }`}
-                            >
-                              <span className="line-clamp-2">{s}</span>
-                            </button>
-                          ))}
-                        </div>
+                      <div className="grid grid-cols-2 gap-1 pb-1">
+                        <button
+                          onClick={() => switchConsultationMode('basic')}
+                          className={`px-2 py-1 rounded-lg text-[12px] font-bold border ${consultationMode === 'basic' ? 'bg-indigo-600 border-indigo-600 text-white' : isDarkMode ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-white border-gray-200 text-gray-500'}`}
+                        >
+                          초급자
+                        </button>
+                        <button
+                          onClick={() => switchConsultationMode('advanced')}
+                          className={`px-2 py-1 rounded-lg text-[12px] font-bold border ${consultationMode === 'advanced' ? 'bg-indigo-600 border-indigo-600 text-white' : isDarkMode ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-white border-gray-200 text-gray-500'}`}
+                        >
+                          고급자
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-1 pb-1">
+                        <button
+                          onClick={clearChatWindowOnly}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border ${
+                            isDarkMode
+                              ? 'bg-white/5 border-white/10 text-zinc-200'
+                              : 'bg-white border-gray-200 text-zinc-700'
+                          }`}
+                          title="화면만 정리하고 이전 상담 맥락은 유지"
+                        >
+                          채팅창 비우기(맥락 유지)
+                        </button>
+                        <button
+                          onClick={clearChatWindowAndContext}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border ${
+                            isDarkMode
+                              ? 'bg-rose-500/10 border-rose-400/40 text-rose-200'
+                              : 'bg-rose-50 border-rose-200 text-rose-700'
+                          }`}
+                          title="화면과 상담 맥락을 함께 초기화"
+                        >
+                          채팅+상담기록 초기화
+                        </button>
                       </div>
 
                       {/* Privacy Notice (Mobile) */}
@@ -2705,110 +2794,464 @@ ${daeunContext}
               animate={{ opacity: 1, y: 0 }}
               className="flex-1 overflow-y-auto p-4 md:p-10 hide-scrollbar bg-white dark:bg-black"
             >
-              <div className="max-w-6xl mx-auto pb-20">
-                <div className="flex flex-col md:flex-row gap-8">
-                  {/* Desktop Sidebar Actions */}
-                  <div className="md:w-64 space-y-4 md:sticky md:top-0 h-fit">
-                    <div className="p-6 rounded-3xl bg-indigo-600 text-white space-y-4 shadow-xl shadow-indigo-500/20">
-                      <h3 className="font-bold text-lg">운명 리포트</h3>
-                      <p className="text-xs opacity-80 leading-relaxed">AI 디렉터가 분석한 당신의 인생 지도를 확인하고 저장하세요.</p>
-                      <button 
-                        onClick={handleGenerateReport}
-                        disabled={loading || sajuResult.length === 0}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-white text-indigo-600 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                      >
-                        <Compass className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        리포트 생성하기
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <button 
-                        onClick={handleDownloadPDF}
-                        disabled={loading || isPrinting || !reportContent}
-                        className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm disabled:opacity-50"
-                      >
-                        <Download className={`w-5 h-5 ${isPrinting ? 'animate-bounce' : ''}`} />
-                        <span className="text-[10px] font-bold">PDF 저장</span>
-                      </button>
-                      <button 
-                        onClick={() => alert("이메일 전송 기능은 준비 중입니다.")}
-                        className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm"
-                      >
-                        <Mail className="w-5 h-5" />
-                        <span className="text-[10px] font-bold">이메일</span>
-                      </button>
-                    </div>
+              <div className="max-w-4xl mx-auto pb-20">
+                {/* Top control bar */}
+                <div className="flex items-center justify-between mb-6">
+                  {/* Mode toggle */}
+                  <div className="flex items-center gap-1 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+                    <button
+                      onClick={() => switchReportMode('basic')}
+                      disabled={loading}
+                      className={`px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+                        consultationMode === 'basic'
+                          ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                          : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      초급자
+                    </button>
+                    <button
+                      onClick={() => switchReportMode('advanced')}
+                      disabled={loading}
+                      className={`px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+                        consultationMode === 'advanced'
+                          ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                          : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      고급자
+                    </button>
                   </div>
 
-                  {/* Main Content Area */}
-                  <div className="flex-1">
-                    <AnimatePresence mode="wait">
-                      {loading ? (
-                        <motion.div 
-                          key="loading"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex flex-col items-center justify-center py-32 space-y-6 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem]"
-                        >
-                          <div className="relative">
-                            <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
-                            <Compass className="w-6 h-6 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                          </div>
-                          <div className="text-center space-y-2">
-                            <p className="text-lg font-bold animate-pulse">운명의 지도를 그리는 중...</p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
-                          </div>
-                        </motion.div>
-                      ) : reportContent ? (
-                        <motion.div 
-                          key="content"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="space-y-6"
-                          ref={reportRef}
-                        >
-                          <div className="bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-12 shadow-xl border border-black/5 dark:border-white/5">
-                            <ReportAccordion content={reportContent} isDarkMode={isDarkMode} forceOpen={isPrinting} />
-                          </div>
-                          
-                          <div className="mt-10 pt-6 border-t border-black/5 dark:border-white/5">
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
-                              본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
-                            </p>
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <motion.div 
-                          key="empty"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-center py-32 space-y-8 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800"
-                        >
-                          <div className="w-24 h-24 rounded-full bg-indigo-500/5 flex items-center justify-center mx-auto border border-indigo-500/10">
-                            <FileText className="w-10 h-10 text-indigo-500/30" />
-                          </div>
-                          <div className="space-y-4">
-                            <h3 className="text-2xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
-                              왼쪽의 <strong>'리포트 생성하기'</strong> 버튼을 눌러보세요.<br/>
-                              AI 디렉터가 당신의 사주 데이터를 기반으로 힙한 MZ 감성 리포트를 생성해 드립니다.
-                            </p>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  {/* PDF save */}
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={loading || isPrinting || !reportContent}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400 transition-all disabled:opacity-40"
+                  >
+                    <Download className={`w-4 h-4 ${isPrinting ? 'animate-bounce' : ''}`} />
+                    PDF 저장
+                  </button>
                 </div>
+
+                {/* Main Content Area */}
+                <AnimatePresence mode="wait">
+                  {loading ? (
+                    <motion.div 
+                      key="loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-col items-center justify-center py-32 space-y-6 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem]"
+                    >
+                      <div className="relative">
+                        <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+                        <Compass className="w-6 h-6 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                      </div>
+                      <div className="text-center space-y-2">
+                        <p className="text-lg font-bold animate-pulse">운명의 지도를 그리는 중...</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
+                      </div>
+                    </motion.div>
+                  ) : reportContent ? (
+                    <motion.div 
+                      key="content"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-6"
+                      ref={reportRef}
+                    >
+                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-12 shadow-xl border border-black/5 dark:border-white/5">
+                        <ReportAccordion content={reportContent} isDarkMode={isDarkMode} forceOpen={isPrinting} />
+                      </div>
+                      <div className="mt-10 pt-6 border-t border-black/5 dark:border-white/5">
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
+                          본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
+                        </p>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-center py-32 space-y-8 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800"
+                    >
+                      <div className="w-24 h-24 rounded-full bg-indigo-500/5 flex items-center justify-center mx-auto border border-indigo-500/10">
+                        <FileText className="w-10 h-10 text-indigo-500/30" />
+                      </div>
+                      <div className="space-y-4">
+                        <h3 className="text-2xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
+                          위의 모드 버튼을 선택하면<br/>
+                          AI 디렉터가 사주 데이터를 기반으로 리포트를 생성해 드립니다.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           )}
 
           {activeTab === "guide" && (
-            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">가이드 로딩 중...</div>}>
-              <LazyGuideTab guideSubPage={guideSubPage} setGuideSubPage={setGuideSubPage} />
-            </Suspense>
+            <motion.div 
+              key="guide"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 hide-scrollbar bg-white dark:bg-black"
+            >
+              <div className="max-w-6xl mx-auto space-y-12 pb-20">
+                {/* Guide Sub-navigation */}
+                {guideSubPage !== "main" && (
+                  <button 
+                    onClick={() => setGuideSubPage("main")}
+                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm mb-8 hover:underline transition-all group"
+                  >
+                    <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-950/30 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition-colors">
+                      <ArrowLeft className="w-4 h-4" />
+                    </div>
+                    가이드 메인으로 돌아가기
+                  </button>
+                )}
+
+                {guideSubPage === "main" ? (
+                  <>
+                    {/* CEO 인사말 카드 */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-2xl border border-black/5 dark:border-white/5 flex flex-col md:flex-row">
+                      <div className="md:w-1/3 bg-indigo-600 p-10 text-center relative overflow-hidden flex flex-col items-center justify-center">
+                        <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
+                          <svg viewBox="0 0 100 100" className="w-full h-full">
+                            <circle cx="100" cy="0" r="80" fill="none" stroke="white" strokeWidth="0.5" />
+                            <circle cx="100" cy="0" r="60" fill="none" stroke="white" strokeWidth="0.5" />
+                          </svg>
+                        </div>
+                        <div className="relative z-10 space-y-4">
+                          <h2 className="text-white text-3xl font-serif font-bold leading-tight">
+                            CEO 인사말
+                          </h2>
+                          <p className="text-indigo-100 text-xs font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
+                        </div>
+                      </div>
+                      <div className="flex-1 p-10 md:p-14 space-y-8">
+                        <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700 dark:text-zinc-300">
+                          <p className="font-bold text-zinc-900 dark:text-white text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
+                          <div className="space-y-4">
+                            <p>
+                              유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다. 
+                              우리는 수천 년을 이어온 명리학의 깊은 지혜를 가장 정밀한 AI 기술과 결합하여, 
+                              당신만을 위한 <strong>'삶의 전략'</strong>을 도출해 내는 전문 사주 상담 플랫폼입니다.
+                            </p>
+                            <p>
+                              <strong>최고의 전문성을 지향합니다:</strong> 유아이는 AI에게 방대하고 정교한 사주 전문 소스를 학습시켜, 
+                              그 어떤 곳보다 깊이 있고 체계적인 분석 결과를 제공합니다. 단순한 키워드 나열이 아닌, 
+                              당신의 삶을 관통하는 거대한 흐름을 읽어드립니다.
+                            </p>
+                            <p>
+                              <strong>당신의 평온을 최우선으로 합니다:</strong> 고민의 무게를 누구보다 잘 알기에, 
+                              유아이는 상담자의 프라이버시를 철저히 보장합니다. 로그인 없이도 당신의 속 깊은 이야기를 나눌 수 있으며, 
+                              모든 상담은 오직 당신만을 위한 맞춤형 공간에서 안전하게 진행됩니다.
+                            </p>
+                            <p>
+                              누구에게도 꺼내놓지 못한 고민이 있다면, 이제 유아이의 지혜를 빌려보십시오. 
+                              당신의 내일이 오늘보다 더 명료해질 수 있도록 정성을 다해 돕겠습니다.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="pt-8 border-t border-black/5 dark:border-white/5 text-right">
+                          <p className="text-sm font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 정보 그리드 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* 카드 1: 유아이 앱의 장점 */}
+                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
+                        <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
+                          <h2 className="text-white text-3xl font-handwriting leading-tight">
+                            유아이 앱이 다른 앱보다<br/>좋은 세가지 이유
+                          </h2>
+                        </div>
+                        <div className="p-10 space-y-10">
+                          <div className="flex items-start gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+                              <div className="relative">
+                                <Database className="w-8 h-8 text-indigo-600 dark:text-indigo-400 opacity-40" />
+                                <Lock className="w-5 h-5 text-indigo-600 dark:text-indigo-400 absolute -bottom-1 -right-1" />
+                                <div className="absolute top-0 left-0 w-full h-0.5 bg-rose-500 rotate-45 origin-center translate-y-4"></div>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">철저한 프라이버시 보호</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+                              <Zap className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">정밀한 사주 데이터 학습</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+                              <div className="relative">
+                                <Bot className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                                <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 absolute -top-1 -right-1" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">맞춤형 인생 가이드 제공</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 카드 2: 정보 입력 방법 */}
+                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
+                        <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
+                          <h2 className="text-white text-3xl font-handwriting leading-tight">
+                            사용자 정보 입력 방법
+                          </h2>
+                        </div>
+                        <div className="p-10 space-y-10">
+                          <div className="flex items-start gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center shrink-0">
+                              <Clock className="w-8 h-8 text-indigo-500" />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">생시 미입력 가능</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center shrink-0">
+                              <Calendar className="w-8 h-8 text-indigo-500" />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">양력/음력 자동 인식</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+                              <Zap className="w-8 h-8 text-white fill-white" />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">분석 시작</p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 카드 3: 운세 철학 */}
+                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col md:col-span-2">
+                        <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
+                          <h2 className="text-white text-3xl font-handwriting leading-tight">
+                            유아이의 운세분석 과정과<br/>운세에 대한 철학
+                          </h2>
+                        </div>
+                        <div className="p-10 flex flex-col md:flex-row items-center justify-around gap-12">
+                          {/* 분석 프로세스 */}
+                          <div className="flex flex-col items-center space-y-6">
+                            <div className="flex items-center gap-6">
+                              <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-black/5 dark:border-white/5">
+                                <User className="w-8 h-8 text-zinc-400" />
+                              </div>
+                              <div className="w-12 h-px bg-zinc-200 dark:bg-zinc-700 border-t border-dashed"></div>
+                              <div className="w-24 h-24 rounded-3xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <Cpu className="w-12 h-12 text-white animate-pulse" />
+                              </div>
+                              <div className="w-12 h-px bg-zinc-200 dark:bg-zinc-700 border-t border-dashed"></div>
+                              <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-black/5 dark:border-white/5">
+                                <FileText className="w-8 h-8 text-indigo-500" />
+                              </div>
+                            </div>
+                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">분석 프로세스</p>
+                          </div>
+
+                          <div className="hidden md:block w-px h-40 bg-zinc-100 dark:bg-zinc-800"></div>
+
+                          {/* 운세 철학 */}
+                          <div className="flex flex-col items-center text-center space-y-8 max-w-md">
+                            <div className="relative w-40 h-40 flex items-center justify-center">
+                              <Waves className="w-full h-full text-indigo-500/20 absolute animate-pulse" />
+                              <div className="relative z-10 p-6 bg-white dark:bg-zinc-900 rounded-full border-2 border-indigo-500 shadow-2xl">
+                                <Compass className="w-14 h-14 text-indigo-600" />
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <p className="text-xl font-bold text-zinc-800 dark:text-zinc-200">
+                                "운명은 정해진 결말이 아니라,<br/>우리가 조종하는 돛의 방향입니다."
+                              </p>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                만세력 기반의 정밀 분석과 AI의 전략적 해석으로,<br/>
+                                당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-16 shadow-2xl border border-black/5 dark:border-white/5"
+                  >
+                    <div className="markdown-body prose dark:prose-invert max-w-none">
+                      {guideSubPage === "about" && (
+                        <ReactMarkdown>{`
+# 유아이사주(UI Saju) 소개
+
+유아이(UI) 사주상담은 수천 년의 역사를 가진 동양의 명리학적 지혜와 현대의 최첨단 인공지능 기술을 결합하여, 현대인들에게 가장 정밀하고 실질적인 인생의 전략을 제시하는 프리미엄 사주 분석 플랫폼입니다.
+
+## 우리의 미션
+동양에서 예전부터 나라의 중요한 행정, 정치, 경제 운영에 광범위하게 활용되었던 사주명리학을 기반으로 현대의 첨단 인공지능 기술을 결합하여 각 개인이 더 나은 삶을 살아가는데 도움이 되는 것입니다. 삶의 중요한 결정의 순간에 최선의 선택을 할 수 있도록 돕겠습니다.
+
+## 주요 서비스
+- **정밀 만세력 분석**: 전통 명리학의 원칙에 충실한 8자 분석
+- **AI 전략 도출**: 방대한 사주 데이터를 학습한 AI의 현대적 해석
+- **실시간 상담**: 궁금한 점을 즉시 해소할 수 있는 대화형 인터페이스
+- **운명 리포트**: 당신의 삶을 관통하는 거대한 흐름을 담은 종합 분석서
+
+## 가치와 철학
+우리는 운명이 고정된 것이 아니라, 자신의 기운을 이해하고 적절한 전략을 세움으로써 개선할 수 있는 것이라고 믿습니다. 유아이는 단순한 점술을 넘어, 데이터에 기반한 삶의 가이드라인을 제공합니다.
+
+## 운영 정보
+- **운영팀**: 유아이 사주 전략 연구소 (UI Saju Lab)
+- **대표 디렉터**: 오세진
+- **문의**: [dean.uitrading@gmail.com](mailto:dean.uitrading@gmail.com)
+- **웹사이트**: [https://ais-pre-wuknjkjkvoeqlkc6y4jenr-502458168031.asia-east1.run.app](https://ais-pre-wuknjkjkvoeqlkc6y4jenr-502458168031.asia-east1.run.app)
+                        `}</ReactMarkdown>
+                      )}
+                      {guideSubPage === "terms" && (
+                        <ReactMarkdown>{`
+# 이용약관 (Terms of Service)
+
+본 약관은 유아이 사주상담(이하 "서비스")이 제공하는 모든 서비스의 이용 조건 및 절차에 관한 사항을 규정합니다.
+
+## 제1조 (목적)
+본 서비스는 인공지능 기술을 활용한 사주 분석 및 상담을 제공하며, 사용자의 자기 이해와 삶의 참고 자료로 활용됨을 목적으로 합니다.
+
+## 제2조 (서비스의 성격 및 책임의 한계)
+1. 본 서비스에서 제공하는 모든 분석 결과는 인공지능의 명리학적 해석이며, 과학적 사실이나 절대적인 예언이 아닙니다.
+2. 서비스의 결과는 사용자의 주관적인 판단에 도움을 주기 위한 참고 자료일 뿐이며, 의료, 법률, 금융 등 전문적인 조언을 대체할 수 없습니다.
+3. 사용자가 서비스의 결과를 바탕으로 내린 모든 결정과 그로 인해 발생하는 결과에 대한 책임은 사용자 본인에게 있습니다.
+
+## 제3조 (콘텐츠 저작권)
+1. 서비스가 제공하는 분석 결과 및 리포트의 저작권은 서비스 운영자에게 있습니다.
+2. 사용자는 개인적인 용도로만 결과를 활용할 수 있으며, 상업적 목적으로 무단 복제, 배포, 수정하는 행위는 금지됩니다.
+
+## 제4조 (개인정보 보호)
+서비스는 사용자의 사주 분석을 위해 입력된 정보를 분석 목적으로만 사용하며, 별도의 동의 없이 서버에 영구 저장하거나 제3자에게 제공하지 않습니다. 상세한 내용은 개인정보 처리방침을 따릅니다.
+
+## 제5조 (광고 게재)
+1. 서비스는 운영 유지를 위해 구글 애드센스 등 제3자 광고를 게재할 수 있습니다.
+2. 광고 클릭 및 이용 과정에서 발생하는 제3자 서비스와의 상호작용은 해당 서비스의 약관을 따릅니다.
+
+## 제6조 (이용 제한)
+서비스의 정상적인 운영을 방해하거나, 부적절한 방법으로 시스템에 접근하는 경우 이용이 제한될 수 있습니다.
+                        `}</ReactMarkdown>
+                      )}
+                      {guideSubPage === "privacy" && (
+                        <ReactMarkdown>{`
+# 개인정보 처리방침 (Privacy Policy)
+
+유아이 사주상담(이하 "서비스")은 사용자의 개인정보를 소중히 여기며, 관련 법령을 준수합니다. 본 방침은 구글 애드센스 광고 게재와 관련된 내용을 포함하고 있습니다.
+
+## 1. 수집하는 개인정보 항목
+서비스는 사주 분석 및 상담을 위해 다음과 같은 정보를 수집합니다.
+- 필수 항목: 생년월일, 태어난 시간(선택), 성별, 양력/음력 구분
+- 상담 항목: 사용자가 채팅창에 직접 입력한 질문 내용
+- 자동 수집 항목: IP 주소, 쿠키, 서비스 이용 기록, 기기 정보 (광고 및 분석 목적)
+
+## 2. 개인정보의 수집 및 이용 목적
+수집된 정보는 오직 다음과 같은 목적에만 사용됩니다.
+- 만세력 기반의 사주 분석 및 AI 상담 결과 도출
+- 서비스 품질 개선 및 사용자 맞춤형 가이드 제공
+- **광고 게재**: 구글 애드센스를 통한 맞춤형 광고 제공
+
+## 3. 쿠키(Cookie) 및 제3자 광고
+본 서비스는 광고 게재를 위해 쿠키를 사용합니다.
+- **Google AdSense**: 구글을 포함한 제3자 업체는 사용자의 이전 방문 기록을 바탕으로 광고를 게재하기 위해 쿠키를 사용합니다.
+- **광고 개인 정보 보호**: 구글의 광고 쿠키를 사용함으로써 구글 및 파트너 업체는 사용자의 본 사이트 및 기타 사이트 방문 기록을 바탕으로 사용자에게 적절한 광고를 게재할 수 있습니다.
+- **거부 방법**: 사용자는 [구글 광고 설정](https://www.google.com/settings/ads)을 방문하여 개인 맞춤형 광고를 해제할 수 있습니다. 또는 [www.aboutads.info](http://www.aboutads.info)를 방문하여 제3자 업체의 쿠키 사용을 중단할 수 있습니다.
+
+## 4. 개인정보의 보유 및 파기
+**유아이는 사용자의 민감한 사주 데이터를 서버에 영구 저장하지 않는 것을 원칙으로 합니다.**
+- 입력된 사주 정보는 세션 동안 분석을 위해서만 일시적으로 사용됩니다.
+- 사용자가 브라우저를 종료하거나 세션이 만료되면 해당 정보는 즉시 파기됩니다.
+
+## 5. 제3자 제공 및 위탁
+서비스는 사용자의 동의 없이 개인정보를 외부에 제공하지 않습니다. 단, 서비스 운영을 위해 다음과 같은 외부 플랫폼을 활용합니다.
+- **Google Firebase**: 데이터베이스 및 시스템 운영
+- **Google AdSense**: 광고 게재 및 수익화
+
+## 6. 사용자의 권리
+사용자는 언제든지 자신의 정보 입력을 중단할 수 있으며, 브라우저의 캐시 및 쿠키 삭제를 통해 로컬 데이터를 관리할 수 있습니다.
+                        `}</ReactMarkdown>
+                      )}
+                      {guideSubPage === "contact" && (
+                        <ReactMarkdown>{`
+# 문의하기 (Contact Us)
+
+유아이 사주상담 서비스 이용 중 궁금한 점이나 제안하고 싶은 내용이 있다면 언제든지 연락해 주세요.
+
+## 연락처 정보
+- **이메일**: [dean.uitrading@gmail.com](mailto:dean.uitrading@gmail.com)
+- **운영 시간**: 언제든 가능
+
+## 제휴 및 비즈니스 문의
+유아이의 AI 사주 분석 기술을 활용한 제휴나 비즈니스 협업 제안도 환영합니다. 이메일로 상세 내용을 보내주시면 검토 후 연락드리겠습니다.
+
+---
+*보내주신 소중한 의견은 서비스 개선에 큰 힘이 됩니다.*
+                        `}</ReactMarkdown>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Footer Section */}
+                <div className="pt-12 border-t border-black/5 dark:border-white/5">
+                  <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+                    <button onClick={() => setGuideSubPage("about")} className="hover:text-indigo-500 transition-colors">소개 (About)</button>
+                    <button onClick={() => setGuideSubPage("terms")} className="hover:text-indigo-500 transition-colors">이용약관 (Terms)</button>
+                    <button onClick={() => setGuideSubPage("privacy")} className="hover:text-indigo-500 transition-colors">개인정보 처리방침 (Privacy)</button>
+                    <button onClick={() => setGuideSubPage("contact")} className="hover:text-indigo-500 transition-colors">문의하기 (Contact)</button>
+                  </div>
+                  <div className="mt-8 text-center space-y-2">
+                    <p className="text-[10px] text-zinc-400 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
+                    <p className="text-[9px] text-zinc-400 opacity-40 max-w-2xl mx-auto leading-relaxed">
+                      유아이 사주상담은 인공지능 기술을 활용한 명리학 가이드 서비스입니다. 모든 분석 결과는 참고용이며, 삶의 최종 결정은 본인의 판단하에 이루어져야 합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-10 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10 text-center">
+                <p className="text-sm font-bold text-indigo-400/70 leading-relaxed">
+                  유아이(UI)와 함께 당신의 운명을 디자인하세요.
+                </p>
+              </div>
+            </motion.div>
           )}
 
           {activeTab === "blog" && (
@@ -3061,19 +3504,17 @@ ${daeunContext}
                                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Rich Text / Markdown)</label>
                                   </div>
                                   <div className="prose-editor dark:prose-editor-dark">
-                                    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">에디터 로딩 중...</div>}>
-                                      <LazySimpleMDE 
-                                        value={newPost.content}
-                                        onChange={value => setNewPost({...newPost, content: value})}
-                                        options={{
-                                          spellChecker: false,
-                                          autofocus: false,
-                                          placeholder: "마크다운 문법을 사용하여 내용을 작성하세요...",
-                                          status: false,
-                                          minHeight: "300px"
-                                        }}
-                                      />
-                                    </Suspense>
+                                    <SimpleMDE 
+                                      value={newPost.content}
+                                      onChange={value => setNewPost({...newPost, content: value})}
+                                      options={{
+                                        spellChecker: false,
+                                        autofocus: false,
+                                        placeholder: "마크다운 문법을 사용하여 내용을 작성하세요...",
+                                        status: false,
+                                        minHeight: "300px"
+                                      }}
+                                    />
                                   </div>
                                 </div>
                                 <button 
@@ -3190,19 +3631,17 @@ ${daeunContext}
                                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Rich Text / Markdown)</label>
                                   </div>
                                   <div className="prose-editor dark:prose-editor-dark">
-                                    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">에디터 로딩 중...</div>}>
-                                      <LazySimpleMDE 
-                                        value={isEditingPost.content}
-                                        onChange={value => setIsEditingPost({...isEditingPost, content: value})}
-                                        options={{
-                                          spellChecker: false,
-                                          autofocus: false,
-                                          placeholder: "내용을 입력하세요...",
-                                          status: false,
-                                          minHeight: "300px"
-                                        }}
-                                      />
-                                    </Suspense>
+                                    <SimpleMDE 
+                                      value={isEditingPost.content}
+                                      onChange={value => setIsEditingPost({...isEditingPost, content: value})}
+                                      options={{
+                                        spellChecker: false,
+                                        autofocus: false,
+                                        placeholder: "내용을 입력하세요...",
+                                        status: false,
+                                        minHeight: "300px"
+                                      }}
+                                    />
                                   </div>
                                 </div>
                                 <button 
@@ -3339,306 +3778,6 @@ ${daeunContext}
               </div>
             </motion.div>
           )}
-
-          {activeTab === "board" && (
-            <motion.div
-              key="board"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-zinc-50 dark:bg-[#0a0a0a]"
-            >
-              <div className="max-w-6xl mx-auto pb-20 space-y-8">
-                <div className={`p-6 md:p-10 rounded-[2.5rem] border ${isDarkMode ? 'bg-zinc-900/70 border-white/10' : 'bg-white border-black/5 shadow-xl'} space-y-4`}>
-                  <h2 className="text-3xl md:text-5xl font-title font-bold tracking-tight">방명록</h2>
-                  <p className={`text-sm md:text-base ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                    로그인 없이 닉네임으로 인사와 의견을 남길 수 있습니다.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setBoardViewMode("all")}
-                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${boardViewMode === "all" ? 'bg-indigo-600 text-white' : isDarkMode ? 'bg-white/5 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}
-                    >
-                      전체 방명록
-                    </button>
-                    <button
-                      onClick={() => {
-                        setBoardViewMode("notice");
-                        setBoardCategory("전체");
-                      }}
-                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${boardViewMode === "notice" ? 'bg-amber-500 text-white' : isDarkMode ? 'bg-white/5 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}
-                    >
-                      공지사항 전용
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {['전체', '공지', '자유', '질문', '후기'].map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setBoardCategory(cat)}
-                        disabled={boardViewMode === "notice"}
-                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${boardCategory === cat ? 'bg-indigo-600 text-white' : isDarkMode ? 'bg-white/5 text-zinc-300 hover:bg-white/10' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                    <div className="ml-auto flex gap-2">
-                      {showAdminGate && !user && (
-                        <button
-                          onClick={handleLogin}
-                          disabled={isLoggingIn}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-60"
-                        >
-                          {isLoggingIn ? '로그인 중...' : '관리자 로그인'}
-                        </button>
-                      )}
-                      {isAdmin && user && (
-                        <button
-                          onClick={handleLogout}
-                          className="px-4 py-2 rounded-xl bg-zinc-700 text-white text-xs font-bold hover:bg-zinc-800 transition-all"
-                        >
-                          관리자 로그아웃
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setIsAddingBoardPost(prev => !prev)}
-                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all"
-                      >
-                        {isAddingBoardPost ? '작성 닫기' : '방명록 남기기'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {isAdmin && boardReports.length > 0 && (
-                  <div className={`p-5 rounded-3xl border ${isDarkMode ? 'bg-rose-500/10 border-rose-500/30' : 'bg-rose-50 border-rose-200'} space-y-3`}>
-                    <h3 className="text-sm font-bold text-rose-500">신고 접수함 ({boardReports.length})</h3>
-                    <div className="space-y-2 max-h-52 overflow-y-auto hide-scrollbar">
-                      {boardReports.slice(0, 20).map(report => (
-                        <div key={report.id} className={`p-3 rounded-xl border ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-rose-100'} flex items-center justify-between gap-3`}>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold line-clamp-1">
-                              [{report.targetType === 'post' ? '게시글' : '댓글'}] {report.reason}
-                            </p>
-                            <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                              신고자: {report.reporterName} · {report.date}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleResolveReport(report.id)}
-                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500 text-white hover:bg-rose-600 transition-all"
-                          >
-                            처리완료
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {isAddingBoardPost && (
-                  <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/60 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-4`}>
-                    <h3 className="text-lg font-bold">방명록 작성</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-[160px_1fr_1fr] gap-3">
-                      <select
-                        value={newBoardPost.isNotice ? '공지' : (newBoardPost.category || '자유')}
-                        onChange={(e) => setNewBoardPost({ ...newBoardPost, category: e.target.value })}
-                        disabled={!!newBoardPost.isNotice}
-                        className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
-                      >
-                        {isAdmin && <option value="공지">공지</option>}
-                        <option value="자유">자유</option>
-                        <option value="질문">질문</option>
-                        <option value="후기">후기</option>
-                      </select>
-                      <input
-                        value={newBoardPost.authorName || ''}
-                        onChange={(e) => setNewBoardPost({ ...newBoardPost, authorName: e.target.value })}
-                        placeholder="닉네임"
-                        maxLength={20}
-                        className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
-                      />
-                      <input
-                        value={newBoardPost.title || ''}
-                        onChange={(e) => setNewBoardPost({ ...newBoardPost, title: e.target.value })}
-                        placeholder="제목 (선택)"
-                        maxLength={100}
-                        className={`px-4 py-3 rounded-2xl border text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
-                      />
-                    </div>
-                    <textarea
-                      value={newBoardPost.content || ''}
-                      onChange={(e) => setNewBoardPost({ ...newBoardPost, content: e.target.value })}
-                      placeholder="방문 인사나 의견을 남겨주세요"
-                      rows={6}
-                      maxLength={1000}
-                      className={`w-full px-4 py-3 rounded-2xl border text-sm resize-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
-                    />
-                    {isAdmin && (
-                      <label className={`flex items-center gap-2 text-xs font-bold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
-                        <input
-                          type="checkbox"
-                          checked={!!newBoardPost.isNotice}
-                          onChange={(e) => setNewBoardPost({
-                            ...newBoardPost,
-                            isNotice: e.target.checked,
-                            category: e.target.checked ? "공지" : (newBoardPost.category || "자유")
-                          })}
-                          className="accent-amber-500"
-                        />
-                        공지사항으로 등록
-                      </label>
-                    )}
-                    <div className="flex justify-end">
-                      <button
-                        onClick={handleAddBoardPost}
-                        className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all"
-                      >
-                        등록하기
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedBoardPost ? (
-                  <div className={`p-6 md:p-8 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/70 border-white/10' : 'bg-white border-black/5 shadow-lg'} space-y-6`}>
-                    <button
-                      onClick={() => setSelectedBoardPost(null)}
-                      className="text-sm font-bold text-indigo-500 hover:underline"
-                    >
-                      목록으로 돌아가기
-                    </button>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-xs opacity-60">
-                        {selectedBoardPost.isNotice && (
-                          <span className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-500 font-bold">공지</span>
-                        )}
-                        <span className="px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">{selectedBoardPost.category}</span>
-                        <span>{selectedBoardPost.date}</span>
-                        <span>조회 {selectedBoardPost.views || 0}</span>
-                      </div>
-                      <h3 className="text-2xl md:text-3xl font-bold">{selectedBoardPost.title}</h3>
-                      <p className={`text-sm ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>작성자: {selectedBoardPost.authorName}</p>
-                    </div>
-                    <div className={`p-5 rounded-2xl border whitespace-pre-wrap leading-relaxed ${isDarkMode ? 'bg-white/5 border-white/10 text-zinc-200' : 'bg-zinc-50 border-zinc-200 text-zinc-700'}`}>
-                      {selectedBoardPost.content}
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => handleReport("post", selectedBoardPost.id, selectedBoardPost.id)}
-                        className="px-4 py-2 rounded-xl bg-zinc-600 text-white text-sm font-bold hover:bg-zinc-700 transition-all"
-                      >
-                        신고
-                      </button>
-                    </div>
-                    {isAdmin && (
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => handleDeleteBoardPost(selectedBoardPost)}
-                          className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 transition-all"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="pt-4 border-t border-black/5 dark:border-white/10 space-y-4">
-                      <h4 className="text-base font-bold">댓글 {boardComments.length}개</h4>
-
-                      <div className="space-y-3">
-                        {boardComments.map(comment => (
-                          <div
-                            key={comment.id}
-                            className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}
-                          >
-                            <div className="flex items-center justify-between text-xs opacity-60 mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold">{comment.authorName}</span>
-                                <span>{comment.date}</span>
-                              </div>
-                              {isAdmin && (
-                                <button
-                                  onClick={() => handleDeleteBoardComment(comment.id)}
-                                  className="text-rose-500 hover:underline"
-                                >
-                                  삭제
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleReport("comment", comment.id, selectedBoardPost.id)}
-                                className="text-zinc-500 hover:underline"
-                              >
-                                신고
-                              </button>
-                            </div>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
-                          </div>
-                        ))}
-                        {boardComments.length === 0 && (
-                          <p className={`text-sm ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>첫 댓글을 남겨보세요.</p>
-                        )}
-                      </div>
-
-                      <div className={`p-4 rounded-2xl border space-y-3 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-200'}`}>
-                        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-3">
-                          <input
-                            value={newBoardComment.authorName}
-                            onChange={(e) => setNewBoardComment(prev => ({ ...prev, authorName: e.target.value }))}
-                            placeholder="닉네임"
-                            maxLength={20}
-                            className={`px-4 py-3 rounded-xl border text-sm ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-zinc-200'}`}
-                          />
-                          <div className="flex gap-2">
-                            <input
-                              value={newBoardComment.content}
-                              onChange={(e) => setNewBoardComment(prev => ({ ...prev, content: e.target.value }))}
-                              placeholder="댓글을 입력하세요"
-                              maxLength={500}
-                              className={`flex-1 px-4 py-3 rounded-xl border text-sm ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white border-zinc-200'}`}
-                            />
-                            <button
-                              onClick={handleAddBoardComment}
-                              className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all"
-                            >
-                              댓글 등록
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredBoardPosts.map(post => (
-                        <button
-                          key={post.id}
-                          onClick={() => handleBoardPostClick(post)}
-                          className={`w-full text-left p-5 md:p-6 rounded-3xl border transition-all ${post.isNotice ? (isDarkMode ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15' : 'bg-amber-50 border-amber-200 hover:bg-amber-100') : (isDarkMode ? 'bg-zinc-900/60 border-white/10 hover:bg-zinc-800/60' : 'bg-white border-black/5 hover:shadow-md')} space-y-3`}
-                        >
-                          <div className="flex flex-wrap items-center gap-2 text-xs opacity-60">
-                            {post.isNotice && <span className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-500 font-bold">공지</span>}
-                            <span className="px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">{post.category}</span>
-                            <span>{post.authorName}</span>
-                            <span>{post.date}</span>
-                            <span>조회 {post.views || 0}</span>
-                          </div>
-                          <h4 className="text-lg md:text-xl font-bold line-clamp-1">{post.title}</h4>
-                          <p className={`text-sm line-clamp-2 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                            {post.content}
-                          </p>
-                        </button>
-                      ))}
-
-                    {filteredBoardPosts.length === 0 && (
-                      <div className="text-center py-20 opacity-50">
-                        <Ticket className="w-12 h-12 mx-auto mb-3" />
-                        <p className="text-sm">등록된 게시글이 없습니다. 첫 글을 작성해 보세요.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
         </AnimatePresence>
       </main>
 
@@ -3649,7 +3788,6 @@ ${daeunContext}
             { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
             { id: "chat", icon: MessageCircle, label: "상담" },
             { id: "report", icon: FileText, label: "리포트" },
-            { id: "board", icon: Ticket, label: "게시판" },
             { id: "blog", icon: Newspaper, label: "블로그" },
             { id: "guide", icon: Info, label: "가이드" }
           ].map((tab) => (
