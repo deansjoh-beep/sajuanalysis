@@ -5,8 +5,6 @@ import {
   User, 
   Sparkles, 
   RefreshCw, 
-  Moon, 
-  Sun,
   MessageCircle,
   FileText,
   LayoutDashboard,
@@ -40,6 +38,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { jsPDF } from "jspdf";
 import * as htmlToImage from "html-to-image";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok } from "./utils/saju";
+import { TaekilCategory } from "./utils/taekilEngine";
 import { SUGGESTED_QUESTIONS, CATEGORIES, BASIC_CHAT_CATEGORIES, BASIC_CATEGORY_QUESTION_POOL } from "./constants/questions";
 import { BLOG_POSTS, BlogPost } from "./constants/blog";
 import { Newspaper, ArrowLeft, Plus, Trash2, Edit2, X, Save, ArrowRight, Image as ImageIcon, Maximize } from "lucide-react";
@@ -198,14 +197,203 @@ interface UserData {
   unknownTime: boolean;
 }
 
+interface TaekilTimeSlot {
+  time: string;
+  score: number;
+  reason: string;
+}
+
+interface TaekilScoreFactor {
+  label: string;
+  weight: number;
+  type: 'plus' | 'minus' | 'info';
+}
+
+interface TaekilResultItem {
+  date: string;
+  rating: number;
+  reasons: string[];
+  topTimeSlots: TaekilTimeSlot[];
+  factors: TaekilScoreFactor[];
+}
+
+interface TaekilFieldOption {
+  value: string;
+  label: string;
+}
+
+interface TaekilFieldConfig {
+  key: string;
+  label: string;
+  placeholder?: string;
+  type?: 'text' | 'select';
+  options?: TaekilFieldOption[];
+}
+
+const TAEKIL_CATEGORIES: TaekilCategory[] = ['결혼', '이사', '개업', '출산', '계약', '수술', '시험', '여행', '이장', '만남'];
+
+const WEEKDAY_OPTIONS = [
+  { value: '0', label: '일요일' },
+  { value: '1', label: '월요일' },
+  { value: '2', label: '화요일' },
+  { value: '3', label: '수요일' },
+  { value: '4', label: '목요일' },
+  { value: '5', label: '금요일' },
+  { value: '6', label: '토요일' }
+];
+
+const TAEKIL_CATEGORY_CONTENT: Record<TaekilCategory, {
+  eyebrow: string;
+  title: string;
+  description: string;
+  checklist: string[];
+  detailLabel: string;
+  detailPlaceholder: string;
+}> = {
+  결혼: {
+    eyebrow: 'Marriage Taekil',
+    title: '신랑·신부 기준 결혼 택일',
+    description: '양가 일정, 예식 진행감, 두 사람의 사주 흐름을 함께 고려하는 결혼 전용 페이지입니다.',
+    checklist: ['신부 기본 사주 확인', '신랑 생년월일시 입력', '예식 희망 기간 설정'],
+    detailLabel: '예식 관련 메모',
+    detailPlaceholder: '예: 토요일 예식 선호, 양가 상견례 일정 고려, 하객 이동 거리 등'
+  },
+  이사: {
+    eyebrow: 'Moving Taekil',
+    title: '이사 일정 중심 택일',
+    description: '입주일, 계약 잔금일, 짐 이동일처럼 실제 생활 일정에 맞춘 이사 전용 페이지입니다.',
+    checklist: ['이사 기간 범위', '입주/잔금 일정 메모', '가족 동행 여부 정리'],
+    detailLabel: '이사 관련 메모',
+    detailPlaceholder: '예: 남향 집, 잔금일 우선, 주말 이사만 가능 등'
+  },
+  개업: {
+    eyebrow: 'Business Opening',
+    title: '오픈일 중심 개업 택일',
+    description: '업종과 영업 개시 타이밍을 반영해서 오픈일 검토에 집중한 개업 전용 페이지입니다.',
+    checklist: ['오픈 목표 기간', '업종/상권 메모', '행사 오픈 여부 정리'],
+    detailLabel: '개업 관련 메모',
+    detailPlaceholder: '예: 카페 오픈, 오전 커팅식 예정, 유동인구 많은 금토 희망 등'
+  },
+  출산: {
+    eyebrow: 'Childbirth Taekil',
+    title: '출산 일정 중심 택일',
+    description: '예정일과 병원 스케줄을 바탕으로 출산 시기 판단에 집중하는 페이지입니다.',
+    checklist: ['예정 기간 설정', '병원 일정 확인', '자연분만/수술 여부 메모'],
+    detailLabel: '출산 관련 메모',
+    detailPlaceholder: '예: 제왕절개 후보일 검토, 오전 수술 가능, 병원 휴진일 제외 등'
+  },
+  계약: {
+    eyebrow: 'Contract Taekil',
+    title: '서명·체결 중심 계약 택일',
+    description: '계약 체결, 서명, 입금과 같이 문서 효력이 발생하는 시점 검토에 맞춘 페이지입니다.',
+    checklist: ['계약 희망 기간', '계약 성격 메모', '상대방 일정 고려'],
+    detailLabel: '계약 관련 메모',
+    detailPlaceholder: '예: 부동산 계약, 오후 서명, 상대방 해외 체류 일정 고려 등'
+  },
+  수술: {
+    eyebrow: 'Surgery Taekil',
+    title: '수술 일정 중심 택일',
+    description: '의학적 우선순위를 해치지 않는 범위에서 일정 검토를 돕는 수술 전용 페이지입니다.',
+    checklist: ['병원 가능 기간', '회복 일정 메모', '가족 보호자 동행 여부'],
+    detailLabel: '수술 관련 메모',
+    detailPlaceholder: '예: 오전 수술 희망, 입원 3일 예정, 보호자 동행 가능일 등'
+  },
+  시험: {
+    eyebrow: 'Exam Taekil',
+    title: '시험·면접 일정 중심 택일',
+    description: '시험 응시, 구술 면접, 발표일정 등 긴장도가 높은 이벤트를 위한 페이지입니다.',
+    checklist: ['시험 기간 설정', '시험 종류 메모', '오전/오후 선호 여부'],
+    detailLabel: '시험 관련 메모',
+    detailPlaceholder: '예: 자격증 면접, 오전 응시 선호, 발표 전날 컨디션 관리 등'
+  },
+  여행: {
+    eyebrow: 'Travel Taekil',
+    title: '출발일 중심 여행 택일',
+    description: '출국일, 출발일, 이동 시작 시점처럼 여행의 첫 리듬을 잡는 페이지입니다.',
+    checklist: ['출발 기간 설정', '목적지 메모', '동행인 일정 고려'],
+    detailLabel: '여행 관련 메모',
+    detailPlaceholder: '예: 일본 가족여행, 새벽 비행기 제외, 2박 3일 일정 등'
+  },
+  이장: {
+    eyebrow: 'Relocation of Grave',
+    title: '이장 일정 중심 택일',
+    description: '가족 일정과 현장 진행을 고려해 이장 후보일을 정리하는 페이지입니다.',
+    checklist: ['가족 가능 기간', '현장 준비 메모', '주요 참여자 일정 정리'],
+    detailLabel: '이장 관련 메모',
+    detailPlaceholder: '예: 주말만 가능, 장지 이동 거리 고려, 형제자매 전원 참석 희망 등'
+  },
+  만남: {
+    eyebrow: 'Meeting Taekil',
+    title: '중요한 만남 중심 택일',
+    description: '상견례, 첫 만남, 중요한 제안 미팅처럼 관계의 시작점을 고려하는 페이지입니다.',
+    checklist: ['만남 기간 설정', '만남 목적 메모', '상대 일정 고려'],
+    detailLabel: '만남 관련 메모',
+    detailPlaceholder: '예: 상견례, 첫 투자 미팅, 저녁 만남 선호 등'
+  }
+};
+
+const TAEKIL_CATEGORY_FORM_FIELDS: Record<Exclude<TaekilCategory, '결혼'>, TaekilFieldConfig[]> = {
+  이사: [
+    { key: 'moveType', label: '이사 유형', type: 'select', options: [{ value: '입주', label: '입주' }, { value: '전세/매매', label: '전세/매매' }, { value: '사무실 이전', label: '사무실 이전' }] },
+    { key: 'moveDirection', label: '우선 고려 방향', placeholder: '예: 남향, 동남향, 방향 무관' },
+    { key: 'moveConstraint', label: '실무 제약사항', placeholder: '예: 잔금일 우선, 주말만 가능, 엘리베이터 작업 예약 등' }
+  ],
+  개업: [
+    { key: 'openingBusinessType', label: '업종', placeholder: '예: 카페, 병원, 온라인 쇼핑몰' },
+    { key: 'openingStyle', label: '오픈 방식', type: 'select', options: [{ value: '소프트 오픈', label: '소프트 오픈' }, { value: '정식 오픈', label: '정식 오픈' }, { value: '행사 오픈', label: '행사 오픈' }] },
+    { key: 'openingPriority', label: '우선순위', placeholder: '예: 유동인구 많은 금요일, 오전 커팅식, 점심 영업 전 시작 등' }
+  ],
+  출산: [
+    { key: 'childbirthMethod', label: '출산 방식', type: 'select', options: [{ value: '자연분만', label: '자연분만' }, { value: '제왕절개', label: '제왕절개' }, { value: '미정', label: '미정' }] },
+    { key: 'childbirthHospital', label: '병원/일정 메모', placeholder: '예: 오전 수술 가능, 주치의 가능일 있음' },
+    { key: 'childbirthPriority', label: '우선 고려사항', placeholder: '예: 산모 회복 우선, 주말 제외, 38주차 안쪽 선호' }
+  ],
+  계약: [
+    { key: 'contractType', label: '계약 종류', placeholder: '예: 부동산, 투자, 프리랜서, 법인 계약' },
+    { key: 'contractCounterparty', label: '상대방/기관', placeholder: '예: 개인 임대인, 법인, 투자사' },
+    { key: 'contractPriority', label: '체결 포인트', placeholder: '예: 오후 서명, 입금일 연동, 대리인 참석 가능 등' }
+  ],
+  수술: [
+    { key: 'surgeryDepartment', label: '수술 종류/진료과', placeholder: '예: 정형외과, 치과, 안과' },
+    { key: 'surgerySchedule', label: '병원 가능 일정', placeholder: '예: 화목 오전만 가능, 입원 2박 3일 예정' },
+    { key: 'surgeryPriority', label: '우선 고려사항', placeholder: '예: 보호자 동행, 회복 기간, 연차 사용 일정 등' }
+  ],
+  시험: [
+    { key: 'examType', label: '시험/면접 종류', placeholder: '예: 공무원 면접, 자격증 실기, 대학원 구술' },
+    { key: 'examSession', label: '응시 시간대', type: 'select', options: [{ value: '오전', label: '오전' }, { value: '오후', label: '오후' }, { value: '종일', label: '종일' }, { value: '미정', label: '미정' }] },
+    { key: 'examPriority', label: '컨디션 관리 포인트', placeholder: '예: 발표 전날 안정감, 아침 컨디션 좋음 등' }
+  ],
+  여행: [
+    { key: 'travelDestination', label: '목적지', placeholder: '예: 일본 오사카, 제주도, 유럽' },
+    { key: 'travelCompanion', label: '동행인', placeholder: '예: 가족 4인, 배우자, 친구 2명' },
+    { key: 'travelPriority', label: '출발 조건', placeholder: '예: 새벽 비행 제외, 주말 출발, 장거리 이동 최소화 등' }
+  ],
+  이장: [
+    { key: 'graveLocation', label: '장지/이장 위치', placeholder: '예: 선산, 공원묘지, 지방 이동' },
+    { key: 'graveParticipants', label: '참여 인원', placeholder: '예: 형제자매 전원, 장손 포함, 가족 대표만 참석' },
+    { key: 'gravePriority', label: '진행 조건', placeholder: '예: 주말만 가능, 현장 이동 2시간 이내, 비 예보 회피 등' }
+  ],
+  만남: [
+    { key: 'meetingPurpose', label: '만남 목적', placeholder: '예: 상견례, 첫 투자 미팅, 중요한 제안' },
+    { key: 'meetingCounterparty', label: '상대 정보', placeholder: '예: 예비 사돈, 투자자, 거래처 대표' },
+    { key: 'meetingPriority', label: '선호 조건', placeholder: '예: 저녁 시간대, 식사 자리 포함, 주중만 가능 등' }
+  ]
+};
+
+const TAEKIL_SECTION_CARD_CLASS = 'rounded-3xl border p-4 md:p-6 bg-zinc-50 border-zinc-200';
+const TAEKIL_Q_BADGE_CLASS = 'text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-500';
+const TAEKIL_LABEL_CLASS = 'text-xs font-bold text-zinc-500';
+const TAEKIL_HELP_TEXT_CLASS = 'mt-1 text-xs text-zinc-500';
+const TAEKIL_FIELD_CLASS = 'w-full rounded-2xl border px-4 py-3 text-sm outline-none bg-white border-zinc-200 text-zinc-900';
+const TAEKIL_FIELD_PLACEHOLDER_CLASS = `${TAEKIL_FIELD_CLASS} placeholder:text-zinc-500`;
+
 const HanjaBox: React.FC<{ 
   hanja: string, 
   size?: 'sm' | 'md' | 'lg', 
-  isDarkMode?: boolean,
   deity?: string,
   deityPosition?: 'top' | 'bottom',
   highlight?: boolean
-}> = ({ hanja, size = 'md', isDarkMode = true, deity, deityPosition, highlight = false }) => {
+}> = ({ hanja, size = 'md', deity, deityPosition, highlight = false }) => {
   const element = elementMap[hanja];
   const isYang = yinYangMap[hanja] === '+';
   const emphasisClasses = highlight ? 'ring-2 ring-indigo-500/70 shadow-lg shadow-indigo-500/20 scale-110' : '';
@@ -217,7 +405,7 @@ const HanjaBox: React.FC<{
   };
 
   const deityEl = deity ? (
-    <span className={`text-[9px] font-title font-bold ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'} absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
+    <span className={`text-[9px] font-title font-bold text-indigo-600 absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
       {deity}
     </span>
   ) : null;
@@ -236,15 +424,15 @@ const HanjaBox: React.FC<{
 
   // Metal Special Rules (庚, 申, 辛, 酉)
   if (element === 'metal') {
-    const silverColor = isDarkMode ? 'bg-zinc-400 border-zinc-400' : 'bg-zinc-100 border-zinc-200';
-    const whiteColor = isDarkMode ? 'bg-zinc-200 border-zinc-200' : 'bg-white border-zinc-100';
+    const silverColor = 'bg-zinc-100 border-zinc-200';
+    const whiteColor = 'bg-white border-zinc-100';
     
     if (isYang) {
       // Yang Metal: White background, Silver text
       return (
         <div className="relative">
           {deityPosition === 'top' && deityEl}
-          <div className={`${sizeClasses[size]} ${whiteColor} ${isDarkMode ? 'text-zinc-600' : 'text-zinc-400'} border flex items-center justify-center font-bold ${emphasisClasses}`}>
+          <div className={`${sizeClasses[size]} ${whiteColor} text-zinc-500 border flex items-center justify-center font-bold ${emphasisClasses}`}>
             {hanja}
           </div>
           {deityPosition === 'bottom' && deityEl}
@@ -255,7 +443,7 @@ const HanjaBox: React.FC<{
       return (
         <div className="relative">
           {deityPosition === 'top' && deityEl}
-          <div className={`${sizeClasses[size]} ${silverColor} ${isDarkMode ? 'text-white' : 'text-zinc-600'} border flex items-center justify-center font-bold ${emphasisClasses}`}>
+          <div className={`${sizeClasses[size]} ${silverColor} text-zinc-600 border flex items-center justify-center font-bold ${emphasisClasses}`}>
             {hanja}
           </div>
           {deityPosition === 'bottom' && deityEl}
@@ -266,27 +454,27 @@ const HanjaBox: React.FC<{
 
   const styles: Record<string, { bg: string, text: string, border: string, yinText: string }> = {
     wood: { 
-      bg: isDarkMode ? 'bg-emerald-600' : 'bg-emerald-500', 
-      text: isDarkMode ? 'text-emerald-400' : 'text-emerald-600', 
-      border: isDarkMode ? 'border-emerald-600/50' : 'border-emerald-500', 
+      bg: 'bg-emerald-500', 
+      text: 'text-emerald-600', 
+      border: 'border-emerald-500', 
       yinText: 'text-white' 
     },
     fire: { 
-      bg: isDarkMode ? 'bg-rose-600' : 'bg-red-500', 
-      text: isDarkMode ? 'text-rose-400' : 'text-red-600', 
-      border: isDarkMode ? 'border-rose-600/50' : 'border-red-500', 
+      bg: 'bg-red-500', 
+      text: 'text-red-600', 
+      border: 'border-red-500', 
       yinText: 'text-white' 
     },
     earth: { 
-      bg: isDarkMode ? 'bg-amber-500' : 'bg-amber-400', 
-      text: isDarkMode ? 'text-amber-400' : 'text-amber-600', 
-      border: isDarkMode ? 'border-amber-500/50' : 'border-amber-400', 
-      yinText: isDarkMode ? 'text-zinc-900' : 'text-zinc-900' 
+      bg: 'bg-amber-400', 
+      text: 'text-amber-600', 
+      border: 'border-amber-400', 
+      yinText: 'text-zinc-900' 
     },
     water: { 
-      bg: isDarkMode ? 'bg-zinc-700' : 'bg-zinc-900', 
-      text: isDarkMode ? 'text-zinc-300' : 'text-zinc-900', 
-      border: isDarkMode ? 'border-zinc-700' : 'border-zinc-900', 
+      bg: 'bg-zinc-900', 
+      text: 'text-zinc-900', 
+      border: 'border-zinc-900', 
       yinText: 'text-white' 
     },
   };
@@ -316,7 +504,7 @@ const HanjaBox: React.FC<{
   }
 };
 
-const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpen?: boolean }> = ({ content, isDarkMode, forceOpen }) => {
+const ReportAccordion: React.FC<{ content: string; forceOpen?: boolean }> = ({ content, forceOpen }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   // Parse the content into sections
@@ -378,7 +566,7 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
 
   if (sections.length === 0) {
     return (
-      <div className="markdown-body prose dark:prose-invert max-w-none text-sm p-4">
+      <div className="markdown-body prose max-w-none text-sm p-4">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
@@ -387,11 +575,7 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
   return (
     <div className="space-y-3">
       {greeting && (
-        <div className={`p-6 md:p-8 rounded-[2.5rem] ${
-          isDarkMode 
-            ? 'bg-indigo-950/60 text-indigo-50 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1)]' 
-            : 'bg-indigo-50 text-indigo-950 border-indigo-100'
-        } font-handwriting text-2xl md:text-3xl leading-relaxed mb-8 shadow-sm border`}>
+        <div className={`p-6 md:p-8 rounded-[2.5rem] bg-indigo-50 text-indigo-950 border-indigo-100 font-handwriting text-2xl md:text-3xl leading-relaxed mb-8 shadow-sm border`}>
           <ReactMarkdown>{greeting}</ReactMarkdown>
         </div>
       )}
@@ -400,22 +584,20 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
         return (
           <div 
             key={index} 
-            className={`rounded-2xl border transition-all overflow-hidden ${
-              isDarkMode ? 'bg-zinc-900/60 border-white/10' : 'bg-white border-black/5 shadow-sm'
-            }`}
+            className={`rounded-2xl border transition-all overflow-hidden bg-white border-black/5 shadow-sm`}
           >
             <button
               onClick={() => setOpenIndex(openIndex === index ? null : index)}
               className="w-full px-5 py-4 flex items-center justify-between text-left group"
             >
               <div className="flex-1 pr-4">
-                <h3 className={`text-sm font-bold leading-tight transition-colors ${isDarkMode ? 'text-zinc-300 group-hover:text-indigo-400' : 'text-zinc-800 group-hover:text-indigo-600'}`}>
+                <h3 className={`text-sm font-bold leading-tight transition-colors text-zinc-800 group-hover:text-indigo-600`}>
                   {section.header}
                 </h3>
               </div>
               {!forceOpen && (
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                  isOpen ? 'bg-indigo-500 text-white rotate-180 shadow-lg shadow-indigo-500/20' : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400'
+                  isOpen ? 'bg-indigo-500 text-white rotate-180 shadow-lg shadow-indigo-500/20' : 'bg-zinc-100 text-zinc-500'
                 }`}>
                   <ChevronDown className="w-4 h-4" />
                 </div>
@@ -430,9 +612,9 @@ const ReportAccordion: React.FC<{ content: string; isDarkMode: boolean; forceOpe
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.25, ease: "easeInOut" }}
                 >
-                  <div className={`px-5 pb-5 pt-0 text-sm leading-relaxed ${isDarkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                    <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-4" />
-                    <div className="markdown-body prose dark:prose-invert max-w-none">
+                  <div className={`px-5 pb-5 pt-0 text-sm leading-relaxed text-zinc-700`}>
+                    <div className="w-full h-px bg-black/5 mb-4" />
+                    <div className="markdown-body prose max-w-none">
                       <ReactMarkdown>{section.body}</ReactMarkdown>
                     </div>
                   </div>
@@ -467,10 +649,75 @@ const renderChatPlainText = (text: string) => {
   );
 };
 
+const waitMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const parseModelErrorPayload = (err: any) => {
+  const directCode = err?.error?.code ?? err?.code;
+  const directStatus = err?.error?.status ?? err?.status;
+
+  if (directCode || directStatus) {
+    return {
+      code: Number(directCode) || null,
+      status: String(directStatus || '').toUpperCase() || null,
+      message: String(err?.error?.message || err?.message || '')
+    };
+  }
+
+  const rawMessage = String(err?.message || '');
+  const jsonStart = rawMessage.indexOf('{"error"');
+  if (jsonStart >= 0) {
+    try {
+      const parsed = JSON.parse(rawMessage.slice(jsonStart));
+      return {
+        code: Number(parsed?.error?.code) || null,
+        status: String(parsed?.error?.status || '').toUpperCase() || null,
+        message: String(parsed?.error?.message || rawMessage)
+      };
+    } catch {
+      // keep fallback below
+    }
+  }
+
+  return {
+    code: null,
+    status: null,
+    message: rawMessage
+  };
+};
+
+const isRetryableModelError = (err: any) => {
+  const payload = parseModelErrorPayload(err);
+  return payload.code === 429 || payload.code === 503 || payload.status === 'UNAVAILABLE' || payload.status === 'RESOURCE_EXHAUSTED';
+};
+
+const runWithModelRetry = async <T,>(
+  task: () => Promise<T>,
+  maxAttempts = 3
+): Promise<T> => {
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (err: any) {
+      lastError = err;
+      if (!isRetryableModelError(err) || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const backoff = 1200 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 300);
+      console.warn(`[RETRY] Gemini request failed with transient load error. attempt=${attempt}/${maxAttempts}, wait=${backoff}ms`);
+      await waitMs(backoff);
+    }
+  }
+
+  throw lastError;
+};
+
 const App: React.FC = () => {
   // Navigation
-  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "chat" | "report" | "guide" | "blog">("welcome");
-  const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact">("main");
+  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog">("welcome");
+  const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   
   // State
@@ -512,13 +759,114 @@ const App: React.FC = () => {
     report: REPORT_GUIDELINE
   });
   const [guidelinesError, setGuidelinesError] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [showAdminGate, setShowAdminGate] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [taekilActiveCategory, setTaekilActiveCategory] = useState<TaekilCategory>('결혼');
+  const [taekilStartMonth, setTaekilStartMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [taekilEndMonth, setTaekilEndMonth] = useState(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 3, 1);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [marriagePeriodStart, setMarriagePeriodStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  const [marriagePeriodEnd, setMarriagePeriodEnd] = useState(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+  });
+  const [taekilLoading, setTaekilLoading] = useState(false);
+  const [taekilError, setTaekilError] = useState<string | null>(null);
+  const [taekilNotice, setTaekilNotice] = useState<string | null>(null);
+  const [taekilResults, setTaekilResults] = useState<TaekilResultItem[]>([]);
+  const [selectedTaekilDate, setSelectedTaekilDate] = useState<string | null>(null);
+  const [spouseName, setSpouseName] = useState('');
+  const [spouseGender, setSpouseGender] = useState<'M' | 'F'>('M');
+  const [spouseBirthYear, setSpouseBirthYear] = useState('');
+  const [spouseBirthMonth, setSpouseBirthMonth] = useState('');
+  const [spouseBirthDay, setSpouseBirthDay] = useState('');
+  const [spouseBirthHour, setSpouseBirthHour] = useState('12');
+  const [spouseBirthMinute, setSpouseBirthMinute] = useState('0');
+  const [spouseCalendarType, setSpouseCalendarType] = useState<'solar' | 'lunar'>('lunar');
+  const [spouseUnknownTime, setSpouseUnknownTime] = useState(false);
+  const [preferredWeekday1, setPreferredWeekday1] = useState('6');
+  const [preferredWeekday2, setPreferredWeekday2] = useState('0');
+  const [preferredWeekday3, setPreferredWeekday3] = useState('5');
+  const [avoidDateInputs, setAvoidDateInputs] = useState<string[]>(['', '', '', '', '']);
+  const [moveFamilyBirthDates, setMoveFamilyBirthDates] = useState<string[]>(['', '', '', '', '']);
+  const [moveCurrentAddress, setMoveCurrentAddress] = useState('');
+  const [moveTargetAddress, setMoveTargetAddress] = useState('');
+  const [movePeriodStart, setMovePeriodStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  const [movePeriodEnd, setMovePeriodEnd] = useState(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+  });
+  const [movePreferredWeekday1, setMovePreferredWeekday1] = useState('6');
+  const [movePreferredWeekday2, setMovePreferredWeekday2] = useState('0');
+  const [movePreferredWeekday3, setMovePreferredWeekday3] = useState('5');
+  const [movePriority, setMovePriority] = useState<'folklore' | 'saju' | 'balanced'>('balanced');
+  const [moveOnlyWeekend, setMoveOnlyWeekend] = useState(false);
+  const [childFatherBirthDate, setChildFatherBirthDate] = useState('');
+  const [childFatherBirthTime, setChildFatherBirthTime] = useState('12:00');
+  const [childMotherBirthDate, setChildMotherBirthDate] = useState('');
+  const [childMotherBirthTime, setChildMotherBirthTime] = useState('12:00');
+  const [childFetusGender, setChildFetusGender] = useState<'남' | '여'>('남');
+  const [childbirthPeriodStart, setChildbirthPeriodStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  const [childbirthPeriodEnd, setChildbirthPeriodEnd] = useState(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+  });
+  const [generalPeriodStart, setGeneralPeriodStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  const [generalPeriodEnd, setGeneralPeriodEnd] = useState(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+  });
+  const [generalPreferredWeekday1, setGeneralPreferredWeekday1] = useState('6');
+  const [generalPreferredWeekday2, setGeneralPreferredWeekday2] = useState('0');
+  const [generalPreferredWeekday3, setGeneralPreferredWeekday3] = useState('5');
+  const [generalAvoidDateInputs, setGeneralAvoidDateInputs] = useState<string[]>(['', '', '', '', '']);
+  const [taekilAdditionalInfo, setTaekilAdditionalInfo] = useState('');
+  const [taekilFormValues, setTaekilFormValues] = useState<Record<string, string>>({});
+
+  const setTaekilFormValue = (key: string, value: string) => {
+    setTaekilFormValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const taekilActiveFields = taekilActiveCategory === '결혼'
+    ? []
+    : TAEKIL_CATEGORY_FORM_FIELDS[taekilActiveCategory as Exclude<TaekilCategory, '결혼'>];
+
+  const taekilPreviewItems = taekilActiveCategory === '결혼'
+    ? [
+        spouseName ? `배우자: ${spouseName}` : '',
+        spouseBirthYear ? `출생: ${spouseBirthYear}-${spouseBirthMonth || 'MM'}-${spouseBirthDay || 'DD'}` : '',
+        spouseUnknownTime ? '생시 미상' : `출생시각: ${spouseBirthHour}:${String(spouseBirthMinute).padStart(2, '0')}`
+      ].filter(Boolean)
+    : taekilActiveFields
+        .map((field) => taekilFormValues[field.key] ? `${field.label}: ${taekilFormValues[field.key]}` : '')
+        .filter(Boolean)
+        .slice(0, 3);
   
   // Weekly Recommended Content Logic
   const recommendedPosts = useMemo(() => {
@@ -616,15 +964,6 @@ const App: React.FC = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
-
-  // Handle Dark Mode Class
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
 
   useEffect(() => {
     return () => {
@@ -1080,7 +1419,7 @@ const App: React.FC = () => {
     
     try {
       const dataUrl = await htmlToImage.toPng(reportRef.current, {
-        backgroundColor: isDarkMode ? '#000000' : '#f9fafb',
+        backgroundColor: '#f9fafb',
         quality: 1,
         pixelRatio: 2
       });
@@ -1482,15 +1821,18 @@ ${daeunContext}
 `;
 
       console.log("[DEBUG] Sending request to Gemini...");
-      const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
-        config: { 
-          systemInstruction,
-          maxOutputTokens: 4096,
-          temperature: 0.8
-        }
-      });
+      const result = await runWithModelRetry(
+        () => ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{ parts: [{ text: "나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해." }] }],
+          config: {
+            systemInstruction,
+            maxOutputTokens: 4096,
+            temperature: 0.8
+          }
+        }),
+        3
+      );
       
       console.log("[DEBUG] Gemini response received.");
       const text = result.text || "리포트 생성 실패";
@@ -1499,8 +1841,13 @@ ${daeunContext}
       setReportContent(text);
     } catch (err: any) {
       console.error("[ERROR] Report generation failed:", err);
-      const errorMessage = err?.message || String(err);
-      setReportContent(`리포트 생성 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.`);
+      const parsed = parseModelErrorPayload(err);
+      if (isRetryableModelError(err)) {
+        setReportContent(`리포트 생성 중 모델 사용량이 일시적으로 높아 자동 재시도 후에도 완료되지 않았습니다. 잠시 후 다시 시도해 주세요. (상태: ${parsed.status || 'UNAVAILABLE'}, 코드: ${parsed.code || 'N/A'})`);
+      } else {
+        const errorMessage = parsed.message || String(err);
+        setReportContent(`리포트 생성 중 오류가 발생했습니다: ${errorMessage}. 잠시 후 다시 시도해 주세요.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -1511,6 +1858,269 @@ ${daeunContext}
     setConsultationMode(mode);
     setReportContent(null);
     handleGenerateReport();
+  };
+
+  const handleGenerateTaekil = async () => {
+    const padTwo = (value: string) => String(value).padStart(2, '0');
+    const basePayload = {
+      name: userData.name,
+      gender: userData.gender,
+      birthDate: `${userData.birthYear}-${padTwo(userData.birthMonth)}-${padTwo(userData.birthDay)}`,
+      birthTime: `${padTwo(userData.birthHour)}:${padTwo(userData.birthMinute)}`,
+      isLunar: userData.calendarType !== 'solar',
+      isLeap: userData.calendarType === 'leap',
+      unknownTime: userData.unknownTime
+    };
+
+    let payload: Record<string, any>;
+
+    if (taekilActiveCategory === '결혼') {
+      setTaekilNotice(null);
+      if (!spouseName.trim() || !spouseBirthYear || !spouseBirthMonth || !spouseBirthDay) {
+        setTaekilError('결혼 택일을 위해 배우자 이름과 생년월일을 입력해 주세요.');
+        return;
+      }
+
+      if (!marriagePeriodStart || !marriagePeriodEnd) {
+        setTaekilError('희망 결혼식 일정의 시작일과 종료일을 입력해 주세요.');
+        return;
+      }
+
+      if (marriagePeriodEnd < marriagePeriodStart) {
+        setTaekilError('희망 일정의 종료일이 시작일보다 빠를 수 없습니다.');
+        return;
+      }
+
+      const preferredWeekdays = Array.from(new Set([
+        Number(preferredWeekday1),
+        Number(preferredWeekday2),
+        Number(preferredWeekday3)
+      ].filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))).slice(0, 3);
+
+      const avoidDates = avoidDateInputs
+        .map((value) => value.trim())
+        .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
+        .slice(0, 5);
+
+      payload = {
+        ...basePayload,
+        category: '결혼',
+        periodStart: marriagePeriodStart,
+        periodEnd: marriagePeriodEnd,
+        spouseName: spouseName.trim(),
+        spouseGender,
+        spouseBirthDate: `${spouseBirthYear}-${padTwo(spouseBirthMonth)}-${padTwo(spouseBirthDay)}`,
+        spouseBirthTime: `${padTwo(spouseBirthHour)}:${padTwo(spouseBirthMinute)}`,
+        spouseIsLunar: spouseCalendarType === 'lunar',
+        spouseIsLeap: false,
+        spouseUnknownTime,
+        preferredWeekdays,
+        avoidDates
+      };
+    } else {
+      if (taekilActiveCategory === '이사') {
+        if (!moveCurrentAddress.trim() || !moveTargetAddress.trim()) {
+          setTaekilError('이사 택일을 위해 현재 주소와 이사 갈 주소를 입력해 주세요. (동 단위 입력 가능)');
+          return;
+        }
+
+        if (!movePeriodStart || !movePeriodEnd) {
+          setTaekilError('희망 이사 기간의 시작일과 종료일을 입력해 주세요.');
+          return;
+        }
+
+        if (movePeriodEnd < movePeriodStart) {
+          setTaekilError('희망 이사 기간의 종료일이 시작일보다 빠를 수 없습니다.');
+          return;
+        }
+
+        const movePreferredWeekdays = Array.from(new Set([
+          Number(movePreferredWeekday1),
+          Number(movePreferredWeekday2),
+          Number(movePreferredWeekday3)
+        ].filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))).slice(0, 3);
+
+        const familyBirthDates = moveFamilyBirthDates
+          .map((value) => value.trim())
+          .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
+          .slice(0, 5);
+
+        const notices: string[] = [];
+        if (familyBirthDates.length === 0) {
+          notices.push('가족 생년월일 미입력으로 가구주 사주 기준으로 우선 계산합니다.');
+        }
+        const shortAddressMode = moveCurrentAddress.trim().includes('동') || moveTargetAddress.trim().includes('동');
+        if (shortAddressMode) {
+          notices.push('주소를 동 단위로 입력해도 조회 가능하며, 방향 분석은 입력 텍스트 기준으로 간략 적용됩니다.');
+        }
+        setTaekilNotice(notices.length > 0 ? notices.join(' ') : null);
+
+        payload = {
+          ...basePayload,
+          category: '이사',
+          periodStart: movePeriodStart,
+          periodEnd: movePeriodEnd,
+          preferredWeekdays: movePreferredWeekdays,
+          moveCurrentAddress: moveCurrentAddress.trim(),
+          moveTargetAddress: moveTargetAddress.trim(),
+          moveFamilyBirthDates: familyBirthDates,
+          movePriority,
+          moveOnlyWeekend
+        };
+      } else if (taekilActiveCategory === '출산') {
+        if (!childFatherBirthDate || !childMotherBirthDate) {
+          setTaekilError('출산 택일을 위해 부/모 생년월일을 입력해 주세요.');
+          return;
+        }
+
+        if (!childbirthPeriodStart || !childbirthPeriodEnd) {
+          setTaekilError('분만 가능일 시작/종료일을 입력해 주세요.');
+          return;
+        }
+
+        if (childbirthPeriodEnd < childbirthPeriodStart) {
+          setTaekilError('분만 가능일 종료일이 시작일보다 빠를 수 없습니다.');
+          return;
+        }
+
+        setTaekilNotice('출산 택일은 상위 3안을 핵심 후보로 해석해 활용해 주세요.');
+
+        payload = {
+          ...basePayload,
+          category: '출산',
+          periodStart: childbirthPeriodStart,
+          periodEnd: childbirthPeriodEnd,
+          categoryInputs: {
+            fatherBirthDate: childFatherBirthDate,
+            fatherBirthTime: childFatherBirthTime,
+            motherBirthDate: childMotherBirthDate,
+            motherBirthTime: childMotherBirthTime,
+            fetusGender: childFetusGender,
+            designPrompt: '1순위 오행 중화/조후, 2순위 초중년 대운 희신 방향, 3순위 부모와 원진/충 회피'
+          },
+          additionalInfo: '추천 날짜와 시진을 3안 중심으로 해석하고 성격/진로/건강운을 함께 요약'
+        };
+      } else {
+        if (!generalPeriodStart || !generalPeriodEnd) {
+          setTaekilError(`${taekilActiveCategory} 택일을 위해 시작일과 종료일을 입력해 주세요.`);
+          return;
+        }
+
+        if (generalPeriodEnd < generalPeriodStart) {
+          setTaekilError(`${taekilActiveCategory} 기간의 종료일이 시작일보다 빠를 수 없습니다.`);
+          return;
+        }
+
+        const missingField = taekilActiveFields.find((field) => !(taekilFormValues[field.key] || '').trim());
+        if (missingField) {
+          setTaekilError(`${taekilActiveCategory} 택일을 위해 '${missingField.label}' 입력이 필요합니다.`);
+          return;
+        }
+
+        const genericPreferredWeekdays = Array.from(new Set([
+          Number(generalPreferredWeekday1),
+          Number(generalPreferredWeekday2),
+          Number(generalPreferredWeekday3)
+        ].filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))).slice(0, 3);
+
+        const genericAvoidDates = generalAvoidDateInputs
+          .map((value) => value.trim())
+          .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
+          .slice(0, 5);
+
+        setTaekilNotice('입력하신 카테고리 조건(우선순위/메모)을 반영해 상위 5개를 추천합니다.');
+
+        payload = {
+          ...basePayload,
+          category: taekilActiveCategory,
+          periodStart: generalPeriodStart,
+          periodEnd: generalPeriodEnd,
+          preferredWeekdays: genericPreferredWeekdays,
+          avoidDates: genericAvoidDates,
+          categoryInputs: taekilActiveFields.reduce((acc, field) => {
+            acc[field.key] = (taekilFormValues[field.key] || '').trim();
+            return acc;
+          }, {} as Record<string, string>),
+          additionalInfo: taekilAdditionalInfo.trim()
+        };
+      }
+    }
+
+    setTaekilLoading(true);
+    setTaekilError(null);
+
+    try {
+      const response = await fetch('/api/taekil/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || `${taekilActiveCategory} 택일 조회에 실패했습니다.`);
+      }
+
+      const results = Array.isArray(data?.results) ? data.results as TaekilResultItem[] : [];
+      setTaekilResults(results);
+      setSelectedTaekilDate(results[0]?.date ?? null);
+    } catch (error: any) {
+      setTaekilError(error?.message || `${taekilActiveCategory} 택일 조회 중 오류가 발생했습니다.`);
+      setTaekilResults([]);
+      setSelectedTaekilDate(null);
+    } finally {
+      setTaekilLoading(false);
+    }
+  };
+
+  const selectedTaekilDetail = taekilResults.find((item) => item.date === selectedTaekilDate) ?? null;
+  const taekilDisplayResults = taekilActiveCategory === '출산'
+    ? taekilResults.slice(0, 3)
+    : taekilResults;
+
+  const getChildbirthProfileSummary = (item: TaekilResultItem) => {
+    const mergedReason = item.reasons.join(' ');
+    const topTime = item.topTimeSlots?.[0]?.time || '미정';
+
+    const hasInsung = mergedReason.includes('인성');
+    const hasGwansung = mergedReason.includes('관성');
+    const hasSiksang = mergedReason.includes('식신') || mergedReason.includes('식상');
+    const hasJaeseong = mergedReason.includes('재성');
+    const hasYongshin = mergedReason.includes('용신');
+    const hasConflictNote = mergedReason.includes('충') || mergedReason.includes('형') || mergedReason.includes('파') || mergedReason.includes('해');
+
+    const month = Number(item.date.split('-')[1] || '0');
+    const hour = Number(topTime.split(':')[0] || '12');
+    const coolTime = hour <= 7 || hour >= 21;
+    const warmSeason = month >= 5 && month <= 9;
+    const seasonTag = warmSeason ? '화기 편중 구간' : '한습 구간';
+    const jowhuTag = warmSeason
+      ? (coolTime ? '수기 보완형 조후' : '화기 유지형 조후')
+      : (coolTime ? '한습 보강형 조후' : '온기 보완형 조후');
+
+    const personality = hasInsung && hasGwansung
+      ? '성격: 관인상생 구조가 살아 있어 규범의식, 집중력, 학습 흡수력이 안정적으로 발현될 가능성이 큽니다.'
+      : hasSiksang
+        ? '성격: 식상 발현이 도와 표현력과 창의 반응성이 빠르며, 대인 소통에서 유연한 성향이 강화될 수 있습니다.'
+        : '성격: 일간 균형이 과도하게 치우치지 않는 중화형 흐름으로, 정서 기복이 완만한 안정 성향이 예상됩니다.';
+
+    const career = hasGwansung
+      ? `진로: 관성 축이 견고해 제도·전문성 기반 트랙(의학/법학/공공/연구)과의 정합성이 좋습니다. (주요 시진 ${topTime})`
+      : hasJaeseong
+        ? `진로: 재성 운용력이 살아 실무·운영·기획 계열에서 성과 전환력이 유리한 편입니다. (주요 시진 ${topTime})`
+        : hasInsung
+          ? `진로: 인성 기반의 축적형 성장(학업-자격-전문직)으로 초년/중년 대운의 희신 활용 폭이 넓습니다. (주요 시진 ${topTime})`
+          : `진로: 특정 십성 과잉 없이 균형 분포에 가까워, 초년에는 탐색형·중년에는 전문화형 경로가 무난합니다. (주요 시진 ${topTime})`;
+
+    const health = hasYongshin
+      ? `건강운: 용희신 보강 신호가 확인되며 ${seasonTag}에서 ${jowhuTag}가 성립해 성장기 체력 리듬이 안정될 가능성이 높습니다.`
+      : `건강운: ${seasonTag} 기준 ${jowhuTag}를 목표로 한 시진 배치입니다. 생활 리듬 관리 시 체질 편중 리스크를 낮추는 데 유리합니다.`;
+
+    const caution = hasConflictNote
+      ? '보완 포인트: 부모 명식과의 충형 신호가 일부 언급되어 초년 환경(수면/양육 리듬)을 보수적으로 설계하는 것이 유리합니다.'
+      : '보완 포인트: 부모 명식과의 강한 충형 신호가 두드러지지 않아, 가정 내 양육 리듬의 합치도를 확보하기 좋은 편입니다.';
+
+    return { personality, career, health, caution };
   };
 
   const getChartData = () => {
@@ -1568,7 +2178,7 @@ ${daeunContext}
   const COLORS = ['#10b981', '#f43f5e', '#f59e0b', '#94a3b8', '#6366f1'];
   // Render Main App
   return (
-    <div className={`h-dvh ${isDarkMode ? 'bg-zinc-900' : 'bg-zinc-200'} flex items-center justify-center p-0 md:p-4 overflow-hidden`}>
+    <div className={`h-dvh bg-zinc-200 flex items-center justify-center p-0 md:p-4 overflow-hidden`}>
       {/* Analysis Progress Overlay */}
       <AnimatePresence>
         {isAnalyzing && (
@@ -1625,9 +2235,9 @@ ${daeunContext}
         )}
       </AnimatePresence>
 
-      <div className={`w-full h-full md:h-screen ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-[#1a1a1a]'} overflow-hidden shadow-2xl relative flex flex-col transition-all duration-300 font-sans`}>
+      <div className={`w-full h-full md:h-screen bg-[#f8f9fa] text-[#1a1a1a] overflow-hidden shadow-2xl relative flex flex-col transition-all duration-300 font-sans`}>
         {/* Navigation Header */}
-        <header className={`px-4 py-3 md:px-10 md:py-4 flex items-center justify-between border-b ${isDarkMode ? 'border-white/10 bg-black/80' : 'border-black/5 bg-white/80'} backdrop-blur-xl z-30 sticky top-0 safe-top`}>
+        <header className={`px-4 py-3 md:px-10 md:py-4 flex items-center justify-between border-b border-black/5 bg-white/80 backdrop-blur-xl z-30 sticky top-0 safe-top`}>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg">
               <Sparkles className="text-white w-4 h-4 md:w-5 h-5" />
@@ -1643,6 +2253,7 @@ ${daeunContext}
             {[
               { id: "welcome", icon: User, label: "HOME" },
               { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
+              { id: "taekil", icon: Calendar, label: "택일" },
               { id: "chat", icon: MessageCircle, label: "상담" },
               { id: "report", icon: FileText, label: "리포트" },
               { id: "blog", icon: Newspaper, label: "블로그" },
@@ -1651,7 +2262,7 @@ ${daeunContext}
               <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)} 
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-60 hover:opacity-100'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-black/5 opacity-60 hover:opacity-100'}`}
               >
                 <tab.icon className="w-4 h-4" />
                 <span className="text-sm font-bold">{tab.label}</span>
@@ -1679,10 +2290,6 @@ ${daeunContext}
               <Trash2 className="w-5 h-5 opacity-70 group-hover:opacity-100" />
               <span className="hidden md:block text-sm font-bold">상담 종료</span>
             </button>
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all flex items-center gap-2">
-              {isDarkMode ? <Sun className="w-5 h-5 opacity-70" /> : <Moon className="w-5 h-5 opacity-70" />}
-              <span className="hidden md:block text-sm font-bold">{isDarkMode ? '라이트' : '다크'}</span>
-            </button>
           </div>
         </header>
 
@@ -1702,11 +2309,11 @@ ${daeunContext}
                   <div className="max-w-4xl mx-auto space-y-12 pb-20">
                     {/* Hero Section */}
                     <div className="text-center space-y-4 py-8">
-                      <h2 className={`text-4xl md:text-6xl font-serif font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
+                      <h2 className={`text-4xl md:text-6xl font-serif font-bold leading-tight text-zinc-900`}>
                         당신의 운명을 읽는<br/>
                         <span className="text-indigo-500">가장 명료한 시선</span>
                       </h2>
-                      <p className={`text-sm md:text-lg max-w-2xl mx-auto opacity-60 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                      <p className={`text-sm md:text-lg max-w-2xl mx-auto opacity-60 text-zinc-600`}>
                         수천 년의 지혜와 첨단 AI 기술이 만나 당신의 삶에 가장 정밀한 전략을 제시합니다.
                       </p>
                     </div>
@@ -1723,7 +2330,7 @@ ${daeunContext}
                           <div 
                             key={`${post.id}-${idx}`}
                             onClick={() => handlePostClick(post)}
-                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-lg shadow-zinc-200/40'}`}
+                            className={`group cursor-pointer rounded-[2rem] overflow-hidden border transition-all hover:shadow-2xl bg-white border-indigo-50 shadow-lg shadow-zinc-200/40`}
                           >
                             <div className="aspect-video overflow-hidden relative">
                               <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
@@ -1732,8 +2339,8 @@ ${daeunContext}
                               </div>
                             </div>
                             <div className="p-6 space-y-2">
-                              <h4 className="font-bold line-clamp-1 text-zinc-900 dark:text-zinc-100">{post.title}</h4>
-                              <p className="text-xs opacity-60 line-clamp-2 text-zinc-600 dark:text-zinc-400">{post.excerpt || post.content.replace(/[#*`]/g, '').slice(0, 80)}</p>
+                              <h4 className="font-bold line-clamp-1 text-zinc-900">{post.title}</h4>
+                              <p className="text-xs opacity-60 line-clamp-2 text-zinc-600">{post.excerpt || post.content.replace(/[#*`]/g, '').slice(0, 80)}</p>
                             </div>
                           </div>
                         ))}
@@ -1744,7 +2351,7 @@ ${daeunContext}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <button 
                         onClick={() => setShowInputForm(true)}
-                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-indigo-600/10 border-indigo-500/30 hover:bg-indigo-600/20' : 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100 shadow-xl shadow-indigo-500/10'}`}
+                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 bg-indigo-50 border-indigo-100 hover:bg-indigo-100 shadow-xl shadow-indigo-500/10`}
                       >
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                           <User className="text-white w-6 h-6" />
@@ -1758,7 +2365,7 @@ ${daeunContext}
 
                       <button 
                         onClick={() => setActiveTab("blog")}
-                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-indigo-50 hover:bg-zinc-50 shadow-xl shadow-zinc-200/50'}`}
+                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 bg-white border-indigo-50 hover:bg-zinc-50 shadow-xl shadow-zinc-200/50`}
                       >
                         <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
                           <Newspaper className="text-white w-6 h-6" />
@@ -1772,7 +2379,7 @@ ${daeunContext}
 
                       <button 
                         onClick={() => setActiveTab("guide")}
-                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-indigo-50 hover:bg-zinc-50 shadow-xl shadow-zinc-200/50'}`}
+                        className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 bg-white border-indigo-50 hover:bg-zinc-50 shadow-xl shadow-zinc-200/50`}
                       >
                         <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20">
                           <Compass className="text-white w-6 h-6" />
@@ -1787,7 +2394,7 @@ ${daeunContext}
 
                     {/* Feature Highlight Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className={`p-8 rounded-[3rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-2xl shadow-indigo-500/5'} space-y-6`}>
+                      <div className={`p-8 rounded-[3rem] border bg-white border-indigo-50 shadow-2xl shadow-indigo-500/5 space-y-6`}>
                         <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center">
                           <Zap className="text-violet-500 w-8 h-8" />
                         </div>
@@ -1813,7 +2420,7 @@ ${daeunContext}
                         </button>
                       </div>
 
-                      <div className={`p-8 rounded-[3rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/5' : 'bg-white border-indigo-50 shadow-2xl shadow-indigo-500/5'} space-y-6`}>
+                      <div className={`p-8 rounded-[3rem] border bg-white border-indigo-50 shadow-2xl shadow-indigo-500/5 space-y-6`}>
                         <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
                           <FileText className="text-indigo-500 w-8 h-8" />
                         </div>
@@ -1850,7 +2457,7 @@ ${daeunContext}
                           href="https://k-manseryeok.vercel.app/" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5'}`}
+                          className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5`}
                         >
                           <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
                             <Calendar className="text-white w-6 h-6" />
@@ -1866,7 +2473,7 @@ ${daeunContext}
                           href="https://lucky-number-generator-deansjoh.replit.app/" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-900' : 'bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5'}`}
+                          className={`group p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 bg-white border-black/5 hover:bg-zinc-50 shadow-xl shadow-black/5`}
                         >
                           <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center mb-6 shadow-lg shadow-rose-500/20">
                             <Ticket className="text-white w-6 h-6" />
@@ -1885,20 +2492,20 @@ ${daeunContext}
                   <div className="max-w-md mx-auto space-y-6 pb-20">
                     <button 
                       onClick={() => setShowInputForm(false)}
-                      className={`flex items-center gap-2 text-sm font-bold mb-4 ${isDarkMode ? 'text-zinc-500 hover:text-white' : 'text-zinc-400 hover:text-zinc-900'} transition-colors`}
+                      className={`flex items-center gap-2 text-sm font-bold mb-4 text-zinc-500 hover:text-zinc-900 transition-colors`}
                     >
                       <ArrowLeft className="w-4 h-4" />
                       랜딩페이지로 돌아가기
                     </button>
                     <div className="text-center space-y-2 py-4">
-                      <h2 className={`text-3xl md:text-4xl font-handwriting leading-tight ${isDarkMode ? 'text-indigo-400' : 'text-cobalt'}`}>안녕하세요.<br/>유아이 사주상담입니다.</h2>
-                      <p className={`text-xs md:text-sm leading-relaxed px-4 ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
+                      <h2 className={`text-3xl md:text-4xl font-handwriting leading-tight text-cobalt`}>안녕하세요.<br/>유아이 사주상담입니다.</h2>
+                      <p className={`text-xs md:text-sm leading-relaxed px-4 opacity-60`}>
                         정보를 입력하여<br/>당신의 삶을 분석해 보세요.
                       </p>
                     </div>
 
-                    <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-zinc-900/50 border-white/10' : 'bg-white border-indigo-100 shadow-xl'} space-y-6`}>
-                      <div className={`flex items-center gap-3 p-4 rounded-2xl transition-all border ${isAgreed ? (isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200') : (isDarkMode ? 'bg-zinc-800/50 border-white/5' : 'bg-zinc-50 border-zinc-200')}`}>
+                    <div className={`p-6 rounded-[2rem] border bg-white border-indigo-100 shadow-xl space-y-6`}>
+                      <div className={`flex items-center gap-3 p-4 rounded-2xl transition-all border ${isAgreed ? ('bg-indigo-50 border-indigo-200') : ('bg-zinc-50 border-zinc-200')}`}>
                         <input 
                           type="checkbox" 
                           id="privacyAgree"
@@ -1906,21 +2513,21 @@ ${daeunContext}
                           onChange={(e) => setIsAgreed(e.target.checked)}
                           className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                         />
-                        <label htmlFor="privacyAgree" className={`text-sm font-bold cursor-pointer transition-colors ${isAgreed ? (isDarkMode ? 'text-indigo-300' : 'text-indigo-900') : (isDarkMode ? 'text-zinc-500' : 'text-zinc-400')}`}>
+                        <label htmlFor="privacyAgree" className={`text-sm font-bold cursor-pointer transition-colors ${isAgreed ? ('text-indigo-900') : ('text-zinc-500')}`}>
                           개인정보 이용에 동의합니다
                         </label>
                       </div>
 
                       <div className={`space-y-6 transition-all ${!isAgreed ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'}`}>
                         <div className="space-y-1">
-                          <label className={`text-[11px] font-bold uppercase tracking-widest ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>사용자 이름</label>
+                          <label className={`text-[11px] font-bold uppercase tracking-widest ml-1 text-zinc-500`}>사용자 이름</label>
                           <input 
                             type="text" 
                             placeholder="이름을 입력하세요"
                             value={userData.name}
                             disabled={!isAgreed}
                             onChange={(e) => setUserData({...userData, name: e.target.value})}
-                            className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                            className={`w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-base bg-white border-indigo-100`}
                           />
                         </div>
 
@@ -1928,41 +2535,41 @@ ${daeunContext}
                         <div className="space-y-2">
                           <div className="grid grid-cols-3 gap-2">
                             <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>년도</label>
+                              <label className={`text-[11px] font-bold ml-1 text-zinc-500`}>년도</label>
                               <select 
                                 value={userData.birthYear}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({...userData, birthYear: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none bg-white border-indigo-100`}
                               >
                                 {Array.from({length: 100}, (_, i) => 2026 - i).map(y => (
-                                  <option key={y} value={y} className="dark:bg-zinc-900">{y}년</option>
+                                  <option key={y} value={y}>{y}년</option>
                                 ))}
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>월</label>
+                              <label className={`text-[11px] font-bold ml-1 text-zinc-500`}>월</label>
                               <select 
                                 value={userData.birthMonth}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({...userData, birthMonth: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none bg-white border-indigo-100`}
                               >
                                 {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                                  <option key={m} value={m} className="dark:bg-zinc-900">{m}월</option>
+                                  <option key={m} value={m}>{m}월</option>
                                 ))}
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>일</label>
+                              <label className={`text-[11px] font-bold ml-1 text-zinc-500`}>일</label>
                               <select 
                                 value={userData.birthDay}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({...userData, birthDay: e.target.value})}
-                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                                className={`w-full px-2 py-2 rounded-xl border text-sm outline-none bg-white border-indigo-100`}
                               >
                                 {Array.from({length: 31}, (_, i) => i + 1).map(d => (
-                                  <option key={d} value={d} className="dark:bg-zinc-900">{d}일</option>
+                                  <option key={d} value={d}>{d}일</option>
                                 ))}
                               </select>
                             </div>
@@ -1971,28 +2578,28 @@ ${daeunContext}
                           {!userData.unknownTime && (
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1">
-                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>시</label>
+                                <label className={`text-[11px] font-bold ml-1 text-zinc-500`}>시</label>
                                 <select 
                                   value={userData.birthHour}
                                   disabled={!isAgreed}
                                   onChange={(e) => setUserData({...userData, birthHour: e.target.value})}
-                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none bg-white border-indigo-100`}
                                 >
                                   {Array.from({length: 24}, (_, i) => i).map(h => (
-                                    <option key={h} value={h} className="dark:bg-zinc-900">{h}시</option>
+                                    <option key={h} value={h}>{h}시</option>
                                   ))}
                                 </select>
                               </div>
                               <div className="space-y-1">
-                                <label className={`text-[11px] font-bold ml-1 ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>분</label>
+                                <label className={`text-[11px] font-bold ml-1 text-zinc-500`}>분</label>
                                 <select 
                                   value={userData.birthMinute}
                                   disabled={!isAgreed}
                                   onChange={(e) => setUserData({...userData, birthMinute: e.target.value})}
-                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none ${isDarkMode ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-indigo-100'}`}
+                                  className={`w-full px-2 py-2 rounded-xl border text-sm outline-none bg-white border-indigo-100`}
                                 >
                                   {Array.from({length: 60}, (_, i) => i).map(m => (
-                                    <option key={m} value={m} className="dark:bg-zinc-900">{m}분</option>
+                                    <option key={m} value={m}>{m}분</option>
                                   ))}
                                 </select>
                               </div>
@@ -2008,41 +2615,41 @@ ${daeunContext}
                               onChange={(e) => setUserData({...userData, unknownTime: e.target.checked})}
                               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                             />
-                            <label htmlFor="unknownTime" className={`text-sm font-medium ${isDarkMode ? 'text-zinc-400' : 'opacity-70'}`}>생시를 몰라요</label>
+                            <label htmlFor="unknownTime" className={`text-sm font-medium opacity-70`}>생시를 몰라요</label>
                           </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-zinc-50 border-indigo-100'} border`}>
+                          <div className={`flex items-center justify-between p-2 rounded-2xl bg-zinc-50 border-indigo-100 border`}>
                             <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
                               <button 
                                 onClick={() => setUserData({...userData, calendarType: 'solar'})}
                                 disabled={!isAgreed}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'solar' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500'}`}
                               >
                                 양력
                               </button>
                               <button 
                                 onClick={() => setUserData({...userData, calendarType: 'lunar'})}
                                 disabled={!isAgreed}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'lunar' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500'}`}
                               >
                                 음력(평)
                               </button>
                               <button 
                                 onClick={() => setUserData({...userData, calendarType: 'leap'})}
                                 disabled={!isAgreed}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.calendarType === 'leap' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500'}`}
                               >
                                 음력(윤)
                               </button>
                             </div>
                           </div>
 
-                          <div className={`flex items-center justify-between p-2 rounded-2xl ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-zinc-50 border-indigo-100'} border`}>
+                          <div className={`flex items-center justify-between p-2 rounded-2xl bg-zinc-50 border-indigo-100 border`}>
                             <div className={`flex items-center gap-1.5 p-1 rounded-xl w-full`}>
-                              <button onClick={() => setUserData({...userData, gender: 'M'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>남자</button>
-                              <button onClick={() => setUserData({...userData, gender: 'F'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>여자</button>
+                              <button onClick={() => setUserData({...userData, gender: 'M'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'M' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500'}`}>남자</button>
+                              <button onClick={() => setUserData({...userData, gender: 'F'})} disabled={!isAgreed} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${userData.gender === 'F' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500'}`}>여자</button>
                             </div>
                           </div>
                         </div>
@@ -2058,7 +2665,7 @@ ${daeunContext}
                       </div>
                     </div>
                     
-                    <p className={`text-center text-xs tracking-tight pb-2 ${isDarkMode ? 'text-zinc-600' : 'opacity-30'}`}>정확한 분석을 위해 태어난 시간을 꼭 확인해 주세요.</p>
+                    <p className={`text-center text-xs tracking-tight pb-2 opacity-30`}>정확한 분석을 위해 태어난 시간을 꼭 확인해 주세요.</p>
                   </div>
                 )}
               </div>
@@ -2079,19 +2686,18 @@ ${daeunContext}
                 <div className="space-y-8 md:space-y-12">
                   {/* Saju Grid - 2x4 Layout */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>사주팔자 (四柱八字)</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>사주팔자 (四柱八字)</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
                         return (
-                          <div key={i} className={`p-3 md:p-5 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-md'} flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
-                            <span className={`text-[10px] md:text-xs font-bold ${isDarkMode ? 'text-zinc-500' : 'opacity-50'}`}>{p.title}</span>
+                          <div key={i} className={`p-3 md:p-5 rounded-3xl border bg-white border-black/5 shadow-md flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
+                            <span className={`text-[10px] md:text-xs font-bold opacity-50`}>{p.title}</span>
                             <div className="flex flex-col gap-4 py-2">
                               {[p.stem, p.branch].map((item, j) => (
                                 <HanjaBox 
                                   key={j} 
                                   hanja={item.hanja} 
-                                  isDarkMode={isDarkMode} 
                                   deity={item.deity}
                                   deityPosition={j === 0 ? 'top' : 'bottom'}
                                   size="md"
@@ -2105,11 +2711,7 @@ ${daeunContext}
                   </div>
 
                   {/* Saju Conclusion */}
-                  <div className={`p-6 md:p-8 rounded-[2.5rem] border shadow-xl ${
-                    isDarkMode 
-                      ? 'bg-indigo-500/5 border-indigo-500/20' 
-                      : 'bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border-indigo-500/20'
-                  }`}>
+                  <div className={`p-6 md:p-8 rounded-[2.5rem] border shadow-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border-indigo-500/20`}>
                     <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
                       <div className="w-12 h-12 md:w-16 md:h-16 rounded-3xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-xl shadow-indigo-500/20">
                         <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-white" />
@@ -2117,7 +2719,7 @@ ${daeunContext}
                       <div className="space-y-4 flex-1">
                         <div className="space-y-2">
                           <p className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">사주팔자 분석 결론</p>
-                          <h4 className={`text-base md:text-xl font-bold leading-tight ${isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}`}>
+                          <h4 className={`text-base md:text-xl font-bold leading-tight text-zinc-900`}>
                             {userData.name}님의 사주는 <span className="text-indigo-500">{calculateGyeok(sajuResult).composition}</span>로 구성되어 있으며, <br className="hidden md:block"/><span className="text-indigo-500 font-black">[{calculateGyeok(sajuResult).gyeok}]</span>의 사주입니다.
                           </h4>
                         </div>
@@ -2145,15 +2747,15 @@ ${daeunContext}
 
                   {/* Five Elements Distribution */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>오행분포 (五行分布)</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>오행분포 (五行分布)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-zinc-200 shadow-lg'} flex flex-col justify-center`}>
-                        <p className={`text-sm md:text-base leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
+                      <div className={`p-6 rounded-3xl border bg-white border-zinc-200 shadow-lg flex flex-col justify-center`}>
+                        <p className={`text-sm md:text-base leading-relaxed text-zinc-600 font-medium`}>
                           {userData.name}님의 오행 분포는 <br className="hidden md:block"/>
                           {getChartData().map(d => `${d.name} ${d.value}개`).join(', ')}으로 구성되어 있습니다.
                         </p>
                       </div>
-                      <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'} flex items-center justify-center`}>
+                      <div className={`p-6 rounded-3xl border bg-white border-black/5 shadow-lg flex items-center justify-center`}>
                         <ResponsiveContainer width="100%" height={150}>
                           <PieChart>
                             <Pie data={getChartData()} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}>
@@ -2165,9 +2767,9 @@ ${daeunContext}
                     </div>
                     <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                       {getChartData().map((d, i) => (
-                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/5 text-xs font-bold">
+                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/5 text-xs font-bold">
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div>
-                          <span className={isDarkMode ? 'text-zinc-400' : 'text-zinc-700'}>{d.name}</span>
+                          <span className={'text-zinc-700'}>{d.name}</span>
                         </div>
                       ))}
                     </div>
@@ -2178,24 +2780,23 @@ ${daeunContext}
                 <div className="space-y-8 md:space-y-12">
                   {/* Jiji and Jijangan */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>지지와 지장간 (地支/地藏干)</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>지지와 지장간 (地支/地藏干)</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
                         const dayStem = sajuResult.find(p => p.title === '일주')?.stem.hanja || '';
                         
                         return (
-                          <div key={i} className={`p-3 md:p-5 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-md'} flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
+                          <div key={i} className={`p-3 md:p-5 rounded-3xl border bg-white border-black/5 shadow-md flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
                             <div className="py-2">
                               <HanjaBox 
                                 hanja={p.branch.hanja} 
-                                isDarkMode={isDarkMode} 
                                 deity={p.branch.deity}
                                 deityPosition="bottom"
                                 size="md"
                               />
                             </div>
-                            <span className={`text-[10px] md:text-xs font-bold mt-2 ${isDarkMode ? 'text-zinc-500' : 'opacity-70'}`}>{p.branch.hangul}({p.branch.hanja})</span>
+                            <span className={`text-[10px] md:text-xs font-bold mt-2 opacity-70`}>{p.branch.hangul}({p.branch.hanja})</span>
                             <div className="flex gap-1 mt-4 pb-2">
                               {(p.branch.hidden ? p.branch.hidden.split(', ') : []).map((h, k, hiddenArray) => {
                                 const hanja = Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '';
@@ -2206,7 +2807,6 @@ ${daeunContext}
                                     key={k} 
                                     hanja={hanja} 
                                     size="sm" 
-                                    isDarkMode={isDarkMode} 
                                     deity={deity}
                                     deityPosition="bottom"
                                     highlight={isMainHiddenStem}
@@ -2218,7 +2818,7 @@ ${daeunContext}
                         );
                       })}
                     </div>
-                    <p className={`text-xs md:text-sm leading-relaxed mt-4 italic ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>
+                    <p className={`text-xs md:text-sm leading-relaxed mt-4 italic opacity-60`}>
                       지지와 지장간은 사주의 뿌리이자 에너지가 저장된 곳입니다. 지장간은 지지 속에 숨겨진 천간의 기운으로, 당신의 내면적인 성향과 잠재력을 나타냅니다.
                       {hiddenStemExposureText ? (
                         <>
@@ -2232,7 +2832,7 @@ ${daeunContext}
                   {/* Daeun Analysis */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>대운분석 (大運分析)</h3>
+                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>대운분석 (大運分析)</h3>
                       {daeunResult.length > 0 && (
                         <span className="text-[10px] md:text-xs font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
                           {daeunResult[0].startAge}대운
@@ -2240,7 +2840,7 @@ ${daeunContext}
                       )}
                     </div>
 
-                    <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-black/5 shadow-lg'}`}>
+                    <div className={`p-6 rounded-3xl border bg-white border-black/5 shadow-lg`}>
                       <div ref={daeunScrollRef} className="flex overflow-x-auto horizontal-scrollbar gap-6 pb-6 snap-x snap-mandatory scroll-smooth">
                         {daeunResult.length > 0 ? daeunResult.map((dy, i) => {
                           const currentAge = 2026 - parseInt(userData.birthYear) + 1;
@@ -2252,9 +2852,9 @@ ${daeunContext}
                             <div key={i} className={`w-24 shrink-0 snap-center p-4 rounded-3xl border flex flex-col items-center gap-3 transition-all ${
                               isCurrentDaeun 
                                 ? 'border-indigo-500 bg-indigo-600/30 shadow-2xl shadow-indigo-500/40 ring-4 ring-indigo-500/30 scale-110 z-10' 
-                                : isDarkMode ? 'border-transparent bg-white/5 opacity-40 hover:opacity-100' : 'border-transparent bg-black/5 opacity-40 hover:opacity-100'
+                                : 'border-transparent bg-black/5 opacity-40 hover:opacity-100'
                             }`}>
-                              <div className={`text-[10px] md:text-xs font-bold ${isDarkMode && isCurrentDaeun ? 'text-indigo-300' : ''}`}>{dy.startAge}세</div>
+                              <div className="text-[10px] md:text-xs font-bold">{dy.startAge}세</div>
                               <div className="flex flex-col gap-4 py-2">
                                 {daeunResult.length > 0 && [dy.stem, dy.branch].map((hanja, j) => {
                                   const dayStem = sajuResult.find(p => p.title === '일주')?.stem.hanja || '';
@@ -2263,7 +2863,6 @@ ${daeunContext}
                                     <HanjaBox 
                                       key={j} 
                                       hanja={hanja} 
-                                      isDarkMode={isDarkMode} 
                                       deity={deity}
                                       deityPosition={j === 0 ? 'top' : 'bottom'}
                                       size="md"
@@ -2271,7 +2870,7 @@ ${daeunContext}
                                   );
                                 })}
                               </div>
-                              <div className={`text-[10px] md:text-xs font-bold opacity-70 ${isDarkMode && isCurrentDaeun ? 'text-indigo-300/70' : ''}`}>{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
+                              <div className="text-[10px] md:text-xs font-bold opacity-70">{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
                               {isCurrentDaeun && isTransitioning && (
                                 <div className="mt-1 px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[8px] md:text-[10px] font-bold rounded-full animate-pulse">
                                   교운기
@@ -2280,7 +2879,7 @@ ${daeunContext}
                             </div>
                           );
                         }) : (
-                          <div className={`text-sm py-8 w-full text-center ${isDarkMode ? 'text-zinc-600' : 'opacity-40'}`}>분석을 시작하면 대운이 표시됩니다.</div>
+                          <div className={`text-sm py-8 w-full text-center opacity-40`}>분석을 시작하면 대운이 표시됩니다.</div>
                         )}
                       </div>
                     </div>
@@ -2290,7 +2889,7 @@ ${daeunContext}
                       <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200'} shadow-sm`}
+                        className={`p-6 rounded-3xl border bg-indigo-50 border-indigo-200 shadow-sm`}
                       >
                         {daeunResult.map((dy, i) => {
                           const currentAge = 2026 - parseInt(userData.birthYear) + 1;
@@ -2301,13 +2900,13 @@ ${daeunContext}
                             <div key={i} className="space-y-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-6 bg-indigo-500 rounded-full" />
-                                <h4 className={`text-sm md:text-base font-bold ${isDarkMode ? 'text-indigo-300' : 'text-indigo-900'}`}>현재 대운: {dy.startAge}세 {hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}대운</h4>
+                                <h4 className={`text-sm md:text-base font-bold text-indigo-900`}>현재 대운: {dy.startAge}세 {hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}대운</h4>
                               </div>
-                              <p className={`text-xs md:text-sm leading-relaxed italic font-medium ${isDarkMode ? 'text-zinc-300' : 'opacity-80'}`}>
+                              <p className={`text-xs md:text-sm leading-relaxed italic font-medium opacity-80`}>
                                 "{dy.description}"
                               </p>
                               {Math.abs(currentAge - dy.startAge) <= 1 && (
-                                <div className={`flex items-start gap-3 p-4 rounded-2xl border ${isDarkMode ? 'bg-rose-500/10 border-rose-500/30' : 'bg-rose-50 border-rose-200'}`}>
+                                <div className={`flex items-start gap-3 p-4 rounded-2xl border bg-rose-50 border-rose-200`}>
                                   <Info className="w-4 h-4 text-rose-500 mt-0.5 shrink-0" />
                                   <p className="text-[11px] md:text-xs text-rose-500 leading-relaxed">
                                     현재 <strong>교운기(인생의 변동기)</strong>에 진입해 있습니다. 환경의 변화나 심리적 변동이 클 수 있으니 신중한 판단이 필요합니다.
@@ -2323,12 +2922,12 @@ ${daeunContext}
 
                   {/* Yongshin Analysis */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest ${isDarkMode ? 'text-zinc-500' : 'opacity-60'}`}>용신(用神) 정밀 분석</h3>
+                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>용신(用神) 정밀 분석</h3>
                     {yongshinResult && (
-                      <div className={`p-6 md:p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-zinc-900/40 border-white/5 shadow-2xl shadow-black/50' : 'bg-white border-black/5 shadow-2xl'} space-y-6 md:space-y-8`}>
+                      <div className={`p-6 md:p-8 rounded-[2.5rem] border bg-white border-black/5 shadow-2xl space-y-6 md:space-y-8`}>
                         <div className="flex items-center justify-between">
                           <div className="space-y-2">
-                            <p className={`text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] ${isDarkMode ? 'text-zinc-500' : 'opacity-40'}`}>핵심 에너지</p>
+                            <p className={`text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] opacity-40`}>핵심 에너지</p>
                             <h4 className="text-2xl md:text-3xl font-title font-bold text-indigo-500">{userData.name}님의 용신: {yongshinResult.yongshin}</h4>
                           </div>
                           <div className={`w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-2xl ${
@@ -2343,12 +2942,12 @@ ${daeunContext}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div className={`p-4 md:p-6 rounded-3xl ${isDarkMode ? 'bg-white/5' : 'bg-zinc-50'} border ${isDarkMode ? 'border-white/5' : 'border-black/5'}`}>
+                          <div className={`p-4 md:p-6 rounded-3xl bg-zinc-50 border border-black/5`}>
                             <p className="text-[10px] md:text-xs font-bold opacity-40 mb-2 uppercase tracking-wider">일간 강약 (억부)</p>
                             <p className="text-sm md:text-lg font-bold">{yongshinResult.strength} ({yongshinResult.score}점)</p>
                             <p className="text-[11px] md:text-sm text-indigo-500 mt-2 font-bold">억부용신: {yongshinResult.eokbuYongshin}</p>
                           </div>
-                          <div className={`p-4 md:p-6 rounded-3xl ${isDarkMode ? 'bg-white/5' : 'bg-zinc-50'} border ${isDarkMode ? 'border-white/5' : 'border-black/5'}`}>
+                          <div className={`p-4 md:p-6 rounded-3xl bg-zinc-50 border border-black/5`}>
                             <p className="text-[10px] md:text-xs font-bold opacity-40 mb-2 uppercase tracking-wider">계절 기운 (조후)</p>
                             <p className="text-sm md:text-lg font-bold">{yongshinResult.johooStatus}</p>
                             <p className="text-[11px] md:text-sm text-indigo-500 mt-2 font-bold">조후용신: {yongshinResult.johooYongshin}</p>
@@ -2362,7 +2961,7 @@ ${daeunContext}
                           </p>
                         </div>
 
-                        <div className="space-y-4 pt-6 border-t border-black/5 dark:border-white/10">
+                        <div className="space-y-4 pt-6 border-t border-black/5">
                           <p className="text-[10px] md:text-xs font-bold opacity-40 uppercase tracking-[0.2em]">실생활 가이드</p>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                             <div className="flex items-center gap-3">
@@ -2394,12 +2993,12 @@ ${daeunContext}
               </div>
             ) : (
                 <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-20 px-6 text-center space-y-8">
-                  <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center ${isDarkMode ? 'bg-zinc-800' : 'bg-white shadow-xl'}`}>
-                    <LayoutDashboard className={`w-12 h-12 ${isDarkMode ? 'text-zinc-600' : 'text-zinc-300'}`} />
+                  <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center bg-white shadow-xl`}>
+                    <LayoutDashboard className={`w-12 h-12 text-zinc-300`} />
                   </div>
                   <div className="space-y-4">
                     <h3 className="text-2xl font-bold">사주 데이터가 없습니다</h3>
-                    <p className={`max-w-md mx-auto ${isDarkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>
+                    <p className={`max-w-md mx-auto text-zinc-500`}>
                       HOME 탭에서 생년월일 정보를 입력하시면<br/>
                       정밀한 만세력 분석과 대운 정보를 확인하실 수 있습니다.
                     </p>
@@ -2418,18 +3017,14 @@ ${daeunContext}
                 <motion.div 
                   whileHover={{ y: -5 }}
                   onClick={() => setActiveTab("chat")}
-                  className={`cursor-pointer p-8 rounded-[3rem] border transition-all ${
-                    isDarkMode 
-                      ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-800/50' 
-                      : 'bg-white border-black/5 shadow-xl hover:shadow-2xl'
-                  } space-y-6 group`}
+                  className={`cursor-pointer p-8 rounded-[3rem] border transition-all bg-white border-black/5 shadow-xl hover:shadow-2xl space-y-6 group`}
                 >
                   <div className="w-16 h-16 rounded-2xl bg-violet-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <MessageCircle className="text-violet-500 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold">AI와 더 깊은 대화 나누기</h3>
-                    <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
+                    <p className={`text-sm leading-relaxed opacity-60`}>
                       분석된 사주를 바탕으로 궁금한 점을 직접 물어보세요. 직업, 연애, 재물운 등 구체적인 조언을 얻을 수 있습니다.
                     </p>
                   </div>
@@ -2442,18 +3037,14 @@ ${daeunContext}
                 <motion.div 
                   whileHover={{ y: -5 }}
                   onClick={() => setActiveTab("report")}
-                  className={`cursor-pointer p-8 rounded-[3rem] border transition-all ${
-                    isDarkMode 
-                      ? 'bg-zinc-900/50 border-white/5 hover:bg-zinc-800/50' 
-                      : 'bg-white border-black/5 shadow-xl hover:shadow-2xl'
-                  } space-y-6 group`}
+                  className={`cursor-pointer p-8 rounded-[3rem] border transition-all bg-white border-black/5 shadow-xl hover:shadow-2xl space-y-6 group`}
                 >
                   <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <FileText className="text-indigo-500 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold">프리미엄 운세 리포트</h3>
-                    <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'opacity-60'}`}>
+                    <p className={`text-sm leading-relaxed opacity-60`}>
                       당신의 인생 설계도를 한눈에 볼 수 있는 정밀 리포트를 생성합니다. PDF로 저장하여 언제든 다시 꺼내볼 수 있습니다.
                     </p>
                   </div>
@@ -2465,8 +3056,8 @@ ${daeunContext}
               </div>
 
               {/* Disclaimer (Moved to bottom) */}
-              <div className="max-w-3xl mx-auto p-6 rounded-3xl bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/5 mt-12">
-                <p className="text-[10px] md:text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed text-center font-medium">
+              <div className="max-w-3xl mx-auto p-6 rounded-3xl bg-white border border-zinc-200 mt-12">
+                <p className="text-[10px] md:text-xs text-zinc-600 leading-relaxed text-center font-medium">
                   본 분석 결과는 인공지능의 해석이며, 과학적 사실이 아닌 참고 용도로만 사용해 주세요. 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                 </p>
               </div>
@@ -2477,16 +3068,567 @@ ${daeunContext}
                   href="https://k-manseryeok.vercel.app/" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg ${
-                    isDarkMode 
-                      ? 'bg-zinc-800 text-white border border-white/10 hover:bg-zinc-700' 
-                      : 'bg-white text-zinc-900 border border-black/5 hover:bg-zinc-50'
-                  }`}
+                  className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg bg-white text-zinc-900 border border-black/5 hover:bg-zinc-50`}
                 >
                   <Calendar className="w-5 h-5 text-indigo-500" />
                   만세력 으로 표시한 달력
                   <ExternalLink className="w-4 h-4 opacity-40" />
                 </a>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === "taekil" && (
+            <motion.div
+              key="taekil"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              className="absolute inset-0 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-white"
+            >
+              <div className="max-w-7xl mx-auto pb-20">
+                <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
+                  <aside className={`rounded-[2rem] border p-4 md:p-5 lg:sticky lg:top-6 bg-zinc-50 border-zinc-200`}>
+                    <div className="mb-4 px-2">
+                      <p className={`text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500`}>카테고리</p>
+                      <p className={TAEKIL_HELP_TEXT_CLASS}>10개 카테고리 모두 조회 가능합니다.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+                      {TAEKIL_CATEGORIES.map((category) => {
+                        const enabled = true;
+                        const isActive = taekilActiveCategory === category;
+
+                        return (
+                          <button
+                            key={category}
+                            type="button"
+                            disabled={!enabled}
+                            onClick={() => {
+                              if (!enabled) return;
+                              setTaekilActiveCategory(category);
+                              setTaekilError(null);
+                              setTaekilNotice(null);
+                            }}
+                            className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-all ${
+                              isActive
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                                : enabled
+                                  ? 'bg-white border-zinc-200 text-zinc-700 hover:border-indigo-200 hover:text-indigo-600'
+                                  : 'bg-zinc-100 border-zinc-200 text-zinc-500 cursor-not-allowed'
+                            }`}
+                          >
+                            {category}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </aside>
+
+                  <section className={`rounded-[2rem] border p-4 md:p-8 bg-white border-zinc-200 shadow-sm`}>
+                  <div className="mb-6 md:mb-8">
+                    <p className={`text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500`}>
+                      {taekilActiveCategory === '이사' ? 'Moving Taekil' : 'Marriage Taekil'}
+                    </p>
+                    <h2 className="mt-2 text-2xl md:text-4xl font-bold tracking-tight">{taekilActiveCategory} 택일</h2>
+                    <p className={`mt-3 text-sm md:text-base text-zinc-600`}>
+                      프로세스 Q1-Q4를 입력한 뒤 {taekilActiveCategory} 길일 조회를 실행하세요.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 md:space-y-5">
+                    {taekilActiveCategory === '결혼' ? (
+                      <>
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">배우자의 생년월일시는 언제 입니까?</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>배우자 이름</span>
+                              <input type="text" value={spouseName} onChange={(e) => setSpouseName(e.target.value)} placeholder="이름 입력" className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>성별</span>
+                              <select value={spouseGender} onChange={(e) => setSpouseGender(e.target.value as 'M' | 'F')} className={TAEKIL_FIELD_CLASS}>
+                                <option value="M">남성</option>
+                                <option value="F">여성</option>
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>출생 연도</span>
+                              <input type="text" value={spouseBirthYear} onChange={(e) => setSpouseBirthYear(e.target.value)} placeholder="1990" className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                            </label>
+                            <div className="grid grid-cols-2 gap-3 md:gap-4">
+                              <label className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>월</span>
+                                <input type="text" value={spouseBirthMonth} onChange={(e) => setSpouseBirthMonth(e.target.value)} placeholder="1" className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                              </label>
+                              <label className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>일</span>
+                                <input type="text" value={spouseBirthDay} onChange={(e) => setSpouseBirthDay(e.target.value)} placeholder="1" className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                              </label>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 md:gap-4">
+                              <label className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>시</span>
+                                <input type="text" value={spouseBirthHour} onChange={(e) => setSpouseBirthHour(e.target.value)} placeholder="12" className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                              </label>
+                              <label className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>분</span>
+                                <input type="text" value={spouseBirthMinute} onChange={(e) => setSpouseBirthMinute(e.target.value)} placeholder="0" className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                              </label>
+                            </div>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>달력 기준</span>
+                              <select value={spouseCalendarType} onChange={(e) => setSpouseCalendarType(e.target.value as 'solar' | 'lunar')} className={TAEKIL_FIELD_CLASS}>
+                                <option value="solar">양력</option>
+                                <option value="lunar">음력</option>
+                              </select>
+                            </label>
+                            <label className={`flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer bg-white border-zinc-200 text-zinc-700`}>
+                              <input type="checkbox" checked={spouseUnknownTime} onChange={(e) => setSpouseUnknownTime(e.target.checked)} />
+                              <span className="text-sm font-medium">생시 미상</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">희망하는 결혼식 일정은 언제부터 언제까지 인가요?</h3>
+                          <p className={TAEKIL_HELP_TEXT_CLASS}>형식: YYYY-MM-DD</p>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>시작일</span>
+                              <input type="date" value={marriagePeriodStart} onChange={(e) => setMarriagePeriodStart(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>종료일</span>
+                              <input type="date" value={marriagePeriodEnd} onChange={(e) => setMarriagePeriodEnd(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">희망하는 요일은 언제 인가요? 3순위까지 입력하세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>1순위</span>
+                              <select value={preferredWeekday1} onChange={(e) => setPreferredWeekday1(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`w1-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>2순위</span>
+                              <select value={preferredWeekday2} onChange={(e) => setPreferredWeekday2(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`w2-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>3순위</span>
+                              <select value={preferredWeekday3} onChange={(e) => setPreferredWeekday3(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`w3-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">꼭 피해야 하는 날을 입력해 주세요. (최대 5개)</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            {avoidDateInputs.map((value, idx) => (
+                              <label key={`avoid-date-${idx}`} className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>회피일 {idx + 1}</span>
+                                <input
+                                  type="date"
+                                  value={value}
+                                  onChange={(e) => setAvoidDateInputs((prev) => prev.map((item, i) => (i === idx ? e.target.value : item)))}
+                                  className={TAEKIL_FIELD_CLASS}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : taekilActiveCategory === '이사' ? (
+                      <>
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">가구주 및 가족 생년월일을 입력해 주세요.</h3>
+                          <p className={TAEKIL_HELP_TEXT_CLASS}>가구주 정보는 상단 기본 사주를 사용하며, 가족은 양력 YYYY-MM-DD 기준으로 입력합니다. 가족 정보는 비워도 조회 가능합니다.</p>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            {moveFamilyBirthDates.map((value, idx) => (
+                              <label key={`move-family-${idx}`} className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>가족 구성원 {idx + 1}</span>
+                                <input
+                                  type="date"
+                                  value={value}
+                                  onChange={(e) => setMoveFamilyBirthDates((prev) => prev.map((item, i) => (i === idx ? e.target.value : item)))}
+                                  className={TAEKIL_FIELD_CLASS}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">현재 거주지와 이사 갈 주소를 입력해 주세요.</h3>
+                          <p className={TAEKIL_HELP_TEXT_CLASS}>예: 역삼동, 정자동처럼 동 단위까지만 입력해도 조회 가능합니다.</p>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>현재 주소</span>
+                              <input type="text" value={moveCurrentAddress} onChange={(e) => setMoveCurrentAddress(e.target.value)} placeholder="예: 서울시 강남구 ..." className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>이사 갈 주소</span>
+                              <input type="text" value={moveTargetAddress} onChange={(e) => setMoveTargetAddress(e.target.value)} placeholder="예: 경기도 성남시 ..." className={TAEKIL_FIELD_PLACEHOLDER_CLASS} />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">희망 이사 기간과 선호 요일을 입력해 주세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>시작일</span>
+                              <input type="date" value={movePeriodStart} onChange={(e) => setMovePeriodStart(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>종료일</span>
+                              <input type="date" value={movePeriodEnd} onChange={(e) => setMovePeriodEnd(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                          </div>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>1순위</span>
+                              <select value={movePreferredWeekday1} onChange={(e) => setMovePreferredWeekday1(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`mw1-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>2순위</span>
+                              <select value={movePreferredWeekday2} onChange={(e) => setMovePreferredWeekday2(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`mw2-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>3순위</span>
+                              <select value={movePreferredWeekday3} onChange={(e) => setMovePreferredWeekday3(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`mw3-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">무엇을 더 중시할지 선택해 주세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>중요도 설정</span>
+                              <select value={movePriority} onChange={(e) => setMovePriority(e.target.value as 'folklore' | 'saju' | 'balanced')} className={TAEKIL_FIELD_CLASS}>
+                                <option value="balanced">균형형(민속+사주)</option>
+                                <option value="folklore">손없는날/민속 우선</option>
+                                <option value="saju">사주 맞춤 우선</option>
+                              </select>
+                            </label>
+                            <label className={`flex items-center gap-3 rounded-2xl border px-4 py-3 mt-6 md:mt-0 cursor-pointer bg-white border-zinc-200 text-zinc-700`}>
+                              <input type="checkbox" checked={moveOnlyWeekend} onChange={(e) => setMoveOnlyWeekend(e.target.checked)} />
+                              <span className="text-sm font-medium">주말만 가능</span>
+                            </label>
+                          </div>
+                        </div>
+                      </>
+                    ) : taekilActiveCategory === '출산' ? (
+                      <>
+                        <div className={`rounded-3xl border p-4 md:p-6 bg-indigo-50 border-indigo-200`}>
+                          <p className={`text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700`}>출산 택일 프롬프트</p>
+                          <p className={`mt-2 text-sm leading-relaxed text-zinc-700`}>
+                            "당신은 사주팔자를 설계하는 명리학 대가입니다. 아래 조건에 맞는 최상의 출산 택일을 수행하세요."
+                          </p>
+                          <ul className={`mt-3 text-xs space-y-1 text-zinc-600`}>
+                            <li>1순위: 오행 중화 및 조후 적합</li>
+                            <li>2순위: 초년/중년 대운 희신 방향</li>
+                            <li>3순위: 부모와 원진/충 회피</li>
+                          </ul>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">부모 데이터 (생년월일시)</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>부 생년월일</span>
+                              <input type="date" value={childFatherBirthDate} onChange={(e) => setChildFatherBirthDate(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>부 출생시각 (HH:mm)</span>
+                              <input type="time" value={childFatherBirthTime} onChange={(e) => setChildFatherBirthTime(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>모 생년월일</span>
+                              <input type="date" value={childMotherBirthDate} onChange={(e) => setChildMotherBirthDate(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>모 출생시각 (HH:mm)</span>
+                              <input type="time" value={childMotherBirthTime} onChange={(e) => setChildMotherBirthTime(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">태아 데이터</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>태아 성별</span>
+                              <select value={childFetusGender} onChange={(e) => setChildFetusGender(e.target.value as '남' | '여')} className={TAEKIL_FIELD_CLASS}>
+                                <option value="남">남</option>
+                                <option value="여">여</option>
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">분만 가능일</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>시작일</span>
+                              <input type="date" value={childbirthPeriodStart} onChange={(e) => setChildbirthPeriodStart(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>종료일</span>
+                              <input type="date" value={childbirthPeriodEnd} onChange={(e) => setChildbirthPeriodEnd(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">결과 형식</h3>
+                          <p className={`mt-2 text-sm leading-relaxed text-zinc-600`}>
+                            추천 날짜/시진 3안, 각 안의 성격·진로·건강운 요약을 기준으로 해석합니다.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">희망 기간을 입력해 주세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>시작일</span>
+                              <input type="date" value={generalPeriodStart} onChange={(e) => setGeneralPeriodStart(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>종료일</span>
+                              <input type="date" value={generalPeriodEnd} onChange={(e) => setGeneralPeriodEnd(e.target.value)} className={TAEKIL_FIELD_CLASS} />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">{taekilActiveCategory}에 필요한 핵심 정보를 입력해 주세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            {taekilActiveFields.map((field) => (
+                              <label key={`${taekilActiveCategory}-${field.key}`} className={`space-y-2 ${field.key.endsWith('Priority') ? 'md:col-span-2' : ''}`}>
+                                <span className={TAEKIL_LABEL_CLASS}>{field.label}</span>
+                                {field.type === 'select' ? (
+                                  <select
+                                    value={taekilFormValues[field.key] ?? ''}
+                                    onChange={(e) => setTaekilFormValue(field.key, e.target.value)}
+                                    className={TAEKIL_FIELD_CLASS}
+                                  >
+                                    <option value="">선택하세요</option>
+                                    {field.options?.map((option) => (
+                                      <option key={`${field.key}-${option.value}`} value={option.value}>{option.label}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={taekilFormValues[field.key] ?? ''}
+                                    onChange={(e) => setTaekilFormValue(field.key, e.target.value)}
+                                    placeholder={field.placeholder}
+                                    className={TAEKIL_FIELD_PLACEHOLDER_CLASS}
+                                  />
+                                )}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">희망 요일 우선순위를 입력해 주세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>1순위</span>
+                              <select value={generalPreferredWeekday1} onChange={(e) => setGeneralPreferredWeekday1(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`gw1-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>2순위</span>
+                              <select value={generalPreferredWeekday2} onChange={(e) => setGeneralPreferredWeekday2(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`gw2-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                            <label className="space-y-2">
+                              <span className={TAEKIL_LABEL_CLASS}>3순위</span>
+                              <select value={generalPreferredWeekday3} onChange={(e) => setGeneralPreferredWeekday3(e.target.value)} className={TAEKIL_FIELD_CLASS}>
+                                {WEEKDAY_OPTIONS.map((option) => <option key={`gw3-${option.value}`} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={TAEKIL_SECTION_CARD_CLASS}>
+                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                          <h3 className="mt-1 text-base md:text-lg font-bold">피해야 할 날(선택)과 추가 메모를 입력해 주세요.</h3>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            {generalAvoidDateInputs.map((value, idx) => (
+                              <label key={`generic-avoid-date-${idx}`} className="space-y-2">
+                                <span className={TAEKIL_LABEL_CLASS}>회피일 {idx + 1}</span>
+                                <input
+                                  type="date"
+                                  value={value}
+                                  onChange={(e) => setGeneralAvoidDateInputs((prev) => prev.map((item, i) => (i === idx ? e.target.value : item)))}
+                                  className={TAEKIL_FIELD_CLASS}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          <label className="space-y-2 block mt-4">
+                            <span className={TAEKIL_LABEL_CLASS}>추가 메모 (선택)</span>
+                            <textarea
+                              value={taekilAdditionalInfo}
+                              onChange={(e) => setTaekilAdditionalInfo(e.target.value)}
+                              rows={3}
+                              placeholder="예: 오전 일정 선호, 서류 확인이 중요한 날 선호, 가족 이동 동선 최소화"
+                              className={`${TAEKIL_FIELD_PLACEHOLDER_CLASS} resize-none`}
+                            />
+                          </label>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={handleGenerateTaekil}
+                        disabled={taekilLoading}
+                        className={`w-full md:w-auto px-6 py-3 rounded-2xl text-white text-sm font-bold transition-all bg-indigo-600 hover:bg-indigo-700 ${taekilLoading ? 'opacity-60 cursor-wait' : ''}`}
+                      >
+                        {taekilLoading ? '계산 중...' : `${taekilActiveCategory} 길일 조회`}
+                      </button>
+                    </div>
+
+                    {taekilNotice && (
+                      <div className={`rounded-2xl border px-4 py-3 text-sm bg-sky-50 border-sky-200 text-sky-700`}>
+                        {taekilNotice}
+                      </div>
+                    )}
+
+                    {taekilError && (
+                      <div className={`rounded-2xl border px-4 py-3 text-sm bg-rose-50 border-rose-200 text-rose-700`}>
+                        {taekilError}
+                      </div>
+                    )}
+
+                    {taekilDisplayResults.length > 0 && (
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="text-base md:text-lg font-bold">
+                            {taekilActiveCategory === '출산' ? '출산 택일 추천 3안' : `${taekilActiveCategory} 택일 추천`}
+                          </h4>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200`}>
+                            {taekilDisplayResults.length}개
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3">
+                          {taekilDisplayResults.map((item, index) => (
+                            (() => {
+                              const profileSummary = taekilActiveCategory === '출산'
+                                ? getChildbirthProfileSummary(item)
+                                : null;
+
+                              return (
+                            <button
+                              key={`${item.date}-${index}`}
+                              type="button"
+                              onClick={() => setSelectedTaekilDate(item.date)}
+                              className={`rounded-2xl border p-4 text-left transition-all ${selectedTaekilDate === item.date ? ('bg-indigo-50 border-indigo-300') : ('bg-white border-zinc-200 hover:border-indigo-200')}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-bold">{index + 1}안 · {item.date}</p>
+                                  <p className={TAEKIL_HELP_TEXT_CLASS}>
+                                    추천 시진: {item.topTimeSlots?.[0]?.time || '산출 없음'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-3 space-y-1.5">
+                                {item.reasons.slice(0, 2).map((reason, reasonIdx) => (
+                                  <p key={`${item.date}-reason-${reasonIdx}`} className={`text-xs leading-relaxed text-zinc-600`}>
+                                    {reason}
+                                  </p>
+                                ))}
+                                {profileSummary && (
+                                  <div className={`mt-2 rounded-xl border px-3 py-2 space-y-1 border-zinc-200 bg-zinc-50`}>
+                                    <p className={`text-xs leading-relaxed text-zinc-700`}>{profileSummary.personality}</p>
+                                    <p className={`text-xs leading-relaxed text-zinc-700`}>{profileSummary.career}</p>
+                                    <p className={`text-xs leading-relaxed text-zinc-700`}>{profileSummary.health}</p>
+                                    <p className={`text-xs leading-relaxed text-zinc-600`}>{profileSummary.caution}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                              );
+                            })()
+                          ))}
+                        </div>
+
+                        {selectedTaekilDetail && (
+                          (() => {
+                            const detailProfileSummary = taekilActiveCategory === '출산'
+                              ? getChildbirthProfileSummary(selectedTaekilDetail)
+                              : null;
+
+                            return (
+                          <div className={`rounded-2xl border p-4 bg-zinc-50 border-zinc-200`}>
+                            <p className="text-sm font-bold">선택 후보: {selectedTaekilDetail.date}</p>
+                            <div className="mt-2 space-y-1.5">
+                              {selectedTaekilDetail.reasons.slice(0, 4).map((reason, idx) => (
+                                <p key={`detail-reason-${idx}`} className={`text-xs leading-relaxed text-zinc-600`}>
+                                  {reason}
+                                </p>
+                              ))}
+                              {detailProfileSummary && (
+                                <div className={`mt-2 rounded-xl border px-3 py-2 space-y-1 border-zinc-200 bg-white`}>
+                                  <p className={`text-xs leading-relaxed text-zinc-700`}>{detailProfileSummary.personality}</p>
+                                  <p className={`text-xs leading-relaxed text-zinc-700`}>{detailProfileSummary.career}</p>
+                                  <p className={`text-xs leading-relaxed text-zinc-700`}>{detailProfileSummary.health}</p>
+                                  <p className={`text-xs leading-relaxed text-zinc-600`}>{detailProfileSummary.caution}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  </section>
+                </div>
               </div>
             </motion.div>
           )}
@@ -2497,20 +3639,20 @@ ${daeunContext}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col overflow-hidden bg-white dark:bg-black"
+              className="absolute inset-0 flex flex-col overflow-hidden bg-white"
             >
               <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full">
                 {/* Desktop Sidebar for Suggestions */}
-                <aside className="hidden md:flex w-64 flex-col border-r border-black/5 dark:border-white/10 p-4 space-y-6 overflow-y-auto relative">
+                <aside className="hidden md:flex w-64 flex-col border-r border-black/5 p-4 space-y-6 overflow-y-auto relative">
                   <div className="space-y-3">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 모드</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">상담 모드</h4>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => switchConsultationMode('basic')}
                         className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                           consultationMode === 'basic'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                            : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400'
+                            : 'bg-zinc-100 text-zinc-500'
                         }`}
                       >
                         초급자
@@ -2520,7 +3662,7 @@ ${daeunContext}
                         className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                           consultationMode === 'advanced'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                            : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400'
+                            : 'bg-zinc-100 text-zinc-500'
                         }`}
                       >
                         고급자
@@ -2528,27 +3670,19 @@ ${daeunContext}
                     </div>
                   </div>
 
-                  <div className="space-y-2 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">상담 초기화</h4>
+                  <div className="space-y-2 pt-4 border-t border-black/5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">상담 초기화</h4>
                     <div className="grid grid-cols-1 gap-2 px-2">
                       <button
                         onClick={clearChatWindowOnly}
-                        className={`px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all ${
-                          isDarkMode
-                            ? 'bg-white/5 border-white/10 text-zinc-200 hover:border-indigo-400/60'
-                            : 'bg-white border-gray-200 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
-                        }`}
+                        className={`px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all bg-white border-gray-200 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600`}
                         title="화면만 정리하고 이전 상담 맥락은 유지"
                       >
                         채팅창 비우기(맥락 유지)
                       </button>
                       <button
                         onClick={clearChatWindowAndContext}
-                        className={`px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all ${
-                          isDarkMode
-                            ? 'bg-rose-500/10 border-rose-400/40 text-rose-200 hover:border-rose-300/70'
-                            : 'bg-rose-50 border-rose-200 text-rose-700 hover:border-rose-300'
-                        }`}
+                        className={`px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all bg-rose-50 border-rose-200 text-rose-700 hover:border-rose-300`}
                         title="화면과 상담 맥락을 함께 초기화"
                       >
                         채팅+상담기록 초기화
@@ -2557,26 +3691,26 @@ ${daeunContext}
                   </div>
 
                   {/* Consultation Tips */}
-                  <div className="space-y-3 pt-4 border-t border-black/5 dark:border-white/5">
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 dark:opacity-60 px-2">사주상담시 유용한 팁</h4>
+                  <div className="space-y-3 pt-4 border-t border-black/5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">사주상담시 유용한 팁</h4>
                     <ul className="space-y-2 px-2">
-                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>질문에 "어떻게"를 넣어보세요. 고민의 해결은 나의 행동에서 출발합니다. 내가 어떻게 하는가가 많은 걸 바꿉니다.</span>
                       </li>
-                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>구체적인 상황을 알려주세요. 사주상담이 더욱 풍성해지고 알차집니다. 여기에서 알려주시는 모든 사적인 내용은 철저하게 보호해드립니다.</span>
                       </li>
-                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>상담내용에 다른 사람의 개인 정보(물론 그분의 동의가 필요합니다)를 넣으시면 더 좋은 상담결과가 나옵니다.</span>
                       </li>
-                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>MBTI 등 추가적인 정보를 넣으시면 관련하여 더욱 알찬 상담이 될 수 있습니다.</span>
                       </li>
-                      <li className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex gap-2">
+                      <li className="text-[12px] text-zinc-500 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
                         <span>상담을 진행하다 맥락을 리프레시하고 상담을 재개하면 객관적인 상담이 유지될 수 있습니다.</span>
                       </li>
@@ -2585,7 +3719,7 @@ ${daeunContext}
 
                   {/* Privacy Notice (Desktop) */}
                   <div className="mt-auto pt-6">
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center leading-relaxed">
+                    <p className="text-[11px] text-zinc-500 text-center leading-relaxed">
                       상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
                     </p>
                   </div>
@@ -2595,7 +3729,7 @@ ${daeunContext}
                 <div className="flex-1 flex flex-col overflow-hidden relative text-[12pt]">
                   <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 hide-scrollbar">
                     {modeNotice && (
-                      <div className="mx-auto max-w-3xl rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-center text-[12px] text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200">
+                      <div className="mx-auto max-w-3xl rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-center text-[12px] text-indigo-700">
                         {modeNotice}
                       </div>
                     )}
@@ -2614,17 +3748,13 @@ ${daeunContext}
                         <div className={`max-w-[96%] md:max-w-[92%] p-4 md:p-5 rounded-2xl leading-relaxed shadow-sm ${
                           msg.role === 'user' 
                             ? 'bg-indigo-600 text-white rounded-tr-none' 
-                            : isDarkMode 
-                              ? 'bg-zinc-800 border border-white/20 text-gray-100 rounded-tl-none shadow-lg'
-                              : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
+                            : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
                         }`}>
                           {renderChatPlainText(msg.text)}
                         </div>
 
                         {msg.role === 'model' && i === messages.length - 1 && !loading && suggestions.length > 0 && (
-                          <div className={`w-full max-w-[96%] md:max-w-[92%] p-3 rounded-2xl border ${
-                            isDarkMode ? 'bg-zinc-900/70 border-white/10' : 'bg-indigo-50/70 border-indigo-100'
-                          }`}>
+                          <div className={`w-full max-w-[96%] md:max-w-[92%] p-3 rounded-2xl border bg-indigo-50/70 border-indigo-100`}>
                             <div className="flex flex-wrap justify-center gap-2 mb-2">
                               {(consultationMode === 'basic' ? BASIC_CHAT_CATEGORIES : CATEGORIES).map((cat) => (
                                 <button
@@ -2639,9 +3769,7 @@ ${daeunContext}
                                   className={`px-3 py-1.5 rounded-xl border text-sm transition-all ${
                                     (consultationMode === 'basic' ? basicSelectedCategory : selectedCategory) === cat
                                       ? 'bg-indigo-600 border-indigo-600 text-white'
-                                      : isDarkMode
-                                        ? 'bg-white/5 border-white/10 text-zinc-300 hover:border-indigo-400/60'
-                                        : 'bg-white border-indigo-100 text-zinc-600 hover:border-indigo-300'
+                                      : 'bg-white border-indigo-100 text-zinc-600 hover:border-indigo-300'
                                   }`}
                                 >
                                   {cat}
@@ -2653,11 +3781,7 @@ ${daeunContext}
                                 <button
                                   key={`inline-chat-suggestion-${idx}`}
                                   onClick={() => handleSuggestionClick(s)}
-                                  className={`text-left px-3 py-2 rounded-xl border transition-all ${
-                                    isDarkMode
-                                      ? 'bg-white/5 border-white/10 text-zinc-200 hover:border-indigo-400/60 hover:text-indigo-300'
-                                      : 'bg-white border-indigo-100 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
-                                  }`}
+                                  className={`text-left px-3 py-2 rounded-xl border transition-all bg-white border-indigo-100 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600`}
                                 >
                                   {s}
                                 </button>
@@ -2668,37 +3792,29 @@ ${daeunContext}
                       </div>
                     ))}
                     {loading && (
-                      <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full w-fit border ${
-                        isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100 border-gray-200'
-                      }`}>
+                      <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full w-fit border bg-gray-100 border-gray-200`}>
                         <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
-                        <span className={`${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>유아이가 분석 중입니다...</span>
+                        <span className={`text-gray-500`}>유아이가 분석 중입니다...</span>
                       </div>
                     )}
 
                   </div>
 
                   {/* Input Area */}
-                  <div className={`p-2 border-t md:pb-4 ${
-                    isDarkMode ? 'border-white/10 bg-black/40' : 'border-gray-200 bg-white/80'
-                  }`}>
+                  <div className={`p-2 border-t md:pb-4 border-gray-200 bg-white/80`}>
                     <div className="max-w-4xl mx-auto relative">
                       <input 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         placeholder={consultationMode === 'basic' ? '음성 또는 직접 입력으로 질문해 주세요...' : '메시지를 입력하세요...'}
-                        className={`w-full border rounded-2xl py-3 pl-4 pr-24 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ${
-                          isDarkMode 
-                            ? 'bg-white/5 border-white/10 text-white' 
-                            : 'bg-white border-gray-300 text-gray-900'
-                        }`}
+                        className={`w-full border rounded-2xl py-3 pl-4 pr-24 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm bg-white border-gray-300 text-gray-900`}
                       />
                       <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={handleVoiceInput}
-                            className={`p-2 rounded-xl shadow-lg active:scale-90 transition-transform ${isListening ? 'bg-rose-500 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200'}`}
+                            className={`p-2 rounded-xl shadow-lg active:scale-90 transition-transform ${isListening ? 'bg-rose-500 text-white' : 'bg-zinc-200 text-zinc-700'}`}
                             title="음성 입력"
                           >
                             <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse' : ''}`} />
@@ -2710,7 +3826,7 @@ ${daeunContext}
                       </div>
                     </div>
                     {voiceStatusMessage && (
-                      <p className={`max-w-4xl mx-auto mt-1 text-[11px] ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
+                      <p className={`max-w-4xl mx-auto mt-1 text-[11px] text-rose-600`}>
                         {voiceStatusMessage}
                       </p>
                     )}
@@ -2721,11 +3837,7 @@ ${daeunContext}
                           key={`fortune-shortcut-${shortcut}`}
                           onClick={() => handleSuggestionClick(shortcut)}
                           disabled={loading}
-                          className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 ${
-                            isDarkMode
-                              ? 'bg-white/5 border-white/10 text-zinc-200 hover:border-indigo-400/60 hover:text-indigo-300'
-                              : 'bg-white border-indigo-100 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
-                          }`}
+                          className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 bg-white border-indigo-100 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600`}
                         >
                           {shortcut}
                         </button>
@@ -2737,13 +3849,13 @@ ${daeunContext}
                       <div className="grid grid-cols-2 gap-1 pb-1">
                         <button
                           onClick={() => switchConsultationMode('basic')}
-                          className={`px-2 py-1 rounded-lg text-[12px] font-bold border ${consultationMode === 'basic' ? 'bg-indigo-600 border-indigo-600 text-white' : isDarkMode ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-white border-gray-200 text-gray-500'}`}
+                          className={`px-2 py-1 rounded-lg text-[12px] font-bold border ${consultationMode === 'basic' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500'}`}
                         >
                           초급자
                         </button>
                         <button
                           onClick={() => switchConsultationMode('advanced')}
-                          className={`px-2 py-1 rounded-lg text-[12px] font-bold border ${consultationMode === 'advanced' ? 'bg-indigo-600 border-indigo-600 text-white' : isDarkMode ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-white border-gray-200 text-gray-500'}`}
+                          className={`px-2 py-1 rounded-lg text-[12px] font-bold border ${consultationMode === 'advanced' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500'}`}
                         >
                           고급자
                         </button>
@@ -2752,22 +3864,14 @@ ${daeunContext}
                       <div className="grid grid-cols-1 gap-1 pb-1">
                         <button
                           onClick={clearChatWindowOnly}
-                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border ${
-                            isDarkMode
-                              ? 'bg-white/5 border-white/10 text-zinc-200'
-                              : 'bg-white border-gray-200 text-zinc-700'
-                          }`}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border bg-white border-gray-200 text-zinc-700`}
                           title="화면만 정리하고 이전 상담 맥락은 유지"
                         >
                           채팅창 비우기(맥락 유지)
                         </button>
                         <button
                           onClick={clearChatWindowAndContext}
-                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border ${
-                            isDarkMode
-                              ? 'bg-rose-500/10 border-rose-400/40 text-rose-200'
-                              : 'bg-rose-50 border-rose-200 text-rose-700'
-                          }`}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border bg-rose-50 border-rose-200 text-rose-700`}
                           title="화면과 상담 맥락을 함께 초기화"
                         >
                           채팅+상담기록 초기화
@@ -2775,8 +3879,8 @@ ${daeunContext}
                       </div>
 
                       {/* Privacy Notice (Mobile) */}
-                      <div className="pt-1 border-t border-black/5 dark:border-white/5">
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center leading-tight">
+                      <div className="pt-1 border-t border-black/5">
+                        <p className="text-[10px] text-zinc-500 text-center leading-tight">
                           상담 정보는 상담 종료 시 자동 파기됩니다.
                         </p>
                       </div>
@@ -2792,20 +3896,20 @@ ${daeunContext}
               key="report"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex-1 overflow-y-auto p-4 md:p-10 hide-scrollbar bg-white dark:bg-black"
+              className="flex-1 overflow-y-auto p-4 md:p-10 hide-scrollbar bg-white"
             >
               <div className="max-w-4xl mx-auto pb-20">
                 {/* Top control bar */}
                 <div className="flex items-center justify-between mb-6">
                   {/* Mode toggle */}
-                  <div className="flex items-center gap-1 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+                  <div className="flex items-center gap-1 p-1 rounded-2xl bg-zinc-100">
                     <button
                       onClick={() => switchReportMode('basic')}
                       disabled={loading}
                       className={`px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
                         consultationMode === 'basic'
-                          ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                          : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                          ? 'bg-white text-indigo-600 shadow-sm'
+                          : 'text-zinc-500 hover:text-zinc-700'
                       }`}
                     >
                       초급자
@@ -2815,8 +3919,8 @@ ${daeunContext}
                       disabled={loading}
                       className={`px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
                         consultationMode === 'advanced'
-                          ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                          : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                          ? 'bg-white text-indigo-600 shadow-sm'
+                          : 'text-zinc-500 hover:text-zinc-700'
                       }`}
                     >
                       고급자
@@ -2827,7 +3931,7 @@ ${daeunContext}
                   <button
                     onClick={handleDownloadPDF}
                     disabled={loading || isPrinting || !reportContent}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400 transition-all disabled:opacity-40"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-zinc-100 text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all disabled:opacity-40"
                   >
                     <Download className={`w-4 h-4 ${isPrinting ? 'animate-bounce' : ''}`} />
                     PDF 저장
@@ -2842,7 +3946,7 @@ ${daeunContext}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="flex flex-col items-center justify-center py-32 space-y-6 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem]"
+                      className="flex flex-col items-center justify-center py-32 space-y-6 bg-zinc-50 rounded-[3rem]"
                     >
                       <div className="relative">
                         <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
@@ -2850,7 +3954,7 @@ ${daeunContext}
                       </div>
                       <div className="text-center space-y-2">
                         <p className="text-lg font-bold animate-pulse">운명의 지도를 그리는 중...</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
+                        <p className="text-xs text-zinc-500">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
                       </div>
                     </motion.div>
                   ) : reportContent ? (
@@ -2861,11 +3965,11 @@ ${daeunContext}
                       className="space-y-6"
                       ref={reportRef}
                     >
-                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-12 shadow-xl border border-black/5 dark:border-white/5">
-                        <ReportAccordion content={reportContent} isDarkMode={isDarkMode} forceOpen={isPrinting} />
+                      <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl border border-black/5">
+                        <ReportAccordion content={reportContent} forceOpen={isPrinting} />
                       </div>
-                      <div className="mt-10 pt-6 border-t border-black/5 dark:border-white/5">
-                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed text-center">
+                      <div className="mt-10 pt-6 border-t border-black/5">
+                        <p className="text-[10px] text-zinc-500 leading-relaxed text-center">
                           본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                         </p>
                       </div>
@@ -2875,14 +3979,14 @@ ${daeunContext}
                       key="empty"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="text-center py-32 space-y-8 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800"
+                      className="text-center py-32 space-y-8 bg-zinc-50 rounded-[3rem] border-2 border-dashed border-zinc-200"
                     >
                       <div className="w-24 h-24 rounded-full bg-indigo-500/5 flex items-center justify-center mx-auto border border-indigo-500/10">
                         <FileText className="w-10 h-10 text-indigo-500/30" />
                       </div>
                       <div className="space-y-4">
                         <h3 className="text-2xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
+                        <p className="text-sm text-zinc-500 max-w-sm mx-auto leading-relaxed">
                           위의 모드 버튼을 선택하면<br/>
                           AI 디렉터가 사주 데이터를 기반으로 리포트를 생성해 드립니다.
                         </p>
@@ -2899,16 +4003,16 @@ ${daeunContext}
               key="guide"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 hide-scrollbar bg-white dark:bg-black"
+              className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 hide-scrollbar bg-white"
             >
               <div className="max-w-6xl mx-auto space-y-12 pb-20">
                 {/* Guide Sub-navigation */}
                 {guideSubPage !== "main" && (
                   <button 
                     onClick={() => setGuideSubPage("main")}
-                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm mb-8 hover:underline transition-all group"
+                    className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-8 hover:underline transition-all group"
                   >
-                    <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-950/30 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition-colors">
+                    <div className="p-2 rounded-full bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
                       <ArrowLeft className="w-4 h-4" />
                     </div>
                     가이드 메인으로 돌아가기
@@ -2918,7 +4022,7 @@ ${daeunContext}
                 {guideSubPage === "main" ? (
                   <>
                     {/* CEO 인사말 카드 */}
-                    <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-2xl border border-black/5 dark:border-white/5 flex flex-col md:flex-row">
+                    <div className="bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-black/5 flex flex-col md:flex-row">
                       <div className="md:w-1/3 bg-indigo-600 p-10 text-center relative overflow-hidden flex flex-col items-center justify-center">
                         <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
                           <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -2934,8 +4038,8 @@ ${daeunContext}
                         </div>
                       </div>
                       <div className="flex-1 p-10 md:p-14 space-y-8">
-                        <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700 dark:text-zinc-300">
-                          <p className="font-bold text-zinc-900 dark:text-white text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
+                        <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700">
+                          <p className="font-bold text-zinc-900 text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
                           <div className="space-y-4">
                             <p>
                               유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다. 
@@ -2958,7 +4062,7 @@ ${daeunContext}
                             </p>
                           </div>
                         </div>
-                        <div className="pt-8 border-t border-black/5 dark:border-white/5 text-right">
+                        <div className="pt-8 border-t border-black/5 text-right">
                           <p className="text-sm font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
                         </div>
                       </div>
@@ -2967,51 +4071,51 @@ ${daeunContext}
                     {/* 정보 그리드 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* 카드 1: 유아이 앱의 장점 */}
-                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
-                        <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
+                      <div className="bg-white rounded-[3rem] overflow-hidden shadow-xl border border-black/5 flex flex-col">
+                        <div className="bg-[#0047AB] p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
                             유아이 앱이 다른 앱보다<br/>좋은 세가지 이유
                           </h2>
                         </div>
                         <div className="p-10 space-y-10">
                           <div className="flex items-start gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
                               <div className="relative">
-                                <Database className="w-8 h-8 text-indigo-600 dark:text-indigo-400 opacity-40" />
-                                <Lock className="w-5 h-5 text-indigo-600 dark:text-indigo-400 absolute -bottom-1 -right-1" />
+                                <Database className="w-8 h-8 text-indigo-600 opacity-40" />
+                                <Lock className="w-5 h-5 text-indigo-600 absolute -bottom-1 -right-1" />
                                 <div className="absolute top-0 left-0 w-full h-0.5 bg-rose-500 rotate-45 origin-center translate-y-4"></div>
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">철저한 프라이버시 보호</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                              <p className="text-lg font-bold text-zinc-800">철저한 프라이버시 보호</p>
+                              <p className="text-sm text-zinc-500 leading-relaxed">
                                 사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-start gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
-                              <Zap className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                              <Zap className="w-8 h-8 text-indigo-600" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">정밀한 사주 데이터 학습</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                              <p className="text-lg font-bold text-zinc-800">정밀한 사주 데이터 학습</p>
+                              <p className="text-sm text-zinc-500 leading-relaxed">
                                 AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-start gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
                               <div className="relative">
-                                <Bot className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                                <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 absolute -top-1 -right-1" />
+                                <Bot className="w-8 h-8 text-indigo-600" />
+                                <BookOpen className="w-4 h-4 text-indigo-600 absolute -top-1 -right-1" />
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">맞춤형 인생 가이드 제공</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                              <p className="text-lg font-bold text-zinc-800">맞춤형 인생 가이드 제공</p>
+                              <p className="text-sm text-zinc-500 leading-relaxed">
                                 사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
                               </p>
                             </div>
@@ -3020,30 +4124,30 @@ ${daeunContext}
                       </div>
 
                       {/* 카드 2: 정보 입력 방법 */}
-                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col">
-                        <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
+                      <div className="bg-white rounded-[3rem] overflow-hidden shadow-xl border border-black/5 flex flex-col">
+                        <div className="bg-[#0047AB] p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
                             사용자 정보 입력 방법
                           </h2>
                         </div>
                         <div className="p-10 space-y-10">
                           <div className="flex items-start gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center shrink-0">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
                               <Clock className="w-8 h-8 text-indigo-500" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">생시 미입력 가능</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
+                              <p className="text-lg font-bold text-zinc-800">생시 미입력 가능</p>
+                              <p className="text-sm text-zinc-500 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
                             </div>
                           </div>
 
                           <div className="flex items-start gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center shrink-0">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
                               <Calendar className="w-8 h-8 text-indigo-500" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">양력/음력 자동 인식</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
+                              <p className="text-lg font-bold text-zinc-800">양력/음력 자동 인식</p>
+                              <p className="text-sm text-zinc-500 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
                             </div>
                           </div>
 
@@ -3052,16 +4156,16 @@ ${daeunContext}
                               <Zap className="w-8 h-8 text-white fill-white" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">분석 시작</p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
+                              <p className="text-lg font-bold text-indigo-600">분석 시작</p>
+                              <p className="text-sm text-zinc-500 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
                             </div>
                           </div>
                         </div>
                       </div>
 
                       {/* 카드 3: 운세 철학 */}
-                      <div className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden shadow-xl border border-black/5 dark:border-white/5 flex flex-col md:col-span-2">
-                        <div className="bg-[#0047AB] dark:bg-indigo-900/80 p-10 text-center">
+                      <div className="bg-white rounded-[3rem] overflow-hidden shadow-xl border border-black/5 flex flex-col md:col-span-2">
+                        <div className="bg-[#0047AB] p-10 text-center">
                           <h2 className="text-white text-3xl font-handwriting leading-tight">
                             유아이의 운세분석 과정과<br/>운세에 대한 철학
                           </h2>
@@ -3070,36 +4174,36 @@ ${daeunContext}
                           {/* 분석 프로세스 */}
                           <div className="flex flex-col items-center space-y-6">
                             <div className="flex items-center gap-6">
-                              <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-black/5 dark:border-white/5">
-                                <User className="w-8 h-8 text-zinc-400" />
+                              <div className="w-16 h-16 rounded-2xl bg-zinc-100 flex items-center justify-center border border-black/5">
+                                <User className="w-8 h-8 text-zinc-500" />
                               </div>
-                              <div className="w-12 h-px bg-zinc-200 dark:bg-zinc-700 border-t border-dashed"></div>
+                              <div className="w-12 h-px bg-zinc-200 border-t border-dashed"></div>
                               <div className="w-24 h-24 rounded-3xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                                 <Cpu className="w-12 h-12 text-white animate-pulse" />
                               </div>
-                              <div className="w-12 h-px bg-zinc-200 dark:bg-zinc-700 border-t border-dashed"></div>
-                              <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-black/5 dark:border-white/5">
+                              <div className="w-12 h-px bg-zinc-200 border-t border-dashed"></div>
+                              <div className="w-16 h-16 rounded-2xl bg-zinc-100 flex items-center justify-center border border-black/5">
                                 <FileText className="w-8 h-8 text-indigo-500" />
                               </div>
                             </div>
-                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">분석 프로세스</p>
+                            <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest">분석 프로세스</p>
                           </div>
 
-                          <div className="hidden md:block w-px h-40 bg-zinc-100 dark:bg-zinc-800"></div>
+                          <div className="hidden md:block w-px h-40 bg-zinc-100"></div>
 
                           {/* 운세 철학 */}
                           <div className="flex flex-col items-center text-center space-y-8 max-w-md">
                             <div className="relative w-40 h-40 flex items-center justify-center">
                               <Waves className="w-full h-full text-indigo-500/20 absolute animate-pulse" />
-                              <div className="relative z-10 p-6 bg-white dark:bg-zinc-900 rounded-full border-2 border-indigo-500 shadow-2xl">
+                              <div className="relative z-10 p-6 bg-white rounded-full border-2 border-indigo-500 shadow-2xl">
                                 <Compass className="w-14 h-14 text-indigo-600" />
                               </div>
                             </div>
                             <div className="space-y-4">
-                              <p className="text-xl font-bold text-zinc-800 dark:text-zinc-200">
+                              <p className="text-xl font-bold text-zinc-800">
                                 "운명은 정해진 결말이 아니라,<br/>우리가 조종하는 돛의 방향입니다."
                               </p>
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                              <p className="text-sm text-zinc-500 leading-relaxed">
                                 만세력 기반의 정밀 분석과 AI의 전략적 해석으로,<br/>
                                 당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.
                               </p>
@@ -3113,9 +4217,9 @@ ${daeunContext}
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-16 shadow-2xl border border-black/5 dark:border-white/5"
+                    className="bg-white rounded-[3rem] p-8 md:p-16 shadow-2xl border border-black/5"
                   >
-                    <div className="markdown-body prose dark:prose-invert max-w-none">
+                    <div className="markdown-body prose max-w-none">
                       {guideSubPage === "about" && (
                         <ReactMarkdown>{`
 # 유아이사주(UI Saju) 소개
@@ -3230,16 +4334,16 @@ ${daeunContext}
                 )}
 
                 {/* Footer Section */}
-                <div className="pt-12 border-t border-black/5 dark:border-white/5">
-                  <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+                <div className="pt-12 border-t border-black/5">
+                  <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[11px] font-bold uppercase tracking-widest text-zinc-500">
                     <button onClick={() => setGuideSubPage("about")} className="hover:text-indigo-500 transition-colors">소개 (About)</button>
                     <button onClick={() => setGuideSubPage("terms")} className="hover:text-indigo-500 transition-colors">이용약관 (Terms)</button>
                     <button onClick={() => setGuideSubPage("privacy")} className="hover:text-indigo-500 transition-colors">개인정보 처리방침 (Privacy)</button>
                     <button onClick={() => setGuideSubPage("contact")} className="hover:text-indigo-500 transition-colors">문의하기 (Contact)</button>
                   </div>
                   <div className="mt-8 text-center space-y-2">
-                    <p className="text-[10px] text-zinc-400 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
-                    <p className="text-[9px] text-zinc-400 opacity-40 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-[10px] text-zinc-500 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
+                    <p className="text-[9px] text-zinc-500 opacity-40 max-w-2xl mx-auto leading-relaxed">
                       유아이 사주상담은 인공지능 기술을 활용한 명리학 가이드 서비스입니다. 모든 분석 결과는 참고용이며, 삶의 최종 결정은 본인의 판단하에 이루어져야 합니다.
                     </p>
                   </div>
@@ -3259,7 +4363,7 @@ ${daeunContext}
               key="blog"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-[#fdfbf7] dark:bg-[#0a0a0a]"
+              className="flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-[#fdfbf7]"
             >
               <div className={`mx-auto pb-20 ${selectedBlogPost ? 'max-w-4xl' : 'max-w-7xl'}`}>
                 <AnimatePresence mode="wait">
@@ -3273,15 +4377,15 @@ ${daeunContext}
                     >
                       <button 
                         onClick={() => setSelectedBlogPost(null)}
-                        className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm mb-4 hover:underline transition-all group"
+                        className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-4 hover:underline transition-all group"
                       >
-                        <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-950/30 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition-colors">
+                        <div className="p-2 rounded-full bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
                           <ArrowLeft className="w-4 h-4" />
                         </div>
                         목록으로 돌아가기
                       </button>
                       
-                      <div className="rounded-[3rem] overflow-hidden bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 shadow-2xl">
+                      <div className="rounded-[3rem] overflow-hidden bg-white border border-black/5 shadow-2xl">
                         <div className="relative h-64 md:h-[30rem]">
                           <img 
                             src={selectedBlogPost.imageUrl} 
@@ -3301,7 +4405,7 @@ ${daeunContext}
                           </div>
                         </div>
                         <div className="p-8 md:p-16 space-y-10">
-                          <div className="markdown-body prose dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-zinc-700 dark:text-zinc-300">
+                          <div className="markdown-body prose max-w-none text-base md:text-lg leading-relaxed text-zinc-700">
                             <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                               {selectedBlogPost.content.startsWith('# ') 
                                 ? selectedBlogPost.content.split('\n').slice(1).join('\n').trim() 
@@ -3309,7 +4413,7 @@ ${daeunContext}
                             </ReactMarkdown>
                           </div>
                           
-                          <div className="pt-10 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
+                          <div className="pt-10 border-t border-black/5 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">UI</div>
                               <div>
@@ -3319,7 +4423,7 @@ ${daeunContext}
                             </div>
                             <button 
                               onClick={() => setSelectedBlogPost(null)}
-                              className="px-6 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                              className="px-6 py-2 rounded-xl bg-zinc-100 text-xs font-bold hover:bg-zinc-200 transition-colors"
                             >
                               목록보기
                             </button>
@@ -3334,7 +4438,7 @@ ${daeunContext}
                       animate={{ opacity: 1 }}
                       className="space-y-12"
                     >
-                      <div className="text-center py-16 space-y-4 relative overflow-hidden rounded-[3rem] bg-indigo-600 dark:bg-indigo-950/30 p-10">
+                      <div className="text-center py-16 space-y-4 relative overflow-hidden rounded-[3rem] bg-indigo-600 p-10">
                         <div className="absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none">
                           <Sparkles className="w-full h-full text-white" />
                         </div>
@@ -3366,7 +4470,7 @@ ${daeunContext}
                                   className={`whitespace-nowrap text-left px-6 py-4 rounded-[1.25rem] text-sm font-bold transition-all duration-300 ${
                                     blogCategory === cat 
                                       ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02]' 
-                                      : 'bg-white dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 border border-black/5 dark:border-white/5'
+                                      : 'bg-white hover:bg-indigo-50 text-zinc-600 hover:text-indigo-600 border border-black/5'
                                   }`}
                                 >
                                   {cat}
@@ -3384,7 +4488,7 @@ ${daeunContext}
                                   onClick={() => handlePostClick(post)}
                                   className="group text-left space-y-2.5"
                                 >
-                                  <p className="text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
+                                  <p className="text-sm font-bold leading-snug text-zinc-900 group-hover:text-indigo-600 transition-colors line-clamp-2">
                                     {post.title}
                                   </p>
                                   <div className="flex items-center gap-2 opacity-40">
@@ -3405,14 +4509,14 @@ ${daeunContext}
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="p-8 md:p-12 rounded-[3rem] bg-white dark:bg-zinc-900 border-2 border-dashed border-indigo-500/30 space-y-8 shadow-2xl"
+                              className="p-8 md:p-12 rounded-[3rem] bg-white border-2 border-dashed border-indigo-500/30 space-y-8 shadow-2xl"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                   <h3 className="text-2xl font-bold">새 블로그 글 작성</h3>
-                                  <p className="text-xs text-zinc-400">당신의 지혜를 세상과 공유하세요.</p>
+                                  <p className="text-xs text-zinc-500">당신의 지혜를 세상과 공유하세요.</p>
                                 </div>
-                                <button onClick={() => setIsAddingPost(false)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
+                                <button onClick={() => setIsAddingPost(false)} className="p-3 hover:bg-zinc-100 rounded-2xl transition-colors">
                                   <X className="w-6 h-6" />
                                 </button>
                               </div>
@@ -3422,7 +4526,7 @@ ${daeunContext}
                                   <input 
                                     type="text" 
                                     placeholder="글의 제목을 입력하세요"
-                                    className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-xl transition-all"
+                                    className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-xl transition-all"
                                     value={newPost.title}
                                     onChange={e => setNewPost({...newPost, title: e.target.value})}
                                   />
@@ -3431,7 +4535,7 @@ ${daeunContext}
                                   <div className="space-y-2">
                                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">카테고리</label>
                                     <select 
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold transition-all"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold transition-all"
                                       value={newPost.category}
                                       onChange={e => setNewPost({...newPost, category: e.target.value})}
                                     >
@@ -3446,11 +4550,11 @@ ${daeunContext}
                                       <input 
                                         type="text" 
                                         placeholder="https://..."
-                                        className="flex-1 p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        className="flex-1 p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         value={newPost.imageUrl}
                                         onChange={e => setNewPost({...newPost, imageUrl: e.target.value})}
                                       />
-                                      <label className="cursor-pointer px-6 py-5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/20">
+                                      <label className="cursor-pointer px-6 py-5 rounded-2xl bg-indigo-500/10 text-indigo-600 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/20">
                                         <ImageIcon className="w-4 h-4" />
                                         {isUploading ? "업로드 중..." : "파일 선택"}
                                         <input 
@@ -3463,7 +4567,7 @@ ${daeunContext}
                                       </label>
                                     </div>
                                     {newPost.imageUrl && (
-                                      <div className="mt-4 relative h-40 rounded-2xl overflow-hidden border border-black/5 dark:border-white/5">
+                                      <div className="mt-4 relative h-40 rounded-2xl overflow-hidden border border-black/5">
                                         <img 
                                           src={newPost.imageUrl} 
                                           alt="Preview" 
@@ -3483,7 +4587,7 @@ ${daeunContext}
                                     <input 
                                       type="text" 
                                       placeholder="글의 짧은 요약을 입력하세요"
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                       value={newPost.excerpt}
                                       onChange={e => setNewPost({...newPost, excerpt: e.target.value})}
                                     />
@@ -3493,7 +4597,7 @@ ${daeunContext}
                                     <input 
                                       type="text" 
                                       placeholder="3분"
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                       value={newPost.readTime}
                                       onChange={e => setNewPost({...newPost, readTime: e.target.value})}
                                     />
@@ -3503,7 +4607,7 @@ ${daeunContext}
                                   <div className="flex items-center justify-between ml-2">
                                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Rich Text / Markdown)</label>
                                   </div>
-                                  <div className="prose-editor dark:prose-editor-dark">
+                                  <div className="prose-editor">
                                     <SimpleMDE 
                                       value={newPost.content}
                                       onChange={value => setNewPost({...newPost, content: value})}
@@ -3532,14 +4636,14 @@ ${daeunContext}
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="p-8 md:p-12 rounded-[3rem] bg-white dark:bg-zinc-900 border-2 border-dashed border-indigo-500/30 space-y-8 shadow-2xl"
+                              className="p-8 md:p-12 rounded-[3rem] bg-white border-2 border-dashed border-indigo-500/30 space-y-8 shadow-2xl"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                   <h3 className="text-2xl font-bold">블로그 글 수정</h3>
-                                  <p className="text-xs text-zinc-400">기존의 지혜를 다듬어 보세요.</p>
+                                  <p className="text-xs text-zinc-500">기존의 지혜를 다듬어 보세요.</p>
                                 </div>
-                                <button onClick={() => setIsEditingPost(null)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
+                                <button onClick={() => setIsEditingPost(null)} className="p-3 hover:bg-zinc-100 rounded-2xl transition-colors">
                                   <X className="w-6 h-6" />
                                 </button>
                               </div>
@@ -3549,7 +4653,7 @@ ${daeunContext}
                                   <input 
                                     type="text" 
                                     placeholder="제목을 입력하세요"
-                                    className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-xl transition-all"
+                                    className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-xl transition-all"
                                     value={isEditingPost.title}
                                     onChange={e => setIsEditingPost({...isEditingPost, title: e.target.value})}
                                   />
@@ -3558,7 +4662,7 @@ ${daeunContext}
                                   <div className="space-y-2">
                                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-2">카테고리</label>
                                     <select 
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold transition-all"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none font-bold transition-all"
                                       value={isEditingPost.category}
                                       onChange={e => setIsEditingPost({...isEditingPost, category: e.target.value})}
                                     >
@@ -3573,11 +4677,11 @@ ${daeunContext}
                                       <input 
                                         type="text" 
                                         placeholder="이미지 URL"
-                                        className="flex-1 p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        className="flex-1 p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         value={isEditingPost.imageUrl}
                                         onChange={e => setIsEditingPost({...isEditingPost, imageUrl: e.target.value})}
                                       />
-                                      <label className="cursor-pointer px-6 py-5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/20">
+                                      <label className="cursor-pointer px-6 py-5 rounded-2xl bg-indigo-500/10 text-indigo-600 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/20">
                                         <ImageIcon className="w-4 h-4" />
                                         {isUploading ? "업로드 중..." : "파일 선택"}
                                         <input 
@@ -3590,7 +4694,7 @@ ${daeunContext}
                                       </label>
                                     </div>
                                     {isEditingPost.imageUrl && (
-                                      <div className="mt-4 relative h-40 rounded-2xl overflow-hidden border border-black/5 dark:border-white/5">
+                                      <div className="mt-4 relative h-40 rounded-2xl overflow-hidden border border-black/5">
                                         <img 
                                           src={isEditingPost.imageUrl} 
                                           alt="Preview" 
@@ -3610,7 +4714,7 @@ ${daeunContext}
                                     <input 
                                       type="text" 
                                       placeholder="글의 짧은 요약을 입력하세요"
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                       value={isEditingPost.excerpt}
                                       onChange={e => setIsEditingPost({...isEditingPost, excerpt: e.target.value})}
                                     />
@@ -3620,7 +4724,7 @@ ${daeunContext}
                                     <input 
                                       type="text" 
                                       placeholder="3분"
-                                      className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-black border border-black/5 dark:border-white/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                      className="w-full p-5 rounded-2xl bg-zinc-50 border border-black/5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                       value={isEditingPost.readTime}
                                       onChange={e => setIsEditingPost({...isEditingPost, readTime: e.target.value})}
                                     />
@@ -3630,7 +4734,7 @@ ${daeunContext}
                                   <div className="flex items-center justify-between ml-2">
                                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">내용 (Rich Text / Markdown)</label>
                                   </div>
-                                  <div className="prose-editor dark:prose-editor-dark">
+                                  <div className="prose-editor">
                                     <SimpleMDE 
                                       value={isEditingPost.content}
                                       onChange={value => setIsEditingPost({...isEditingPost, content: value})}
@@ -3662,7 +4766,7 @@ ${daeunContext}
                                 <motion.div
                                   key={post.id}
                                   whileHover={{ y: -10 }}
-                                  className="relative w-full text-left rounded-[2.5rem] overflow-hidden bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 shadow-xl flex flex-col group transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
+                                  className="relative w-full text-left rounded-[2.5rem] overflow-hidden bg-white border border-black/5 shadow-xl flex flex-col group transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
                                 >
                                   <div className="relative h-52 overflow-hidden cursor-pointer" onClick={() => handlePostClick(post)}>
                                     <img 
@@ -3686,7 +4790,7 @@ ${daeunContext}
                                             e.stopPropagation();
                                             setIsEditingPost(post);
                                           }}
-                                          className="p-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/90 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all backdrop-blur-md shadow-lg"
+                                          className="p-2.5 rounded-xl bg-white/90 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all backdrop-blur-md shadow-lg"
                                         >
                                           <Edit2 className="w-4 h-4" />
                                         </button>
@@ -3695,7 +4799,7 @@ ${daeunContext}
                                             e.stopPropagation();
                                             handleDeletePost(post.id);
                                           }}
-                                          className="p-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/90 text-red-500 hover:bg-red-500 hover:text-white transition-all backdrop-blur-md shadow-lg"
+                                          className="p-2.5 rounded-xl bg-white/90 text-red-500 hover:bg-red-500 hover:text-white transition-all backdrop-blur-md shadow-lg"
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </button>
@@ -3703,17 +4807,17 @@ ${daeunContext}
                                     )}
                                   </div>
                                   <div className="p-8 space-y-4 flex-1 flex flex-col">
-                                    <div className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                                    <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium">
                                       <Calendar className="w-3 h-3" />
                                       <span>{post.date}</span>
                                     </div>
-                                    <h3 className="font-bold text-xl leading-tight line-clamp-2 text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => handlePostClick(post)}>{post.title}</h3>
-                                    <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 leading-relaxed flex-1">
+                                    <h3 className="font-bold text-xl leading-tight line-clamp-2 text-zinc-900 group-hover:text-indigo-600 transition-colors cursor-pointer" onClick={() => handlePostClick(post)}>{post.title}</h3>
+                                    <p className="text-sm text-zinc-600 line-clamp-3 leading-relaxed flex-1">
                                       {post.content.replace(/[#*`]/g, '').slice(0, 120)}...
                                     </p>
                                     <button 
                                       onClick={() => handlePostClick(post)}
-                                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-2 pt-4 group/btn"
+                                      className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-2 pt-4 group/btn"
                                     >
                                       자세히 읽기 
                                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
@@ -3733,17 +4837,17 @@ ${daeunContext}
 
                           {/* Admin Login/Logout Section (Hidden Gate) */}
                           {showAdminGate && (
-                            <div className="mt-16 pt-10 border-t border-black/5 dark:border-white/5">
+                            <div className="mt-16 pt-10 border-t border-black/5">
                               <div className="max-w-sm mx-auto lg:mx-0">
                                 {user && (
-                                  <div className="p-6 rounded-[2rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 space-y-4">
-                                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                  <div className="p-6 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/20 space-y-4">
+                                    <div className="flex items-center gap-2 text-indigo-600">
                                       <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                                       <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
                                     </div>
                                     <button 
                                       onClick={handleLogout}
-                                      className="w-full py-3 rounded-xl bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors border border-black/5 dark:border-white/5 shadow-sm"
+                                      className="w-full py-3 rounded-xl bg-white text-xs font-bold hover:bg-zinc-50 transition-colors border border-black/5 shadow-sm"
                                     >
                                       로그아웃
                                     </button>
@@ -3751,8 +4855,8 @@ ${daeunContext}
                                 )}
 
                                 {!user && (
-                                  <div className="p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 space-y-4 shadow-xl">
-                                    <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">관리자 전용 게이트웨이입니다. 로그인하여 시스템을 관리하세요.</p>
+                                  <div className="p-8 rounded-[2rem] bg-white border border-black/5 space-y-4 shadow-xl">
+                                    <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">관리자 전용 게이트웨이입니다. 로그인하여 시스템을 관리하세요.</p>
                                     <button 
                                       onClick={handleLogin}
                                       disabled={isLoggingIn}
@@ -3781,11 +4885,12 @@ ${daeunContext}
         </AnimatePresence>
       </main>
 
-      <nav className={`md:hidden px-4 pt-1 border-t ${isDarkMode ? 'border-white/10 bg-black/60' : 'border-black/5 bg-white'} backdrop-blur-xl z-30 safe-bottom-px`}>
+      <nav className={`md:hidden px-4 pt-1 border-t border-black/5 bg-white backdrop-blur-xl z-30 safe-bottom-px`}>
         <div className="max-w-md mx-auto flex items-center justify-around">
           {[
             { id: "welcome", icon: User, label: "HOME" },
             { id: "dashboard", icon: LayoutDashboard, label: "만세력" },
+            { id: "taekil", icon: Calendar, label: "택일" },
             { id: "chat", icon: MessageCircle, label: "상담" },
             { id: "report", icon: FileText, label: "리포트" },
             { id: "blog", icon: Newspaper, label: "블로그" },

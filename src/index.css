@@ -85,9 +85,6 @@
     font-weight: 700;
     color: var(--color-indigo-600);
   }
-  .dark .markdown-body strong {
-    color: var(--color-indigo-400);
-  }
   .markdown-body blockquote {
     border-left: 4px solid var(--color-indigo-500);
     padding-left: 1rem;
@@ -101,29 +98,4 @@
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
 
-  /* SimpleMDE Dark Mode */
-  .dark .editor-toolbar {
-    background: #18181b;
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #f4f4f5;
-  }
-  .dark .editor-toolbar button {
-    color: #f4f4f5 !important;
-  }
-  .dark .editor-toolbar button.active, .dark .editor-toolbar button:hover {
-    background: #27272a;
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-  .dark .CodeMirror {
-    background: #000000;
-    color: #f4f4f5;
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-  .dark .editor-preview {
-    background: #18181b;
-    color: #f4f4f5;
-  }
-  .dark .editor-statusbar {
-    color: #a1a1aa;
-  }
 }
