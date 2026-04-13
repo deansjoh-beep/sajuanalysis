@@ -4,7 +4,7 @@ import { getTodayDayPillarKST, getCurrentYearPillarKST, getCurrentMonthPillarKST
 import { buildConsultingSystemInstruction } from '../lib/promptBuilders';
 import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
-import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError } from '../lib/modelUtils';
+import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, runWithModelRetry } from '../lib/modelUtils';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
 import { ChatMessage } from './useChatTabState';
 
@@ -64,6 +64,7 @@ export const useChatSendAction = ({
   calculateSajuForPerson
 }: UseChatSendActionParams) => {
   const formatRawError = (parsed: { code: number | null; status: string | null; message: string }) => {
+    if (!isAdmin) return '';
     const codeText = parsed.code ?? 'N/A';
     const statusText = parsed.status || 'N/A';
     const messageText = parsed.message || 'N/A';
@@ -245,7 +246,7 @@ export const useChatSendAction = ({
 
       const modelCandidates = preferredModels.length > 0
         ? preferredModels
-        : ['gemini-2.5-flash', 'gemini-2.0-flash'];
+        : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
 
       let activeModel = modelCandidates[0];
       const telemetryRequestId = `chat-${requestId}-${Date.now()}`;
@@ -255,14 +256,20 @@ export const useChatSendAction = ({
         for (const model of modelCandidates) {
           const startedAt = Date.now();
           try {
-            const result = await ai.models.generateContent({
-              model,
-              contents,
-              config: {
-                systemInstruction,
-                tools: [{ functionDeclarations: [sajuToolDeclaration] }]
-              }
-            });
+            // 503(서버 과부하) 발생 시 즉시 다음 모델로 이동.
+            // gemini-1.5-flash는 자원이 풍부해 최후 보루로 최대 3회 재시도.
+            const maxAttempts = model === 'gemini-1.5-flash' ? 3 : 1;
+            const result = await runWithModelRetry<any>(
+              () => ai.models.generateContent({
+                model,
+                contents,
+                config: {
+                  systemInstruction,
+                  tools: [{ functionDeclarations: [sajuToolDeclaration] }]
+                }
+              }),
+              maxAttempts
+            );
             activeModel = model;
             recordModelTelemetry({
               feature: 'chat',
@@ -291,6 +298,9 @@ export const useChatSendAction = ({
               throw err;
             }
             const cooldownMs = retryable ? recordRetryableModelFailure('chat') : 0;
+            if (cooldownMs > 0) {
+              console.warn(`[MODEL_COOLDOWN] chat cooldown armed for ${cooldownMs}ms.`);
+            }
             recordModelTelemetry({
               feature: 'chat',
               phase: 'fallback',
@@ -299,9 +309,6 @@ export const useChatSendAction = ({
               errorCode: payload.code,
               errorStatus: payload.status
             });
-            if (cooldownMs > 0) {
-              console.warn(`[MODEL_COOLDOWN] chat cooldown armed for ${cooldownMs}ms.`);
-            }
             console.warn(`[MODEL_FALLBACK] chat generateContent failed on ${model}, trying next model.`);
           }
         }
@@ -424,7 +431,12 @@ export const useChatSendAction = ({
 
       console.error('Chat error:', err);
       const parsed = parseModelErrorPayload(err);
-      const userFacingMessage = `상담 중 오류가 발생했습니다.\n\n${formatRawError(parsed)}`;
+      const isTransient = isRetryableModelError(err);
+      const debugInfo = formatRawError(parsed);
+      const baseMessage = isTransient
+        ? '현재 AI 서버가 일시적으로 혼잡합니다. 잠시 후 다시 시도해 주세요.'
+        : '상담 중 오류가 발생했습니다.';
+      const userFacingMessage = debugInfo ? `${baseMessage}\n\n${debugInfo}` : baseMessage;
 
       setMessages((prev) => [...prev, { role: 'model', text: userFacingMessage }]);
     } finally {
