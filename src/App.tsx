@@ -240,7 +240,7 @@ const getGeminiAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-const DEFAULT_GEMINI_MODEL_PRIORITY = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+const DEFAULT_GEMINI_MODEL_PRIORITY = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
 const DEPRECATED_GEMINI_MODEL_REPLACEMENTS: Record<string, string> = {
   'gemini-2.0-flash': 'gemini-2.5-flash',
   'models/gemini-2.0-flash': 'gemini-2.5-flash'

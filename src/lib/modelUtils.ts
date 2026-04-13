@@ -65,7 +65,8 @@ export const waitMs = (ms: number): Promise<void> =>
 
 export const runWithModelRetry = async <T>(
   task: () => Promise<T>,
-  maxAttempts = 3
+  maxAttempts = 3,
+  baseBackoffMs = 2000
 ): Promise<T> => {
   let lastError: any;
 
@@ -77,7 +78,7 @@ export const runWithModelRetry = async <T>(
       if (!isRetryableModelError(err) || attempt === maxAttempts) {
         throw err;
       }
-      const backoff = 1200 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 300);
+      const backoff = baseBackoffMs * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500);
       console.warn(
         `[RETRY] Gemini request failed with transient load error. attempt=${attempt}/${maxAttempts}, wait=${backoff}ms`
       );

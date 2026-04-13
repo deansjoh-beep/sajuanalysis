@@ -153,7 +153,7 @@ export const useReportGenerationAction = ({
 
       const modelCandidates = preferredModels.length > 0
         ? preferredModels
-        : ['gemini-2.5-flash', 'gemini-2.0-flash'];
+        : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
       const telemetryRequestId = `report-${Date.now()}`;
 
       let result: any = null;
@@ -162,6 +162,9 @@ export const useReportGenerationAction = ({
       for (const model of modelCandidates) {
         const startedAt = Date.now();
         try {
+          // 503(서버 과부하) 발생 시 즉시 다음 모델로 이동.
+          // gemini-1.5-flash는 자원이 풍부해 최후 보루로 최대 3회 재시도.
+          const maxAttempts = model === 'gemini-1.5-flash' ? 3 : 1;
           result = await runWithModelRetry(
             () => ai.models.generateContent({
               model,
@@ -172,7 +175,7 @@ export const useReportGenerationAction = ({
                 temperature: 0.8
               }
             }),
-            3
+            maxAttempts
           );
           recordModelTelemetry({
             feature: 'report',
