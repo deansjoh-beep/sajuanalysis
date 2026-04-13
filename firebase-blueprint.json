@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "A blog post entry.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the blog post."
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the blog post in Markdown format."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the blog post."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the post was created (YYYY-MM-DD)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the post was created."
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "The UID of the author."
+        },
+        "excerpt": {
+          "type": "string",
+          "description": "A short summary of the blog post."
+        },
+        "readTime": {
+          "type": "string",
+          "description": "Estimated reading time."
+        }
+      },
+      "required": ["title", "content", "category", "date", "createdAt", "authorUid"]
+    }
+  },
+  "firestore": {
+    "/blogPosts/{postId}": {
+      "schema": "BlogPost",
+      "description": "Collection of blog posts."
+    }
+  }
+}
