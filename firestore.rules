@@ -1,0 +1,211 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: blogPosts
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - content: string (required, 1-10000 chars)
+    //   - category: string (required, 1-50 chars)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - createdAt: timestamp (required)
+    //   - authorUid: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "dean.uitrading@gmail.com" || 
+              request.auth.token.email == "dean.sj.oh@gmail.com");
+    }
+
+    function isValidBlogPost(data) {
+      return data.keys().hasAll(['title', 'content', 'category', 'date', 'createdAt', 'authorUid']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 50000 &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp &&
+             data.authorUid is string && data.authorUid == request.auth.uid &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500)) &&
+             (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000)) &&
+             (!('readTime' in data) || (data.readTime is string && data.readTime.size() <= 50));
+    }
+
+    function isValidBoardPost(data) {
+      return data.keys().hasAll(['title', 'content', 'category', 'date', 'createdAt', 'authorUid', 'authorName']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 10000 &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 30 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp &&
+             data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() <= 64 &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100 &&
+             (!('isNotice' in data) || data.isNotice is bool) &&
+             (!('views' in data) || (data.views is int && data.views >= 0));
+    }
+
+    function isValidBoardComment(data) {
+      return data.keys().hasAll(['postId', 'content', 'date', 'createdAt', 'authorName', 'authorUid']) &&
+             data.postId is string && data.postId.size() > 0 && data.postId.size() <= 128 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100 &&
+             data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() <= 64;
+    }
+
+    function isValidBoardReport(data) {
+      return data.keys().hasAll(['targetType', 'targetId', 'postId', 'reporterName', 'reason', 'date', 'createdAt']) &&
+             data.targetType is string && (data.targetType == 'post' || data.targetType == 'comment') &&
+             data.targetId is string && data.targetId.size() > 0 && data.targetId.size() <= 128 &&
+             data.postId is string && data.postId.size() > 0 && data.postId.size() <= 128 &&
+             data.reporterName is string && data.reporterName.size() > 0 && data.reporterName.size() <= 100 &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() <= 300 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /blogPosts/{postId} {
+      // Publicly readable
+      allow read: if true;
+      
+      // Only admin can create, update, or delete
+      allow create: if isAdmin() && isValidBlogPost(request.resource.data);
+      allow update: if isAdmin() && isValidBlogPost(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /blogDrafts/{draftId} {
+      // Drafts are private to each admin account.
+      allow read: if isAdmin() && resource.data.uid == request.auth.uid;
+
+      allow create: if isAdmin() &&
+                    request.resource.data.uid == request.auth.uid &&
+                    request.resource.data.draftType is string &&
+                    (request.resource.data.draftType == 'new' || request.resource.data.draftType == 'edit') &&
+                    request.resource.data.savedAt is timestamp &&
+                    request.resource.data.savedAtClient is string &&
+                    request.resource.data.data is map &&
+                    (!('deviceId' in request.resource.data) || request.resource.data.deviceId is string) &&
+                    (!('postId' in request.resource.data) || request.resource.data.postId is string);
+
+      allow update: if isAdmin() &&
+                    resource.data.uid == request.auth.uid &&
+                    request.resource.data.uid == request.auth.uid &&
+                    request.resource.data.draftType is string &&
+                    (request.resource.data.draftType == 'new' || request.resource.data.draftType == 'edit') &&
+                    request.resource.data.savedAt is timestamp &&
+                    request.resource.data.savedAtClient is string &&
+                    request.resource.data.data is map &&
+                    (!('deviceId' in request.resource.data) || request.resource.data.deviceId is string) &&
+                    (!('postId' in request.resource.data) || request.resource.data.postId is string);
+
+      allow delete: if isAdmin() && resource.data.uid == request.auth.uid;
+    }
+
+    match /boardPosts/{postId} {
+      // Publicly readable
+      allow read: if true;
+
+      // Guestbook create: allow without login
+      allow create: if isValidBoardPost(request.resource.data) &&
+                    (
+                      !('isNotice' in request.resource.data) ||
+                      request.resource.data.isNotice == false ||
+                      isAdmin()
+                    );
+
+      // Public views increment only
+      allow update: if (
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['views']) &&
+        request.resource.data.views is int &&
+        request.resource.data.views >= resource.data.views
+      );
+
+      // Delete admin only
+      allow delete: if isAdmin();
+    }
+
+    match /boardComments/{commentId} {
+      // Publicly readable
+      allow read: if true;
+
+      // Guest comment create
+      allow create: if isValidBoardComment(request.resource.data) &&
+                    exists(/databases/$(database)/documents/boardPosts/$(request.resource.data.postId));
+
+      // No direct edit for comments
+      allow update: if false;
+
+      // Delete admin only
+      allow delete: if isAdmin();
+    }
+
+    match /boardReports/{reportId} {
+      // Create open for user reports
+      allow create: if isValidBoardReport(request.resource.data);
+
+      // Only admin can review/remove
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // System configuration (guidelines, guide content) — admin write, public read
+    match /system_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Premium orders
+    // - 누구나 새 주문 생성 가능 (로그인 불필요)
+    // - 관리자만 전체 목록 읽기/상태 변경 가능
+    // - 고객은 orderId를 알면 자신의 주문(이메일 일치)을 조회·수정·취소 가능
+    match /premiumOrders/{orderId} {
+      // 관리자: 모든 동작 허용
+      allow read, write: if isAdmin();
+
+      // 고객 조회: 주문번호 직접 조회(get)만 허용, 목록 조회(list)는 차단
+      // 참고: 비로그인 상태에서는 이메일 일치 검증을 규칙에서 직접 강제하기 어려워
+      // 클라이언트 로직(getOrderByIdAndEmail)에서 2차 검증합니다.
+      allow get: if true;
+      allow list: if false;
+
+      // 고객 주문 생성: 누구나 생성 가능 (로그인 필요 없음)
+      // 서버에서 사후 검증 (이메일 존재 여부, 중복, 등)
+      allow create: if true;
+
+      // 고객 수정/취소: submitted 상태인 경우에만, 허용 필드만 변경 가능
+      allow update: if
+        resource.data.status == 'submitted' &&
+        request.resource.data.status in ['submitted', 'cancelled'] &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['concern', 'interest', 'reportLevel', 'lifeEvents', 'updatedByCustomerAt', 'status', 'cancelReason']) &&
+        // 핵심 개인정보 변경 금지
+        request.resource.data.name == resource.data.name &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.birthDate == resource.data.birthDate &&
+        request.resource.data.gender == resource.data.gender;
+    }
+
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

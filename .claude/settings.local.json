@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/오세진/OneDrive/Desktop/sajuanalysis/**)",
+      "Bash(rsync -av --delete --exclude='.git/' --exclude='node_modules/' --exclude='.venv/' --exclude='.env*' --exclude='test-results/' --exclude='service-account.json' \"/c/Users/오세진/OneDrive/Desktop/saju_restart/sajuanalysis_0409/\" \"/c/Users/오세진/OneDrive/Desktop/sajuanalysis/\")",
+      "Bash(node -e \"const fs = require\\('fs'\\); const content = fs.readFileSync\\('/c/Users/오세진/OneDrive/Desktop/saju_restart/sajuanalysis_0409/src/lib/premiumOrderStore.ts', 'utf8'\\); const match = content.match\\(/JSON\\\\.stringify\\\\\\(\\\\{[^}]*serverTimestamp[^}]*\\\\}\\\\\\)/\\); if \\(match\\) console.log\\('Found:', match[0]\\);\")",
+      "Bash(curl -s -w \"\\\\nHTTP_CODE:%{http_code}\" -X POST \"https://sajuanalysis.vercel.app/api/premium-order/create\" -H \"Content-Type: application/json\" -d '{\"name\":\"테스트\",\"email\":\"test@test.com\",\"birthDate\":\"1990-01-01\",\"birthTime\":\"12:00\",\"gender\":\"M\",\"isLunar\":false,\"tier\":\"premium\",\"price\":0}')",
+      "mcp__751c695a-3b48-452b-8cd5-a633f917c2ea__get_runtime_logs",
+      "Bash(curl -s \"https://sajuanalysis.vercel.app/api/debug-test\")",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

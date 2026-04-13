@@ -1,0 +1,10 @@
+export const TAEKIL_SECTION_CARD_CLASS = 'rounded-3xl border border-white/60 p-4 md:p-6 bg-white/50 backdrop-blur-xl shadow-xl shadow-indigo-200/20';
+export const TAEKIL_Q_BADGE_CLASS = 'text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-600';
+export const TAEKIL_LABEL_CLASS = 'text-xs font-bold text-zinc-600';
+export const TAEKIL_HELP_TEXT_CLASS = 'mt-1 text-xs text-zinc-600';
+export const TAEKIL_FIELD_CLASS = 'w-full min-h-[44px] rounded-2xl border border-white/65 px-4 py-3 text-sm outline-none bg-white/70 backdrop-blur text-zinc-900 transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200/70';
+export const TAEKIL_FIELD_PLACEHOLDER_CLASS = `${TAEKIL_FIELD_CLASS} placeholder:text-zinc-500`;
+export const GLASS_TAB_BG_CLASS = 'bg-gradient-to-br from-slate-100 via-cyan-50/60 to-indigo-100/70';
+export const GLASS_PANEL_CLASS = 'border border-white/60 bg-white/55 backdrop-blur-xl shadow-xl shadow-indigo-200/20';
+export const GLASS_PANEL_STRONG_CLASS = 'border border-white/60 bg-white/60 backdrop-blur-2xl shadow-2xl shadow-indigo-200/25';
+export const TAB_TRANSITION = { duration: 0.34, ease: [0.22, 1, 0.36, 1] as const };
