@@ -106,6 +106,34 @@ export const getCurrentYearPillarKST = () => {
 };
 
 /**
+ * 지정 연도 범위의 세운(年柱) 간지 목록을 계산합니다.
+ * 1월 15일 기준이면 전년도 간지가 나올 수 있으므로(立春 이전),
+ * 각 연도의 6월 1일을 기준으로 삼아 확실하게 그 해의 세운을 얻습니다.
+ *
+ * 프리미엄 일년운세 리포트에서 "2년 후" 같은 미래 시점 질문에
+ * 할루시네이션 없이 답할 수 있도록 3년치 이상의 세운을 주입하는 용도입니다.
+ */
+export const getYearPillarsForRange = (
+  startYear: number,
+  endYear: number
+): Array<{ year: number; yearPillarHanja: string; yearPillarHangul: string }> => {
+  const out: Array<{ year: number; yearPillarHanja: string; yearPillarHangul: string }> = [];
+  const lo = Math.min(startYear, endYear);
+  const hi = Math.max(startYear, endYear);
+  for (let y = lo; y <= hi; y++) {
+    const solar = Solar.fromYmd(y, 6, 1);
+    const lunar = solar.getLunar();
+    const eightChar = lunar.getEightChar();
+    const yearPillarHanja = eightChar.getYear();
+    const stem = yearPillarHanja.charAt(0);
+    const branch = yearPillarHanja.charAt(1);
+    const yearPillarHangul = `${hanjaToHangul[stem] || stem}${hanjaToHangul[branch] || branch}`;
+    out.push({ year: y, yearPillarHanja, yearPillarHangul });
+  }
+  return out;
+};
+
+/**
  * 지정 연도의 12개 양력 달 각각에 해당하는 월주(月柱) 간지를 계산합니다.
  * 각 달의 15일을 기준으로 lunar-javascript가 절기를 반영해 월주를 반환합니다.
  * (양력 15일은 해당 양력 달의 월절기 이후가 확실하므로 안전합니다.)

@@ -8,7 +8,7 @@ import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPO
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PremiumOrder, ReportInputData, ReportSection, DaeunBlock } from "./premiumOrderStore";
-import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear } from './seoulDateGanji';
+import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
 import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt } from './promptBuilders';
 
 let runtimeGeminiApiKeyCache: string | undefined;
@@ -574,6 +574,22 @@ export const generateLifeNavReport = async (
       .map((p) => `${p.month}월: ${p.monthPillarHanja}(${p.monthPillarHangul})`)
       .join('\n');
 
+    // 향후 세운 흐름 — 전년 1년 + 현재 + 미래 5년 = 총 7년치 (2년·3년 후 질문 대응)
+    const seunStart = currentYearPillar.year - 1;
+    const seunEnd = currentYearPillar.year + 5;
+    const yearPillars = getYearPillarsForRange(seunStart, seunEnd);
+    const seunRangeText = yearPillars
+      .map((p) => {
+        const relLabel =
+          p.year === currentYearPillar.year
+            ? ' (올해)'
+            : p.year > currentYearPillar.year
+              ? ` (${p.year - currentYearPillar.year}년 후)`
+              : ` (${currentYearPillar.year - p.year}년 전)`;
+        return `${p.year}년: ${p.yearPillarHanja}(${p.yearPillarHangul})${relLabel}`;
+      })
+      .join('\n');
+
     const built = buildYearlyFortune2026Prompt({
       userName: inputData.name,
       gender: inputData.gender,
@@ -588,6 +604,7 @@ export const generateLifeNavReport = async (
       currentAge,
       currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
       monthPillarsText,
+      seunRangeText,
       currentJob: inputData.currentJob || '',
       concern: inputData.concern,
       interest: inputData.interest,
