@@ -369,6 +369,7 @@ export interface YearlyFortune2026Params {
   currentAge: number;
   currentYearText: string;     // 예: "2026년 병오(丙午)"
   monthPillarsText: string;    // 예: "1월 己丑(기축) / 2월 庚寅(경인) / ..."
+  seunRangeText: string;       // 예: "2024년: 甲辰(갑진) ... 2030년: 庚戌(경술)"
   currentJob: string;
   concern: string;
   interest: string;
@@ -413,6 +414,9 @@ ${p.yongshinContext}
 
 [올해 세운]
 ${p.currentYearText}
+
+[향후 세운 흐름]
+${p.seunRangeText}
 
 [2026 월별 간지]
 ${p.monthPillarsText}
