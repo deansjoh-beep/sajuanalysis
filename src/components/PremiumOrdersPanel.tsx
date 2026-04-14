@@ -17,6 +17,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
   const [orders, setOrders] = useState<PremiumOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<PremiumOrder | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'premium' | 'yearly2026'>('all');
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [generatingOrderId, setGeneratingOrderId] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
 
   useEffect(() => {
     loadOrders();
-  }, [statusFilter]);
+  }, [statusFilter, productTypeFilter]);
 
   useEffect(() => {
     setNaverOrderNumber(selectedOrder?.naverOrderNumber || '');
@@ -46,7 +47,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
       setLoading(true);
       setLoadError('');
       const filter = statusFilter === 'all' ? undefined : statusFilter;
-      const data = await getPremiumOrders(filter);
+      const data = await getPremiumOrders(filter, productTypeFilter);
       setOrders(data);
     } catch (error: any) {
       console.error('Failed to load orders:', error);
@@ -75,6 +76,8 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
       reportLevel: (order.reportLevel || 'both') as 'basic' | 'advanced' | 'both',
       lifeEvents: Array.isArray(order.lifeEvents) ? order.lifeEvents : [],
       adminNotes: '',
+      productType: order.productType || 'premium',
+      currentJob: order.currentJob || '',
     });
     
     setSelectedOrder(order);
@@ -323,6 +326,25 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               </button>
             ))}
           </div>
+          <div className="flex gap-2 flex-wrap mt-2">
+            {([
+              { v: 'all', l: '전체 상품' },
+              { v: 'premium', l: '프리미엄 리포트' },
+              { v: 'yearly2026', l: '일년운세 2026' },
+            ] as const).map(opt => (
+              <button
+                key={opt.v}
+                onClick={() => setProductTypeFilter(opt.v)}
+                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                  productTypeFilter === opt.v
+                    ? `${isDarkMode ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800'}`
+                    : `${isDarkMode ? 'bg-zinc-800 text-zinc-300' : 'bg-gray-200 text-gray-700'}`
+                }`}
+              >
+                {opt.l}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 검색창 */}
@@ -371,7 +393,14 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               }`}
             >
               <div className="flex justify-between items-start mb-2">
-                <div className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{order.name}</div>
+                <div className="flex items-center gap-2">
+                  <div className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{order.name}</div>
+                  {(order.productType || 'premium') === 'yearly2026' ? (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">일년운세</span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">가이드북</span>
+                  )}
+                </div>
                 {getStatusBadge(order.status)}
               </div>
               <div className={`text-xs font-mono mb-0.5 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>

@@ -53,6 +53,21 @@ function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
+// ─────────────────────────────── 외부에서 프리필용 UserData ───────────────────────────────
+export interface PrefillUserData {
+  name: string;
+  birthYear: string;
+  birthMonth: string;
+  birthDay: string;
+  birthHour: string;
+  birthMinute: string;
+  calendarType: 'solar' | 'lunar' | 'leap';
+  gender: 'M' | 'F';
+  unknownTime: boolean;
+}
+
+export type OrderProductType = 'premium' | 'yearly2026';
+
 // ─────────────────────────────── 폼 초기값 ───────────────────────────────
 interface OrderFormState {
   name: string;
@@ -67,9 +82,10 @@ interface OrderFormState {
   interest: string;
   reportLevel: 'basic' | 'advanced' | 'both' | '';
   lifeEvents: LifeEvent[];
+  currentJob: string;
 }
 
-const initialForm: OrderFormState = {
+const emptyForm: OrderFormState = {
   name: '',
   email: '',
   gender: '',
@@ -82,39 +98,106 @@ const initialForm: OrderFormState = {
   interest: '',
   reportLevel: '',
   lifeEvents: [],
+  currentJob: '',
+};
+
+const buildInitialForm = (userData?: PrefillUserData): OrderFormState => {
+  if (!userData) return emptyForm;
+  const y = userData.birthYear?.padStart(4, '0') || '';
+  const m = userData.birthMonth?.padStart(2, '0') || '';
+  const d = userData.birthDay?.padStart(2, '0') || '';
+  const birthDate = y && m && d ? `${y}-${m}-${d}` : '';
+  const hh = userData.birthHour?.padStart(2, '0') || '';
+  const mm = userData.birthMinute?.padStart(2, '0') || '';
+  const birthTime = hh && mm ? `${hh}:${mm}` : '';
+  return {
+    ...emptyForm,
+    name: userData.name || '',
+    gender: userData.gender || '',
+    birthDate,
+    birthTime,
+    unknownTime: userData.unknownTime,
+    isLunar: userData.calendarType !== 'solar',
+    isLeap: userData.calendarType === 'leap',
+  };
 };
 
 // ─────────────────────────────── 유효성 검사 ───────────────────────────────
-function validate(form: OrderFormState): Record<string, string> {
+function validate(form: OrderFormState, productType: OrderProductType): Record<string, string> {
   const errs: Record<string, string> = {};
   if (!form.name.trim()) errs.name = '이름을 입력해주세요.';
   if (!form.email.trim()) errs.email = '이메일을 입력해주세요.';
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = '올바른 이메일 형식이 아닙니다.';
   if (!form.gender) errs.gender = '성별을 선택해주세요.';
   if (!form.birthDate) errs.birthDate = '생년월일을 입력해주세요.';
-  if (!form.reportLevel) errs.reportLevel = '리포트 구성을 선택해주세요.';
+  if (productType === 'premium' && !form.reportLevel) {
+    errs.reportLevel = '리포트 구성을 선택해주세요.';
+  }
+  if (productType === 'yearly2026' && !form.currentJob.trim()) {
+    errs.currentJob = '현재 하고 계신 일을 입력해주세요.';
+  }
   return errs;
 }
 
 // ─────────────────────────────── 메인 컴포넌트 ───────────────────────────────
 type Screen = 'form' | 'success' | 'lookup' | 'detail' | 'edit' | 'cancel';
 
-export const PremiumOrderForm: React.FC = () => {
+export interface PremiumOrderFormProps {
+  productType?: OrderProductType;
+  initialUserData?: PrefillUserData;
+}
+
+const PRODUCT_META: Record<OrderProductType, { title: string; price: number; priceLabel: string; description: string }> = {
+  premium: {
+    title: '인생가이드북 신청',
+    price: 5000,
+    priceLabel: '5,000원',
+    description: '인생가이드북 주문 안내',
+  },
+  yearly2026: {
+    title: '프리미엄 일년운세 2026 신청',
+    price: 5000,
+    priceLabel: '5,000원',
+    description: '프리미엄 일년운세 2026 주문 안내',
+  },
+};
+
+export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
+  productType = 'premium',
+  initialUserData,
+}) => {
   const [screen, setScreen] = useState<Screen>('form');
+  const meta = PRODUCT_META[productType];
+  const isYearly = productType === 'yearly2026';
   const today = new Date();
   const currentYear = today.getFullYear();
   const birthYearOptions = Array.from({ length: currentYear - BIRTH_YEAR_MIN + 1 }, (_, i) => String(currentYear - i));
   const birthMonthOptions = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const birthHourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
-  const [birthYearSelect, setBirthYearSelect] = useState('');
-  const [birthMonthSelect, setBirthMonthSelect] = useState('');
-  const [birthDaySelect, setBirthDaySelect] = useState('');
-  const [birthHourSelect, setBirthHourSelect] = useState('');
-  const [birthMinuteSelect, setBirthMinuteSelect] = useState('');
+  // 프리필 데이터 계산 (무료 분석에서 넘어온 경우)
+  const prefilledForm = React.useMemo(() => buildInitialForm(initialUserData), [initialUserData]);
+
+  const [birthYearSelect, setBirthYearSelect] = useState(initialUserData?.birthYear || '');
+  const [birthMonthSelect, setBirthMonthSelect] = useState(
+    initialUserData?.birthMonth ? initialUserData.birthMonth.padStart(2, '0') : ''
+  );
+  const [birthDaySelect, setBirthDaySelect] = useState(
+    initialUserData?.birthDay ? initialUserData.birthDay.padStart(2, '0') : ''
+  );
+  const [birthHourSelect, setBirthHourSelect] = useState(
+    initialUserData && !initialUserData.unknownTime && initialUserData.birthHour
+      ? initialUserData.birthHour.padStart(2, '0')
+      : ''
+  );
+  const [birthMinuteSelect, setBirthMinuteSelect] = useState(
+    initialUserData && !initialUserData.unknownTime && initialUserData.birthMinute
+      ? initialUserData.birthMinute.padStart(2, '0')
+      : ''
+  );
 
   // 주문 폼 상태
-  const [form, setForm] = useState<OrderFormState>(initialForm);
+  const [form, setForm] = useState<OrderFormState>(prefilledForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -218,7 +301,7 @@ export const PremiumOrderForm: React.FC = () => {
 
   // ── 주문 제출 ──
   const handleSubmit = async () => {
-    const errs = validate(form);
+    const errs = validate(form, productType);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSubmitting(true);
     setSubmitError('');
@@ -233,11 +316,13 @@ export const PremiumOrderForm: React.FC = () => {
         isLeap: form.isLeap,
         unknownTime: form.unknownTime,
         tier: 'premium',
-        price: 0,
+        price: meta.price,
+        productType,
+        currentJob: isYearly ? form.currentJob.trim() : undefined,
         concern: form.concern.trim(),
         interest: form.interest.trim(),
-        reportLevel: (form.reportLevel || 'both') as 'basic' | 'advanced' | 'both',
-        lifeEvents: form.lifeEvents.filter(e => e.description.trim()),
+        reportLevel: isYearly ? 'basic' : ((form.reportLevel || 'both') as 'basic' | 'advanced' | 'both'),
+        lifeEvents: isYearly ? [] : form.lifeEvents.filter(e => e.description.trim()),
         status: 'submitted',
         version: 1,
       };
@@ -662,13 +747,18 @@ export const PremiumOrderForm: React.FC = () => {
     <div className="max-w-lg mx-auto p-4 space-y-6">
       {/* 상단 헤더 */}
       <div className="text-center space-y-1">
-        <h2 className="text-xl font-bold text-zinc-900">인생가이드북 신청</h2>
+        <h2 className="text-xl font-bold text-zinc-900">{meta.title}</h2>
+        {isYearly && (
+          <p className="text-xs text-indigo-600">
+            사주 원국 · 대운 · 2026 세운 · 월별 운세를 종합한 10페이지 맞춤 리포트
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 p-5 text-sm text-zinc-800 space-y-4">
         <div className="space-y-1">
-          <p className="font-bold text-indigo-900 text-base">인생가이드북 주문 안내</p>
-          <p className="text-xs text-indigo-700">가격: <b>5,000원</b></p>
+          <p className="font-bold text-indigo-900 text-base">{meta.description}</p>
+          <p className="text-xs text-indigo-700">가격: <b>{meta.priceLabel}</b></p>
         </div>
 
         <div className="space-y-2.5">
@@ -827,8 +917,22 @@ export const PremiumOrderForm: React.FC = () => {
           {/* 리포트 요청 정보 섹션 */}
           <div className="space-y-4">
             <SectionTitle>리포트 요청 내용</SectionTitle>
+            {isYearly && (
+              <div>
+                <Label required>현재 하고 계신 일</Label>
+                <div className="relative">
+                  <input
+                    className={inputCls}
+                    value={form.currentJob}
+                    onChange={e => setField('currentJob', e.target.value)}
+                    placeholder="예) 사주 분석 사이트 운영 / 직장인(IT) / 자영업(카페) 등"
+                  />
+                </div>
+                {errors.currentJob && <p className={errorCls}>{errors.currentJob}</p>}
+              </div>
+            )}
             <div>
-              <Label>고민 또는 궁금한 점</Label>
+              <Label>{isYearly ? '가장 큰 고민' : '고민 또는 궁금한 점'}</Label>
               <div className="relative">
                 <textarea
                   className={`${inputCls} min-h-[110px] resize-none`}
@@ -837,14 +941,23 @@ export const PremiumOrderForm: React.FC = () => {
                 />
                 {!form.concern && (
                   <p className="pointer-events-none absolute top-2.5 left-3 right-3 text-sm text-zinc-400 leading-relaxed">
-                    책자에서 꼭 다뤄주었으면 하는, 가장 고민이 되는 것을 자유롭게 적어 주세요.<br />
-                    진로, 관계, 재물, 시기 등 어떤 주제든 괜찮습니다.
+                    {isYearly ? (
+                      <>
+                        지금 가장 크게 마음에 걸리는 문제를 적어 주세요.<br />
+                        예) 현재 사업을 확장할지 정리할지 결정이 필요함
+                      </>
+                    ) : (
+                      <>
+                        책자에서 꼭 다뤄주었으면 하는, 가장 고민이 되는 것을 자유롭게 적어 주세요.<br />
+                        진로, 관계, 재물, 시기 등 어떤 주제든 괜찮습니다.
+                      </>
+                    )}
                   </p>
                 )}
               </div>
             </div>
             <div>
-              <Label>특히 더 알고 싶은 분야</Label>
+              <Label>{isYearly ? '가장 알고 싶은 것' : '특히 더 알고 싶은 분야'}</Label>
               <div className="relative">
                 <textarea
                   className={`${inputCls} min-h-[90px] resize-none`}
@@ -853,35 +966,47 @@ export const PremiumOrderForm: React.FC = () => {
                 />
                 {!form.interest && (
                   <p className="pointer-events-none absolute top-2.5 left-3 right-3 text-sm text-zinc-400 leading-relaxed">
-                    리포트에서 집중적으로 다뤄주었으면 하는 분야를 알려주세요.<br />
-                    예) 올해 직장운, 결혼 시기, 재물 흐름, 건강 등
+                    {isYearly ? (
+                      <>
+                        올해 가장 궁금한 한 가지 질문을 구체적으로 적어 주세요.<br />
+                        예) 신사업이 성공할지, 무엇에 집중해야 할지
+                      </>
+                    ) : (
+                      <>
+                        리포트에서 집중적으로 다뤄주었으면 하는 분야를 알려주세요.<br />
+                        예) 올해 직장운, 결혼 시기, 재물 흐름, 건강 등
+                      </>
+                    )}
                   </p>
                 )}
               </div>
             </div>
-            <div>
-              <Label required>리포트 구성 선택</Label>
-              <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-xs text-zinc-600 space-y-1">
-                <p><span className="font-bold text-zinc-700">기본형</span> — 사주용어를 잘 몰라요. 쉽게 써주세요.</p>
-                <p><span className="font-bold text-zinc-700">고급형</span> — 사주용어를 좀 알아요. 심오하게 봐주세요.</p>
-                <p><span className="font-bold text-zinc-700">둘다</span> — 사주에 관심이 있어요. 심오하게 봐주시되 설명도 부탁해요. <span className="text-indigo-600 font-bold">(가장 많이 선택)</span></p>
+            {!isYearly && (
+              <div>
+                <Label required>리포트 구성 선택</Label>
+                <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-xs text-zinc-600 space-y-1">
+                  <p><span className="font-bold text-zinc-700">기본형</span> — 사주용어를 잘 몰라요. 쉽게 써주세요.</p>
+                  <p><span className="font-bold text-zinc-700">고급형</span> — 사주용어를 좀 알아요. 심오하게 봐주세요.</p>
+                  <p><span className="font-bold text-zinc-700">둘다</span> — 사주에 관심이 있어요. 심오하게 봐주시되 설명도 부탁해요. <span className="text-indigo-600 font-bold">(가장 많이 선택)</span></p>
+                </div>
+                <div className="flex gap-2">
+                  {[{ v: 'basic', l: '기본형' }, { v: 'advanced', l: '고급형' }, { v: 'both', l: '둘다' }].map(opt => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setField('reportLevel', opt.v as any)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-bold border transition ${form.reportLevel === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
+                    >{opt.l}</button>
+                  ))}
+                </div>
+                {errors.reportLevel && <p className={errorCls}>{errors.reportLevel}</p>}
               </div>
-              <div className="flex gap-2">
-                {[{ v: 'basic', l: '기본형' }, { v: 'advanced', l: '고급형' }, { v: 'both', l: '둘다' }].map(opt => (
-                  <button
-                    key={opt.v}
-                    onClick={() => setField('reportLevel', opt.v as any)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition ${form.reportLevel === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
-                  >{opt.l}</button>
-                ))}
-              </div>
-              {errors.reportLevel && <p className={errorCls}>{errors.reportLevel}</p>}
-            </div>
+            )}
           </div>
 
-          <div className="border-t border-zinc-100" />
+          {!isYearly && <div className="border-t border-zinc-100" />}
 
-          {/* 추가 정보 섹션 */}
+          {/* 추가 정보 섹션 (premium 전용) */}
+          {!isYearly && (
           <div className="space-y-3">
             <SectionTitle>인생 주요 이벤트 <span className="font-normal text-zinc-400 text-xs">(선택)</span></SectionTitle>
             <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 space-y-1">
@@ -919,6 +1044,7 @@ export const PremiumOrderForm: React.FC = () => {
               </button>
             </div>
           </div>
+          )}
 
         </div>
 
@@ -935,7 +1061,7 @@ export const PremiumOrderForm: React.FC = () => {
             className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {submitting ? '접수 중입니다...' : '리포트 주문하기'}
+            {submitting ? '접수 중입니다...' : (isYearly ? '일년운세 주문하기' : '리포트 주문하기')}
           </button>
         </div>
       </div>

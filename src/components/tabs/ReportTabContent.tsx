@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { ChevronDown, Compass, Download, FileText, Ticket } from 'lucide-react';
+import { Calendar, ChevronDown, Compass, Download, FileText, Ticket } from 'lucide-react';
 import { useReportTabActions } from '../../hooks/useReportTabActions';
 import { ReportTab } from './ReportTab';
 
@@ -21,6 +21,7 @@ interface ReportTabContentProps {
   setReportContent: React.Dispatch<React.SetStateAction<string | null>>;
   handleGenerateReport: () => void;
   onGoToOrder?: () => void;
+  onGoToYearlyOrder?: () => void;
 }
 
 interface ParsedReportSection {
@@ -163,7 +164,8 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
   setConsultationMode,
   setReportContent,
   handleGenerateReport,
-  onGoToOrder
+  onGoToOrder,
+  onGoToYearlyOrder,
 }) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const { switchReportMode, handleDownloadPDF } = useReportTabActions({
@@ -281,6 +283,33 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
                   본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                 </p>
               </div>
+
+              {/* 프리미엄 일년운세 2026 CTA — 결과 맨 아래 */}
+              {onGoToYearlyOrder && (
+                <div className="mt-8 rounded-[2rem] border border-amber-200/70 bg-gradient-to-br from-amber-50 via-rose-50 to-indigo-50 p-6 md:p-8 shadow-lg shadow-amber-200/20">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center shrink-0 shadow-md">
+                      <Calendar className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-base md:text-lg font-bold text-zinc-900">프리미엄 일년운세 2026</h4>
+                      <p className="text-xs text-zinc-600 mt-0.5">사주 원국 · 대운 · 2026 세운 · 월별까지 통합한 10페이지 맞춤 리포트 · 5,000원</p>
+                    </div>
+                  </div>
+                  <ul className="text-xs text-zinc-700 space-y-1 mb-4 pl-1">
+                    <li>• 가장 알고 싶은 것과 가장 큰 고민에 먼저 직답</li>
+                    <li>• 2026년 한 해 종합운 + 12개월 상세 흐름</li>
+                    <li>• 실행 가능한 연간 체크리스트까지</li>
+                  </ul>
+                  <button
+                    onClick={onGoToYearlyOrder}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white hover:opacity-90 transition-all shadow-lg shadow-rose-500/20"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    프리미엄 일년운세 2026 주문하기
+                  </button>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div

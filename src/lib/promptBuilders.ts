@@ -351,3 +351,84 @@ ${p.adminNotes || '없음'}
   return { system, user };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 프리미엄 일년운세(2026) 프롬프트
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface YearlyFortune2026Params {
+  userName: string;
+  gender: 'M' | 'F';
+  birthDate: string;
+  birthTime: string;
+  isLunar: boolean;
+  isLeap: boolean;
+  unknownTime: boolean;
+  sajuContext: string;
+  daeunContext: string;
+  yongshinContext: string;
+  currentAge: number;
+  currentYearText: string;     // 예: "2026년 병오(丙午)"
+  monthPillarsText: string;    // 예: "1월 己丑(기축) / 2월 庚寅(경인) / ..."
+  currentJob: string;
+  concern: string;
+  interest: string;
+  yearlyFortuneGuideline: string; // YEARLY_FORTUNE_2026_GUIDELINE
+}
+
+export const buildYearlyFortune2026Prompt = (
+  p: YearlyFortune2026Params
+): { system: string; user: string } => {
+  const system = `당신은 30년 경력의 최고 수준 사주명리학자입니다.
+고객의 사주 원국, 대운, 2026년 세운, 2026년 월별 월주를 바탕으로 「프리미엄 일년운세 2026」 리포트를 작성합니다.
+
+[분석 원칙]
+- **원천 데이터 우선 규칙(최우선):** 리포트의 모든 해석 근거는 "사용자 입력값(생년월일·생시·성별·음력/양력·윤달·생시 미상)"으로 먼저 계산된 만세력/사주/대운/세운/월주 데이터에만 기반해야 합니다.
+- **재계산/치환 금지 규칙:** 모델이 임의로 만세력·대운·월주를 재계산하거나, 제공된 값을 다른 값으로 치환하는 행위를 절대 금지합니다.
+- **연도·월 간지 고정 규칙(최우선):** 2026년 세운을 언급할 때는 [올해 세운] 블록의 값만, 월별 월주를 언급할 때는 [2026 월별 간지] 블록의 값만 그대로 사용하세요. 임의 추정·변경·혼용을 절대 금지합니다.
+- **질문 우선 원칙:** Part I(질문 답변 + 고민 조언)을 Part II/III/IV보다 앞에 배치하고, 전체 분량의 가장 큰 비중을 할당하세요.
+- **currentJob 반영:** [현재 하는 일] 정보를 분야별 운세와 월별 흐름 해석에 반드시 구체적으로 반영하세요. 직업 일반론 금지.
+- **대운 전환 인식:** 2026년이 대운 전환기에 해당하는지 확인하고, 전환기라면 고민 해설에서 반드시 비중 있게 다루세요.
+- **균형:** 긍정과 리스크를 함께 서술. 좋은 말만 쓰지 마세요.
+- **건강:** 질병 진단·치료법 언급 금지. 생활 관리만.
+- **출생시간 미상 처리:** 시간 미상인 경우 시주 기반 해석을 생략하고 1회만 한계를 안내하세요.
+
+${p.yearlyFortuneGuideline}
+`;
+
+  const user = `[분석 대상]
+이름: ${p.userName}
+성별: ${p.gender === 'M' ? '남성' : '여성'}
+생년월일: ${p.birthDate} ${p.unknownTime ? '(시간 미상)' : p.birthTime}
+음양력: ${p.isLunar ? '음력' : '양력'}${p.isLunar ? ` / 윤달: ${p.isLeap ? '예' : '아니오'}` : ''}
+현재 나이: ${p.currentAge}세
+
+[사주 원국]
+${p.sajuContext}
+
+[대운 흐름]
+${p.daeunContext}
+
+[용신 분석]
+${p.yongshinContext}
+
+[올해 세운]
+${p.currentYearText}
+
+[2026 월별 간지]
+${p.monthPillarsText}
+
+[현재 하는 일]
+${p.currentJob || '미입력'}
+
+[가장 알고 싶은 것]
+${p.interest || '미입력'}
+
+[가장 큰 고민]
+${p.concern || '미입력'}
+
+위 정보를 바탕으로 ${p.userName}님의 「프리미엄 일년운세 2026」 리포트를 지정된 섹션 형식으로 작성해주세요.
+특히 Part I(질문 답변 + 고민 조언)을 가장 먼저, 가장 풍부한 분량으로 작성하고, Part III(월별 흐름)에서는 1월부터 12월까지 모든 월을 빠짐없이 [MONTH_START]/[MONTH_END] 마커로 작성하세요.`;
+
+  return { system, user };
+};
+
