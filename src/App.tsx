@@ -1639,7 +1639,7 @@ const App: React.FC = () => {
                         </p>
                       </section>
 
-                      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+                      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-5">
                         <button
                           onClick={() => setShowInputForm(true)}
                           className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
@@ -1671,6 +1671,21 @@ const App: React.FC = () => {
                           </div>
                           <p className="text-sm text-zinc-600 leading-relaxed">
                             유아이의 과학적 만세력 데이타분석으로 만들어낸 당신만의 인생가이드북을 만나보세요. 당신이라는 사람을 더 잘 이해하게 해드립니다. 당신의 인생흐름을 통찰하고 남은 인생을 더 잘 살기 위한 방법을 알려드립니다.
+                          </p>
+                        </button>
+
+                        <button
+                          onClick={() => { setOrderProductType('yearly2026'); setActiveTab("order"); }}
+                          className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-amber-300/60 bg-gradient-to-br from-amber-50/90 via-rose-50/60 to-indigo-50/70 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-rose-300/20 hover:-translate-y-1 transition-all"
+                        >
+                          <div className="flex items-center gap-3 mb-4 min-h-[52px]">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-rose-400/30">
+                              <Calendar className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-lg md:text-xl font-bold text-zinc-900">프리미엄 2026 일년운세(유료)</h3>
+                          </div>
+                          <p className="text-sm text-zinc-600 leading-relaxed">
+                            2026년 한 해를 사주 원국·대운·세운·월별 흐름으로 통합 분석한 10페이지 맞춤 리포트. 가장 알고 싶은 것과 가장 큰 고민에 먼저 직답한 뒤 월별 상세까지 짚어드립니다.
                           </p>
                         </button>
 
