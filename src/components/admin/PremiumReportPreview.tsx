@@ -655,52 +655,74 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     ? saju.map(p => `${p.stem?.hanja ?? ''}${p.branch?.hanja ?? ''}`).join(' ')
     : '';
 
-  const sub = isYearly
-    ? `${inputData.name}님을 위한 2026년 한 해 전략 가이드`
-    : `운명의 로드맵: ${inputData.name}님을 위한 전략적 통찰`;
-  const mainTitle = isYearly
-    ? `${inputData.name}님의 2026 연 운세`
-    : '당신을 위한 인생가이드북';
+  const mainTitle = isYearly ? '2026 연 운세' : '당신을 위한 인생가이드북';
+  const subLineTop = isYearly ? 'PREMIUM · 2026' : '운명의 로드맵';
+  const subLineChinese = isYearly ? '丙午年 年運 分析書' : '四柱命理 分析書';
 
   return (
     <div
-      className="w-full min-h-[560px] rounded-2xl flex flex-col items-center justify-center gap-8 py-20 px-10"
+      className="w-full min-h-[560px] rounded-2xl flex flex-col items-center justify-center gap-10 py-24 px-10"
       style={{ background: palette.bg }}
     >
+      {/* 상단 서브 — 한 줄, 엷은 색, 고정폭 강조 */}
       <div className="text-center space-y-2">
-        <p className="text-sm font-serif" style={{ color: palette.body }}>
-          {sub}
+        <p
+          className="text-[11px] font-serif tracking-[0.55em] uppercase"
+          style={{ color: palette.chip }}
+        >
+          {subLineTop}
         </p>
-        {isYearly && (
-          <p className="text-xs font-serif tracking-[0.4em] uppercase" style={{ color: palette.chip }}>
-            프리미엄 2026 운세
-          </p>
-        )}
-        <h1 className="text-5xl font-serif leading-tight tracking-wide font-semibold" style={{ color: palette.title }}>
+        <div className="flex items-center justify-center gap-3" style={{ color: palette.border }}>
+          <span className="block h-px w-10" style={{ background: 'currentColor' }} />
+          <span className="text-[13px] font-serif tracking-[0.25em]">{subLineChinese}</span>
+          <span className="block h-px w-10" style={{ background: 'currentColor' }} />
+        </div>
+      </div>
+
+      {/* 대제목 — 이름 없이 연도·주제만 */}
+      <div className="text-center">
+        <h1
+          className="text-[64px] font-serif font-semibold leading-none tracking-[0.08em]"
+          style={{ color: palette.title }}
+        >
           {mainTitle}
         </h1>
       </div>
 
-      {/* 고객명 */}
-      <div className="text-center space-y-3">
-        <p className="text-7xl font-handwriting tracking-[0.2em]" style={{ color: palette.title }}>
+      {/* 이름 — 캘리그래피로만 단 한 번 노출, 위아래 구분선으로 낙관 효과 */}
+      <div className="text-center flex flex-col items-center gap-4">
+        <div className="flex items-center gap-4" style={{ color: palette.border }}>
+          <span className="block h-px w-16" style={{ background: 'currentColor' }} />
+          <span className="text-[10px] font-serif tracking-[0.4em] uppercase" style={{ color: palette.chip }}>
+            FOR
+          </span>
+          <span className="block h-px w-16" style={{ background: 'currentColor' }} />
+        </div>
+        <p className="text-[84px] font-handwriting leading-none tracking-[0.18em]" style={{ color: palette.title }}>
           {inputData.name}
         </p>
-        <p className="text-lg font-serif" style={{ color: palette.body }}>
+        <p className="text-[14px] font-serif tracking-wide" style={{ color: palette.body }}>
           {inputData.birthDate.replace(/-/g, '年').replace(/(\d{2})$/, '$1日').replace(/(\d{4}년)(\d{2}년)/, '$1$2月')}
-          {' '}
-          {inputData.unknownTime ? '' : inputData.birthTime + ' 생'}
+          {inputData.unknownTime ? '' : ` ${inputData.birthTime} 生`}
         </p>
         {pillarsHanja && (
-          <p className="text-sm font-serif tracking-[0.35em]" style={{ color: palette.body }}>{pillarsHanja}</p>
+          <p className="text-[13px] font-serif tracking-[0.45em]" style={{ color: palette.chip }}>
+            {pillarsHanja}
+          </p>
         )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <span className="text-sm font-serif border px-4 py-1.5 rounded-full" style={{ color: palette.chip, background: palette.chipBg, borderColor: palette.border }}>
+      {/* 하단 칩 — 상품명과 발행일 */}
+      <div className="flex items-center gap-3 mt-2">
+        <span
+          className="text-[11px] font-serif tracking-[0.2em] border px-4 py-1.5 rounded-full uppercase"
+          style={{ color: palette.chip, background: palette.chipBg, borderColor: palette.border }}
+        >
           {levelLabel}
         </span>
-        <span className="text-sm font-serif" style={{ color: palette.body }}>{today}</span>
+        <span className="text-[11px] font-serif tracking-[0.15em]" style={{ color: palette.body }}>
+          {today}
+        </span>
       </div>
     </div>
   );
