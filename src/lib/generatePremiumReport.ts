@@ -626,35 +626,80 @@ export const generateLifeNavReport = async (
     user = built.user;
   }
 
-  // 3. Gemini AI 호출
+  // 3. Gemini AI 호출 (폴백 체인: 2.5-flash → 2.0-flash → 2.0-flash-lite → 1.5-flash)
   const apiKey = await resolveGeminiApiKey();
   if (!apiKey) throw new Error('Gemini API key is not configured (.env에 GEMINI_API_KEY 설정 필요)');
 
-  const geminiResponse = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: `${SAJU_GUIDELINE}\n\n${system}` }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
-        generationConfig: {
-          maxOutputTokens: 32768,
-          temperature: 0.5,
-          topP: 0.9,
+  const FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+
+  const callGeminiWithFallback = async (
+    systemText: string,
+    userText: string,
+    generationConfig: any,
+  ): Promise<string> => {
+    let lastError: any = null;
+    for (const model of FALLBACK_MODELS) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal,
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemText }] },
+              contents: [{ role: 'user', parts: [{ text: userText }] }],
+              generationConfig,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          const errMessage = error?.error?.message || 'Unknown error';
+          const errCode = error?.error?.code;
+          const errStatus = String(error?.error?.status || '').toUpperCase();
+          const isTransient =
+            response.status === 503 ||
+            response.status === 429 ||
+            errCode === 503 ||
+            errCode === 429 ||
+            errStatus === 'UNAVAILABLE' ||
+            errStatus === 'RESOURCE_EXHAUSTED';
+          const isModelUnavailable = response.status === 404 || errCode === 404 || errStatus === 'NOT_FOUND';
+          if (isTransient || isModelUnavailable) {
+            console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${model} failed (${response.status} ${errStatus}) — trying next model.`);
+            lastError = new Error(`Gemini API error (${model}): ${errMessage}`);
+            continue;
+          }
+          throw new Error(`Gemini API error: ${errMessage}`);
         }
-      })
+
+        const data = await response.json();
+        const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        if (!text) {
+          console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${model} returned empty — trying next model.`);
+          lastError = new Error(`Gemini API returned empty text on ${model}`);
+          continue;
+        }
+        if (model !== FALLBACK_MODELS[0]) {
+          console.info(`[MODEL_FALLBACK] generatePremiumReport: succeeded on fallback ${model}`);
+        }
+        return text;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') throw err;
+        lastError = err;
+        console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${model} threw — trying next model.`, err?.message || err);
+      }
     }
+    throw lastError || new Error('모든 Gemini 모델이 응답하지 않았습니다. 잠시 후 다시 시도해주세요.');
+  };
+
+  const rawText = await callGeminiWithFallback(
+    `${SAJU_GUIDELINE}\n\n${system}`,
+    user,
+    { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 }
   );
-
-  if (!geminiResponse.ok) {
-    const error = await geminiResponse.json();
-    throw new Error(`Gemini API error: ${error.error?.message || 'Unknown error'}`);
-  }
-
-  const geminiData = await geminiResponse.json();
-  const rawText: string = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
   let quality = isYearlyFortune
     ? evaluateYearlyFortuneQuality(rawText)
@@ -672,33 +717,21 @@ export const generateLifeNavReport = async (
       ...quality.issues.map((issue) => `- ${issue}`),
     ].join('\n');
 
-    const repairResponse = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal,
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: `${SAJU_GUIDELINE}\n\n${system}\n\n${repairInstruction}` }] },
-          contents: [{ role: 'user', parts: [{ text: user }] }],
-          generationConfig: {
-            maxOutputTokens: 32768,
-            temperature: 0.3,
-            topP: 0.85,
-          }
-        })
-      }
-    );
-
-    if (repairResponse.ok) {
-      const repairedData = await repairResponse.json();
-      const repairedRawText: string = repairedData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    try {
+      const repairedRawText = await callGeminiWithFallback(
+        `${SAJU_GUIDELINE}\n\n${system}\n\n${repairInstruction}`,
+        user,
+        { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 }
+      );
       const repairedQuality = isYearlyFortune
         ? evaluateYearlyFortuneQuality(repairedRawText)
         : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
       if (repairedQuality.score >= quality.score) {
         quality = repairedQuality;
       }
+    } catch (repairErr: any) {
+      // 보정 실패는 치명적이지 않으므로 원본 결과로 진행
+      console.warn('[generatePremiumReport] quality repair failed, using original:', repairErr?.message || repairErr);
     }
   }
 
