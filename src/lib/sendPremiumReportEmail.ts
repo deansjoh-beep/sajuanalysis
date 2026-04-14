@@ -31,6 +31,38 @@ export const sendPremiumReportEmail = async (
   pdfUrl: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
   try {
+    const isYearly = order.productType === 'yearly2026';
+    const productTitle = isYearly ? '📅 프리미엄 일년운세 2026' : '📊 프리미엄 사주 리포트';
+    const productSubTitle = isYearly
+      ? `${order.name}님의 2026년 한 해 상세 분석`
+      : `${order.name}님의 운세 종합 분석`;
+    const introLine = isYearly
+      ? '요청하신 프리미엄 일년운세 2026 리포트가 완성되었습니다.'
+      : '요청하신 프리미엄 사주 리포트가 완성되었습니다.';
+    const contentListHtml = isYearly
+      ? `
+            <ul>
+              <li>가장 알고 싶은 것에 대한 맞춤 답변</li>
+              <li>가장 큰 고민에 대한 구체적 조언</li>
+              <li>2026년 한 해 종합 운세</li>
+              <li>2026년 월별 상세 흐름 (1~12월)</li>
+              <li>2026년 행동 체크리스트</li>
+            </ul>
+            `
+      : `
+            <ul>
+              <li>사주 원국 상세 분석</li>
+              <li>현재의 대운&세운 흐름</li>
+              <li>생애 주기별 운세</li>
+              <li>오행 밸런스 진단</li>
+              <li>용신 기반 지혜의 길</li>
+              <li>재물·연애·직업·건강 운 분석</li>
+            </ul>
+            `;
+    const emailSubject = isYearly
+      ? `[프리미엄 일년운세 2026] ${order.name}님의 한 해 분석이 도착했습니다`
+      : `[프리미엄 사주 리포트] ${order.name}님의 운세 분석 완료`;
+
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -95,26 +127,18 @@ export const sendPremiumReportEmail = async (
       <body>
         <div class="container">
           <div class="header">
-            <h1>📊 프리미엄 사주 리포트</h1>
-            <p>${order.name}님의 운세 종합 분석</p>
+            <h1>${productTitle}</h1>
+            <p>${productSubTitle}</p>
           </div>
-          
+
           <div class="content">
             <div class="greeting">
               <p>안녕하세요, ${order.name}님!</p>
-              <p>요청하신 프리미엄 사주 리포트가 완성되었습니다.</p>
+              <p>${introLine}</p>
               <p>첨부파일을 통해 자세한 분석 결과를 확인하실 수 있습니다.</p>
             </div>
-            
-            <h2 style="color: #0047AB;">📋 리포트 내용</h2>
-            <ul>
-              <li>사주 원국 상세 분석</li>
-              <li>현재의 대운&세운 흐름</li>
-              <li>생애 주기별 운세</li>
-              <li>오행 밸런스 진단</li>
-              <li>용신 기반 지혜의 길</li>
-              <li>재물·연애·직업·건강 운 분석</li>
-            </ul>
+
+            <h2 style="color: #0047AB;">📋 리포트 내용</h2>${contentListHtml}
             
             <p style="text-align: center;">
               <a href="${pdfUrl}" class="cta-button">📥 PDF 다운로드</a>
@@ -140,7 +164,7 @@ export const sendPremiumReportEmail = async (
 
     const data = await callServerEmailApi({
       to: order.email,
-      subject: `[프리미엄 사주 리포트] ${order.name}님의 운세 분석 완료`,
+      subject: emailSubject,
       html: emailHtml,
     });
 

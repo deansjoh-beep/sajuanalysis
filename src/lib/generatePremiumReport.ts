@@ -4,12 +4,12 @@ import {
   getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation,
   getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary, hanjaToHangul,
 } from "../utils/saju";
-import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE } from "../constants/guidelines";
+import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE } from "../constants/guidelines";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PremiumOrder, ReportInputData, ReportSection, DaeunBlock } from "./premiumOrderStore";
-import { getCurrentYearPillarKST, getTodayDayPillarKST } from './seoulDateGanji';
-import { buildLifeNavReportPrompt } from './promptBuilders';
+import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear } from './seoulDateGanji';
+import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt } from './promptBuilders';
 
 let runtimeGeminiApiKeyCache: string | undefined;
 
@@ -25,6 +25,16 @@ const LIFE_NAV_REQUIRED_SECTION_IDS = [
   'fields',
   'concern',
   'admin',
+  'glossary',
+] as const;
+
+const YEARLY_FORTUNE_REQUIRED_SECTION_IDS = [
+  'cover',
+  'chart',
+  'answer',
+  'yearly',
+  'monthly',
+  'checklist',
   'glossary',
 ] as const;
 
@@ -453,6 +463,50 @@ const evaluateLifeNavReportQuality = (
   return { score, issues, normalizedText, sections };
 };
 
+const evaluateYearlyFortuneQuality = (
+  rawText: string
+): {
+  score: number;
+  issues: string[];
+  normalizedText: string;
+  sections: ReportSection[];
+} => {
+  const normalizedText = stripCodeFence(rawText);
+  const sections = parseLifeNavSections(normalizedText, []);
+  const issues: string[] = [];
+
+  if (sections.length === 0) issues.push('섹션 마커 파싱 실패');
+
+  const ids = new Set(sections.map((s) => s.id));
+  YEARLY_FORTUNE_REQUIRED_SECTION_IDS.forEach((id) => {
+    if (!ids.has(id)) issues.push(`필수 섹션 누락: ${id}`);
+  });
+
+  sections.forEach((section) => {
+    if (section.id === 'cover') return;
+    const contentLen = section.content.replace(/\s+/g, '').length;
+    if (section.id === 'answer' && contentLen < 1200) {
+      issues.push(`Part I(answer) 분량 부족: ${contentLen}자 (2,000자 권장)`);
+    } else if (section.id === 'monthly' && contentLen < 2000) {
+      issues.push(`Part III(monthly) 분량 부족: ${contentLen}자`);
+    } else if (contentLen < 120) {
+      issues.push(`본문이 너무 짧음: ${section.id}`);
+    }
+  });
+
+  // 월별 블록 개수 확인 (최소 10개)
+  const monthlySection = sections.find((s) => s.id === 'monthly');
+  if (monthlySection) {
+    const monthBlockCount = (monthlySection.content.match(/\[MONTH_START\]/g) || []).length;
+    if (monthBlockCount < 10) {
+      issues.push(`월별 블록 부족: ${monthBlockCount}/12`);
+    }
+  }
+
+  const score = Math.max(0, 100 - issues.length * 12);
+  return { score, issues, normalizedText, sections };
+};
+
 export const generateLifeNavReport = async (
   inputData: ReportInputData,
   signal?: AbortSignal
@@ -508,32 +562,69 @@ export const generateLifeNavReport = async (
   const birthYear = parseInt(inputData.birthDate.split('-')[0]);
   const currentAge = currentYearPillar.year - birthYear;
 
-  const levelGuideline = inputData.reportLevel === 'advanced'
-    ? ADVANCED_REPORT_GUIDELINE
-    : inputData.reportLevel === 'both'
-      ? `${ADVANCED_REPORT_GUIDELINE}\n\n${BASIC_REPORT_GUIDELINE}`
-      : BASIC_REPORT_GUIDELINE;
+  const isYearlyFortune = inputData.productType === 'yearly2026';
 
-  const { system, user } = buildLifeNavReportPrompt({
-    userName: inputData.name,
-    gender: inputData.gender,
-    birthDate: inputData.birthDate,
-    birthTime: inputData.birthTime,
-    isLunar: inputData.isLunar,
-    isLeap: inputData.isLeap,
-    unknownTime: inputData.unknownTime,
-    reportLevel: inputData.reportLevel,
-    sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
-    daeunContext,
-    yongshinContext,
-    currentAge,
-    currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
-    lifeEventsText,
-    concern: inputData.concern,
-    interest: inputData.interest,
-    adminNotes: inputData.adminNotes,
-    levelGuideline,
-  });
+  let system: string;
+  let user: string;
+
+  if (isYearlyFortune) {
+    // 2026 월별 간지 텍스트
+    const monthPillars = getMonthPillarsForYear(currentYearPillar.year);
+    const monthPillarsText = monthPillars
+      .map((p) => `${p.month}월: ${p.monthPillarHanja}(${p.monthPillarHangul})`)
+      .join('\n');
+
+    const built = buildYearlyFortune2026Prompt({
+      userName: inputData.name,
+      gender: inputData.gender,
+      birthDate: inputData.birthDate,
+      birthTime: inputData.birthTime,
+      isLunar: inputData.isLunar,
+      isLeap: inputData.isLeap,
+      unknownTime: inputData.unknownTime,
+      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
+      daeunContext,
+      yongshinContext,
+      currentAge,
+      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      monthPillarsText,
+      currentJob: inputData.currentJob || '',
+      concern: inputData.concern,
+      interest: inputData.interest,
+      yearlyFortuneGuideline: YEARLY_FORTUNE_2026_GUIDELINE,
+    });
+    system = built.system;
+    user = built.user;
+  } else {
+    const levelGuideline = inputData.reportLevel === 'advanced'
+      ? ADVANCED_REPORT_GUIDELINE
+      : inputData.reportLevel === 'both'
+        ? `${ADVANCED_REPORT_GUIDELINE}\n\n${BASIC_REPORT_GUIDELINE}`
+        : BASIC_REPORT_GUIDELINE;
+
+    const built = buildLifeNavReportPrompt({
+      userName: inputData.name,
+      gender: inputData.gender,
+      birthDate: inputData.birthDate,
+      birthTime: inputData.birthTime,
+      isLunar: inputData.isLunar,
+      isLeap: inputData.isLeap,
+      unknownTime: inputData.unknownTime,
+      reportLevel: inputData.reportLevel,
+      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
+      daeunContext,
+      yongshinContext,
+      currentAge,
+      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      lifeEventsText,
+      concern: inputData.concern,
+      interest: inputData.interest,
+      adminNotes: inputData.adminNotes,
+      levelGuideline,
+    });
+    system = built.system;
+    user = built.user;
+  }
 
   // 3. Gemini AI 호출
   const apiKey = await resolveGeminiApiKey();
@@ -565,7 +656,9 @@ export const generateLifeNavReport = async (
   const geminiData = await geminiResponse.json();
   const rawText: string = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
-  let quality = evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
+  let quality = isYearlyFortune
+    ? evaluateYearlyFortuneQuality(rawText)
+    : evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
 
   // 품질 점수가 낮으면 1회 보정 생성 시도
   if (quality.score < 80) {
@@ -600,7 +693,9 @@ export const generateLifeNavReport = async (
     if (repairResponse.ok) {
       const repairedData = await repairResponse.json();
       const repairedRawText: string = repairedData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      const repairedQuality = evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
+      const repairedQuality = isYearlyFortune
+        ? evaluateYearlyFortuneQuality(repairedRawText)
+        : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
       if (repairedQuality.score >= quality.score) {
         quality = repairedQuality;
       }

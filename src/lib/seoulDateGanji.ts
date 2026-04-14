@@ -105,6 +105,31 @@ export const getCurrentYearPillarKST = () => {
   };
 };
 
+/**
+ * 지정 연도의 12개 양력 달 각각에 해당하는 월주(月柱) 간지를 계산합니다.
+ * 각 달의 15일을 기준으로 lunar-javascript가 절기를 반영해 월주를 반환합니다.
+ * (양력 15일은 해당 양력 달의 월절기 이후가 확실하므로 안전합니다.)
+ *
+ * 프리미엄 일년운세 리포트에서 2026년 월별 흐름을 서술할 때 모델에 주입하여
+ * 할루시네이션을 방지합니다.
+ */
+export const getMonthPillarsForYear = (
+  year: number
+): Array<{ month: number; monthPillarHanja: string; monthPillarHangul: string }> => {
+  const out: Array<{ month: number; monthPillarHanja: string; monthPillarHangul: string }> = [];
+  for (let m = 1; m <= 12; m++) {
+    const solar = Solar.fromYmd(year, m, 15);
+    const lunar = solar.getLunar();
+    const eightChar = lunar.getEightChar();
+    const monthPillarHanja = eightChar.getMonth();
+    const stem = monthPillarHanja.charAt(0);
+    const branch = monthPillarHanja.charAt(1);
+    const monthPillarHangul = `${hanjaToHangul[stem] || stem}${hanjaToHangul[branch] || branch}`;
+    out.push({ month: m, monthPillarHanja, monthPillarHangul });
+  }
+  return out;
+};
+
 export const getCurrentMonthPillarKST = () => {
   const { year, month, day } = getSeoulTodayParts();
 

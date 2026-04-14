@@ -17,6 +17,8 @@ export interface LifeEvent {
   description: string;
 }
 
+export type ProductType = 'premium' | 'yearly2026';
+
 export interface ReportInputData {
   name: string;
   gender: 'M' | 'F';
@@ -30,6 +32,8 @@ export interface ReportInputData {
   reportLevel: 'basic' | 'advanced' | 'both';
   lifeEvents: LifeEvent[];
   adminNotes: string;
+  productType?: ProductType;
+  currentJob?: string;
 }
 
 export interface ReportSection {
@@ -71,6 +75,8 @@ export interface PremiumOrder {
   lifeEvents?: LifeEvent[];
   adminNotes?: string;
   reportLevel?: 'basic' | 'advanced' | 'both';
+  productType?: ProductType;
+  currentJob?: string;
   naverOrderNumber?: string;
   emailMessageId?: string;
   emailStatus?: 'sent' | 'delivered' | 'bounced' | 'complained' | 'unknown';
@@ -141,10 +147,17 @@ export const createPremiumOrder = async (order: PremiumOrder): Promise<string> =
   }
 };
 
-export const getPremiumOrders = async (status?: string): Promise<PremiumOrder[]> => {
+export const getPremiumOrders = async (
+  status?: string,
+  productType?: ProductType | 'all'
+): Promise<PremiumOrder[]> => {
   try {
     // Use server API to bypass client-side Firestore permission issues
-    const url = `/api/premium-orders${status && status !== 'all' ? `?status=${status}` : ''}`;
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.set('status', status);
+    if (productType && productType !== 'all') params.set('productType', productType);
+    const qs = params.toString();
+    const url = `/api/premium-orders${qs ? `?${qs}` : ''}`;
     const response = await fetch(url);
 
     let responseData: any;

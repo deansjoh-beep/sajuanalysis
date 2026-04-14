@@ -510,6 +510,7 @@ const App: React.FC = () => {
 
   // Navigation
   const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order">("welcome");
+  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026'>('premium');
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
   // State
@@ -1659,7 +1660,7 @@ const App: React.FC = () => {
                         </button>
 
                         <button
-                          onClick={() => setActiveTab("order")}
+                          onClick={() => { setOrderProductType('premium'); setActiveTab("order"); }}
                           className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
                         >
                           <div className="flex items-center gap-3 mb-4 min-h-[52px]">
@@ -3522,7 +3523,7 @@ const App: React.FC = () => {
                   {/* Order CTA + Privacy Notice (Desktop) */}
                   <div className="mt-auto space-y-3">
                     <button
-                      onClick={() => setActiveTab("order")}
+                      onClick={() => { setOrderProductType('premium'); setActiveTab("order"); }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20 hover:opacity-90 transition-all"
                     >
                       <Ticket className="w-4 h-4" />
@@ -3796,7 +3797,8 @@ const App: React.FC = () => {
                 setConsultationMode={setConsultationMode}
                 setReportContent={setReportContent}
                 handleGenerateReport={handleGenerateReport}
-                onGoToOrder={() => setActiveTab("order")}
+                onGoToOrder={() => { setOrderProductType('premium'); setActiveTab("order"); }}
+                onGoToYearlyOrder={() => { setOrderProductType('yearly2026'); setActiveTab("order"); }}
               />
             </Suspense>
           )}
@@ -3859,7 +3861,10 @@ const App: React.FC = () => {
               className="absolute inset-0 overflow-y-auto bg-gradient-to-b from-slate-50 to-indigo-50/30"
             >
               <Suspense fallback={<div className="h-full flex items-center justify-center text-sm text-zinc-500">주문 폼 불러오는 중...</div>}>
-                <LazyPremiumOrderForm />
+                <LazyPremiumOrderForm
+                  productType={orderProductType}
+                  initialUserData={userData.name ? userData : undefined}
+                />
               </Suspense>
             </motion.div>
           )}

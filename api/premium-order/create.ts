@@ -91,6 +91,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    const rawProductType = String(order.productType || 'premium');
+    const productType = rawProductType === 'yearly2026' ? 'yearly2026' : 'premium';
+
     const docRef = await db.collection('premiumOrders').add({
       name: String(order.name),
       email: String(order.email),
@@ -102,6 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       unknownTime: Boolean(order.unknownTime ?? false),
       tier: String(order.tier),
       price: Number(order.price),
+      productType,
+      currentJob: String(order.currentJob || ''),
       concern: String(order.concern || ''),
       interest: String(order.interest || ''),
       reportLevel: String(order.reportLevel || 'basic'),

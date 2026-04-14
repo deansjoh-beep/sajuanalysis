@@ -19,3 +19,4 @@ export { ADVANCED_CONSULTING_GUIDELINE } from './consulting-advanced';
 export { REPORT_GUIDELINE } from './report-common';
 export { BASIC_REPORT_GUIDELINE } from './report-basic';
 export { ADVANCED_REPORT_GUIDELINE } from './report-advanced';
+export { YEARLY_FORTUNE_2026_GUIDELINE } from './yearly-fortune-2026';

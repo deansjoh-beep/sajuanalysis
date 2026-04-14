@@ -76,15 +76,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-    let snapshot;
+    const productType =
+      typeof req.query.productType === 'string' ? req.query.productType : undefined;
 
+    // productType 필터는 기존 문서가 필드를 가지지 않을 수 있어(undefined=premium 취급)
+    // 서버사이드 where 대신 쿼리 후 메모리 필터링으로 처리해 하위호환성을 보장한다.
+    let snapshot;
     if (status && status !== 'all') {
-      snapshot = await db.collection('premiumOrders').where('status', '==', status).orderBy('createdAt', 'desc').get();
+      snapshot = await db
+        .collection('premiumOrders')
+        .where('status', '==', status)
+        .orderBy('createdAt', 'desc')
+        .get();
     } else {
       snapshot = await db.collection('premiumOrders').orderBy('createdAt', 'desc').get();
     }
 
-    const orders = snapshot.docs.map((d) => ({ orderId: d.id, ...d.data() }));
+    let orders = snapshot.docs.map((d: any) => ({ orderId: d.id, ...d.data() }));
+
+    if (productType && productType !== 'all') {
+      orders = orders.filter((o: any) => {
+        const t = o.productType || 'premium';
+        return t === productType;
+      });
+    }
+
     return res.json({ success: true, orders });
   } catch (error: any) {
     console.error('[api/premium-orders] error:', error);
