@@ -630,7 +630,8 @@ export const generateLifeNavReport = async (
   const apiKey = await resolveGeminiApiKey();
   if (!apiKey) throw new Error('Gemini API key is not configured (.env에 GEMINI_API_KEY 설정 필요)');
 
-  const FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+  // 유료 리포트 전용 모델 체인 — 최고급(2.5-pro) 우선, 503 등 장애 시 flash 계열로 폴백
+  const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
   const callGeminiWithFallback = async (
     systemText: string,
