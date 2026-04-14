@@ -225,9 +225,14 @@ const HanjaBoxReport: React.FC<{ hanja: string; size?: 'sm' | 'md' | 'lg'; deity
 
 const SummaryBox: React.FC<{ text: string }> = ({ text }) => {
   if (!text) return null;
+  const cleaned = stripAllMarkers(text);
+  if (!cleaned) return null;
   return (
-    <div className="my-4 pl-4 pr-5 py-3 bg-amber-100/95 border-l-4 border-amber-600 rounded-r-xl shadow-sm">
-      <p className="text-[16px] font-semibold font-serif text-amber-950 leading-[1.85] tracking-wide">📌 {text}</p>
+    <div className="my-5 pl-5 pr-6 py-4 bg-gradient-to-r from-amber-100 via-amber-50 to-amber-100/70 border-l-[6px] border-amber-600 rounded-r-2xl shadow-md shadow-amber-200/40">
+      <div className="flex items-start gap-2.5">
+        <span className="text-[15px] font-extrabold text-amber-800 font-serif flex-shrink-0 mt-0.5 px-2 py-0.5 rounded-md bg-amber-600 text-white">핵심</span>
+        <p className="text-[17px] font-bold font-serif text-amber-950 leading-[1.9] tracking-wide">{cleaned}</p>
+      </div>
     </div>
   );
 };
@@ -244,23 +249,74 @@ const SectionTitle: React.FC<{ children: React.ReactNode; number?: string }> = (
   </div>
 );
 
-const stripEasyMarkers = (input: string): string => {
-  return input
-    .replace(/\[\s*\/?\s*EASY_START\s*\]/gi, '')
-    .replace(/\[\s*\/?\s*EASY_END\s*\]/gi, '');
+// 본문에서 제거해야 할 모든 구조 마커 (AI가 잔존시켰을 때 노출되지 않도록)
+const MARKER_PATTERNS: RegExp[] = [
+  // 최상위 섹션 마커
+  /\[\s*\/?\s*(?:SECTION|TITLE|SUMMARY|CONTENT|END)\s*\]/gi,
+  // 대운 블록
+  /\[\s*\/?\s*DAEUN_(?:START|CONTENT|END)\s*\]/gi,
+  // 분야 블록 (한글/영문 태그 모두)
+  /\[\s*\/?\s*FIELD_[^\]]*\]/gi,
+  // 실행 지침
+  /\[\s*\/?\s*ACTION_PLAN\s*\]/gi,
+  // 초급 병행 블록
+  /\[\s*\/?\s*EASY_(?:START|END)\s*\]/gi,
+  // 월별 블록 (일년운세)
+  /\[\s*\/?\s*MONTH_(?:START|CONTENT|END)\s*\]/gi,
+  // 답변 하위 블록
+  /\[\s*\/?\s*SUB(?:\s+[^\]]*)?\s*\]/gi,
+];
+
+const stripAllMarkers = (input: string): string => {
+  let result = input || '';
+  for (const p of MARKER_PATTERNS) result = result.replace(p, '');
+  // 마커 제거로 생긴 과도한 공백 정리
+  result = result.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+  return result.trim();
 };
+
+// 강조 키워드 자동 감지 (줄 머리말이 다음 패턴일 때 하이라이트)
+const EMPHASIS_LEAD = /^(결론|핵심|요약|주의|중요|권고|포인트)\s*[:：]\s*/;
 
 const RenderLines: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
   <div className={`space-y-3 ${className}`}>
-    {stripEasyMarkers(text)
+    {stripAllMarkers(text)
       .split('\n')
       .map(l => l.trim())
       .filter(Boolean)
       .map((line, i) => {
-      const parts = line.split(/\*\*(.*?)\*\*/g);
+      const leadMatch = line.match(EMPHASIS_LEAD);
+      const isEmphasisLine = !!leadMatch;
+      const lineText = isEmphasisLine ? line.replace(EMPHASIS_LEAD, '') : line;
+      const parts = lineText.split(/\*\*(.*?)\*\*/g);
+
+      if (isEmphasisLine) {
+        return (
+          <div
+            key={i}
+            className="rounded-xl border-l-4 border-amber-600 bg-amber-50/90 px-4 py-3 shadow-sm"
+          >
+            <p className="text-[15px] font-report text-amber-950 leading-[1.9] tracking-wide">
+              <span className="inline-block mr-2 px-2 py-0.5 rounded-md bg-amber-600 text-white text-[12px] font-extrabold font-serif align-middle">
+                {leadMatch![1]}
+              </span>
+              {parts.map((p, pi) =>
+                pi % 2 === 1
+                  ? <strong key={pi} className="font-black text-amber-900 bg-amber-200/60 px-1 rounded">{p}</strong>
+                  : p
+              )}
+            </p>
+          </div>
+        );
+      }
+
       return (
         <p key={i} className="text-[15px] font-report text-zinc-800 leading-[2] tracking-wide">
-          {parts.map((p, pi) => pi % 2 === 1 ? <strong key={pi} className="font-bold text-[#2d1a00]">{p}</strong> : p)}
+          {parts.map((p, pi) =>
+            pi % 2 === 1
+              ? <strong key={pi} className="font-black text-amber-900 bg-amber-100/80 px-1.5 py-0.5 rounded-md shadow-[inset_0_-2px_0_rgba(180,83,9,0.25)]">{p}</strong>
+              : p
+          )}
         </p>
       );
     })}
@@ -268,18 +324,22 @@ const RenderLines: React.FC<{ text: string; className?: string }> = ({ text, cla
 );
 
 const ContentText: React.FC<{ text: string }> = ({ text }) => {
-  // [DAEUN_START]...[DAEUN_END] 블록 제거
+  // [DAEUN_START]...[DAEUN_END] 블록 제거 (대운 섹션에서 별도 파싱되므로 본문에서는 제거)
   const withoutDaeun = text.replace(/\[DAEUN_START\][\s\S]*?\[DAEUN_END\]/g, '');
 
+  // [MONTH_START]...[MONTH_END] 블록 제거 (월별 섹션에서 별도 파싱)
+  const withoutMonthly = withoutDaeun.replace(/\[MONTH_START\][\s\S]*?\[MONTH_END\]/g, '');
+
   // [ACTION_PLAN]...[/ACTION_PLAN] 분리
-  const actionMatch = withoutDaeun.match(/\[ACTION_PLAN\]([\s\S]*?)\[\/ACTION_PLAN\]/);
-  const actionText = actionMatch ? actionMatch[1].trim() : null;
-  const withoutAction = withoutDaeun.replace(/\[ACTION_PLAN\][\s\S]*?\[\/ACTION_PLAN\]/g, '').trim();
+  const actionMatch = withoutMonthly.match(/\[ACTION_PLAN\]([\s\S]*?)\[\/ACTION_PLAN\]/);
+  const actionText = actionMatch ? stripAllMarkers(actionMatch[1]) : null;
+  const withoutAction = withoutMonthly.replace(/\[ACTION_PLAN\][\s\S]*?\[\/ACTION_PLAN\]/g, '').trim();
 
   // [EASY_START]...[EASY_END] 분리
   const easyMatch = withoutAction.match(/\[\s*EASY_START\s*\]([\s\S]*?)\[\s*\/?\s*EASY_END\s*\]/i);
-  const easyText = easyMatch ? easyMatch[1].trim() : null;
-  const mainText = withoutAction.replace(/\[\s*EASY_START\s*\][\s\S]*?\[\s*\/?\s*EASY_END\s*\]/gi, '').trim();
+  const easyText = easyMatch ? stripAllMarkers(easyMatch[1]) : null;
+  const mainTextRaw = withoutAction.replace(/\[\s*EASY_START\s*\][\s\S]*?\[\s*\/?\s*EASY_END\s*\]/gi, '').trim();
+  const mainText = stripAllMarkers(mainTextRaw);
 
   if (!mainText && !easyText && !actionText) return null;
 
@@ -477,8 +537,58 @@ const GenericSection: React.FC<{ section: ReportSection }> = ({ section }) => (
   </div>
 );
 
+// ─── 일년운세 전용: 월별 상세 흐름 섹션 ───────────────────────────────────────
+const MonthlySection: React.FC<{ section: ReportSection }> = ({ section }) => {
+  const regex = /\[\s*MONTH_START\s*\]\s*([\s\S]*?)\s*\[\s*MONTH_CONTENT\s*\]([\s\S]*?)\[\s*MONTH_END\s*\]/g;
+  const blocks: { label: string; content: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(section.content)) !== null) {
+    blocks.push({ label: stripAllMarkers(m[1]).trim(), content: m[2].trim() });
+  }
+
+  if (blocks.length === 0) {
+    return <GenericSection section={section} />;
+  }
+
+  const currentMonth = new Date().getMonth() + 1;
+
+  return (
+    <div>
+      <SummaryBox text={section.summary} />
+      <div className="space-y-4 mt-5">
+        {blocks.map((b, i) => {
+          const monthNumMatch = b.label.match(/(\d{1,2})\s*월/);
+          const monthNum = monthNumMatch ? parseInt(monthNumMatch[1], 10) : (i + 1);
+          const isCurrent = monthNum === currentMonth;
+          return (
+            <div
+              key={i}
+              className={`rounded-2xl border p-5 transition-all ${
+                isCurrent
+                  ? 'border-amber-500 bg-amber-50/90 ring-2 ring-amber-400/50 shadow-lg shadow-amber-200/40'
+                  : 'border-amber-200/60 bg-[#fffdf5]/80'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-[14px] font-extrabold font-serif px-3 py-1 rounded-full ${
+                  isCurrent ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}>
+                  {b.label}
+                </span>
+                {isCurrent && <span className="text-[12px] font-bold text-amber-700">★ 이번 달</span>}
+              </div>
+              <RenderLines text={b.content} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ─── 섹션 라벨 맵 ─────────────────────────────────────────────────────────────
-const SECTION_NAV = [
+// 인생가이드북(프리미엄 리포트)용 — glossary는 최후미에 배치
+const PREMIUM_SECTION_NAV = [
   { id: 'fourpillars', short: '원국' },
   { id: 'yongshin',   short: '용신' },
   { id: 'profile',    short: '핵심' },
@@ -492,10 +602,32 @@ const SECTION_NAV = [
   { id: 'glossary',   short: '용어' },
 ];
 
-const SECTION_NUMBERS: Record<string, string> = {
+// 프리미엄 일년운세 2026용 — Part I~IV 순서, glossary 최후미
+const YEARLY_SECTION_NAV = [
+  { id: 'chart',     short: '원국' },
+  { id: 'answer',    short: '질문답변' },
+  { id: 'yearly',    short: '연간운세' },
+  { id: 'monthly',   short: '월별흐름' },
+  { id: 'checklist', short: '체크리스트' },
+  { id: 'glossary',  short: '용어' },
+];
+
+const PREMIUM_SECTION_NUMBERS: Record<string, string> = {
   fourpillars: '一', yongshin: '二', profile: '三', daeun: '四', hapchung: '五',
   sinsal: '六', fortune: '七', fields: '八', concern: '九', admin: '十', glossary: '十一',
 };
+
+const YEARLY_SECTION_NUMBERS: Record<string, string> = {
+  chart: '一', answer: '二', yearly: '三', monthly: '四', checklist: '五', glossary: '六',
+};
+
+// 하위호환: 기존 참조 유지용
+const SECTION_NAV = PREMIUM_SECTION_NAV;
+const SECTION_NUMBERS = PREMIUM_SECTION_NUMBERS;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _retainSectionNav = SECTION_NAV;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _retainSectionNums = SECTION_NUMBERS;
 
 const getYongshinCoverPalette = (yongshinText: string) => {
   const y = String(yongshinText || '');
@@ -509,7 +641,12 @@ const getYongshinCoverPalette = (yongshinText: string) => {
 
 // ─── 표지 페이지 ──────────────────────────────────────────────────────────────
 const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinData: any }> = ({ inputData, saju, yongshinData }) => {
-  const levelLabel = inputData.reportLevel === 'advanced' ? '고급 분석' : inputData.reportLevel === 'both' ? '초급+고급 병행' : '초급 분석';
+  const isYearly = inputData.productType === 'yearly2026';
+  const levelLabel = isYearly
+    ? '프리미엄 2026 운세'
+    : inputData.reportLevel === 'advanced' ? '고급 분석'
+      : inputData.reportLevel === 'both' ? '초급+고급 병행'
+      : '초급 분석';
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
   const palette = getYongshinCoverPalette(String(yongshinData?.yongshin || ''));
 
@@ -518,6 +655,13 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     ? saju.map(p => `${p.stem?.hanja ?? ''}${p.branch?.hanja ?? ''}`).join(' ')
     : '';
 
+  const sub = isYearly
+    ? `${inputData.name}님을 위한 2026년 한 해 전략 가이드`
+    : `운명의 로드맵: ${inputData.name}님을 위한 전략적 통찰`;
+  const mainTitle = isYearly
+    ? `${inputData.name}님의 2026 연 운세`
+    : '당신을 위한 인생가이드북';
+
   return (
     <div
       className="w-full min-h-[560px] rounded-2xl flex flex-col items-center justify-center gap-8 py-20 px-10"
@@ -525,10 +669,15 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     >
       <div className="text-center space-y-2">
         <p className="text-sm font-serif" style={{ color: palette.body }}>
-          운명의 로드맵: {inputData.name}님을 위한 전략적 통찰
+          {sub}
         </p>
+        {isYearly && (
+          <p className="text-xs font-serif tracking-[0.4em] uppercase" style={{ color: palette.chip }}>
+            프리미엄 2026 운세
+          </p>
+        )}
         <h1 className="text-5xl font-serif leading-tight tracking-wide font-semibold" style={{ color: palette.title }}>
-          당신을 위한 인생가이드북
+          {mainTitle}
         </h1>
       </div>
 
@@ -609,12 +758,17 @@ export const PremiumReportPreview: React.FC<PremiumReportPreviewProps> = ({
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const isYearlyProduct = inputData.productType === 'yearly2026';
+  const activeSectionNav = isYearlyProduct ? YEARLY_SECTION_NAV : PREMIUM_SECTION_NAV;
+  const activeSectionNumbers = isYearlyProduct ? YEARLY_SECTION_NUMBERS : PREMIUM_SECTION_NUMBERS;
+
   const getSectionComponent = (section: ReportSection) => {
     switch (section.id) {
       case 'fourpillars': return <FourPillarsSection section={section} saju={sajuData} />;
       case 'daeun':       return <DaeunSection section={section} saju={sajuData} daeun={daeunData} />;
       case 'hapchung':    return <HapchungSection section={section} saju={sajuData} />;
       case 'fields':      return <FieldsSection section={section} />;
+      case 'monthly':     return <MonthlySection section={section} />;
       default:            return <GenericSection section={section} />;
     }
   };
@@ -673,7 +827,9 @@ ${printRef.current.outerHTML}
       // ────────────────────────────────────────────────────────────────
 
       const safeName = inputData.name.replace(/[^\w가-힣]/g, '_');
-      const fileName = `인생네비게이션_${safeName}_${inputData.birthDate}`;
+      const fileName = isYearlyProduct
+        ? `프리미엄_2026_운세_${safeName}_${inputData.birthDate}`
+        : `인생네비게이션_${safeName}_${inputData.birthDate}`;
 
       const pdfToken = import.meta.env.VITE_PDF_API_TOKEN ?? '';
       const response = await fetch('/api/generate-pdf', {
@@ -742,13 +898,26 @@ ${printRef.current.outerHTML}
     }
   };
 
-  const orderedSections = SECTION_NAV
+  // glossary는 항상 최후미에 고정
+  const orderedSectionsNoGlossary = activeSectionNav
+    .filter(nav => nav.id !== 'glossary')
     .map(nav => sections.find(s => s.id === nav.id))
     .filter(Boolean) as ReportSection[];
 
-  // 매핑되지 않은 섹션도 뒤에 추가 (fallback raw 등)
-  const unknownSections = sections.filter(s => s.id !== 'cover' && !SECTION_NAV.find(n => n.id === s.id));
-  const allDisplaySections = [...orderedSections, ...unknownSections];
+  // activeSectionNav에도 cover에도 glossary에도 매핑되지 않은 섹션 (fallback raw 등)
+  const unknownSections = sections.filter(s =>
+    s.id !== 'cover' &&
+    s.id !== 'glossary' &&
+    !activeSectionNav.find(n => n.id === s.id)
+  );
+
+  const glossarySection = sections.find(s => s.id === 'glossary') || null;
+
+  const allDisplaySections: ReportSection[] = [
+    ...orderedSectionsNoGlossary,
+    ...unknownSections,
+    ...(glossarySection ? [glossarySection] : []),
+  ];
 
   return (
     <div className="h-screen overflow-y-auto bg-[#e8dcc8]">
@@ -766,7 +935,7 @@ ${printRef.current.outerHTML}
 
         <div className="w-px h-5 bg-amber-800/50 flex-shrink-0" />
 
-        {SECTION_NAV.map(nav => {
+        {activeSectionNav.map(nav => {
           const exists = sections.find(s => s.id === nav.id);
           return (
             <button
@@ -858,7 +1027,7 @@ ${printRef.current.outerHTML}
                 className="rounded-2xl border border-amber-200/60 bg-[#fffdf5]/70 p-8 shadow-sm shadow-amber-900/5"
                 style={{ scrollMarginTop: '52px' }}
               >
-                <SectionTitle number={SECTION_NUMBERS[section.id]}>
+                <SectionTitle number={activeSectionNumbers[section.id]}>
                   {section.title}
                 </SectionTitle>
                 {getSectionComponent(section)}
@@ -867,7 +1036,9 @@ ${printRef.current.outerHTML}
 
             {/* 하단 저작권 */}
             <div data-pdf-block="footer" className="text-center py-6 border-t border-amber-300/40 space-y-1">
-              <p className="text-xs font-serif text-amber-800/50">인생 네비게이션 사주명리 분석서</p>
+              <p className="text-xs font-serif text-amber-800/50">
+                {isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
+              </p>
               <p className="text-[10px] text-amber-700/40">본 분석서는 AI 기반 사주명리 시스템으로 제작되었습니다. 참고용으로만 활용하세요.</p>
               <p className="text-[10px] text-amber-700/30">© {new Date().getFullYear()} UI Saju · {user.email}</p>
             </div>
