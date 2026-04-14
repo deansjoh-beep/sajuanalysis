@@ -404,7 +404,9 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
 
   // ── 접수 완료 화면 ──
   if (screen === 'success') {
-    const SMARTSTORE_URL = 'https://smartstore.naver.com/ui-life-solution/products/13388740581';
+    const SMARTSTORE_URL = isYearly
+      ? 'https://smartstore.naver.com/ui-life-solution/products/13397045090'
+      : 'https://smartstore.naver.com/ui-life-solution/products/13388740581';
     const handleCopyOrderId = async () => {
       try {
         await navigator.clipboard.writeText(createdOrderId);
