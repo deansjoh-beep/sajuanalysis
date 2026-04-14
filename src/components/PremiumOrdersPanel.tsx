@@ -412,7 +412,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                 </div>
               )}
               <div className={`text-sm ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
-                {order.birthDate} | {order.tier === 'premium' ? '프리미엄' : '기본'}
+                {order.birthDate} | {(order.productType || 'premium') === 'yearly2026' ? '일년운세 2026' : '인생가이드북'}
               </div>
               <div className={`flex items-center gap-2 text-xs ${isDarkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
                 <span>v{order.version}</span>
@@ -518,17 +518,29 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
             </div>
             <div>
               <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>상품</p>
-              <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.tier === 'premium' ? '프리미엄' : '기본'} (₩{selectedOrder.price})</p>
+              <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                {(selectedOrder.productType || 'premium') === 'yearly2026' ? '프리미엄 일년운세 2026' : '인생가이드북(프리미엄 리포트)'} (₩{selectedOrder.price})
+              </p>
             </div>
+            {selectedOrder.currentJob && (
+              <div className="col-span-2">
+                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>현재 하는 일</p>
+                <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.currentJob}</p>
+              </div>
+            )}
             {selectedOrder.concern && (
               <div className="col-span-2">
-                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>특별한 고민</p>
+                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
+                  {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 큰 고민' : '특별한 고민'}
+                </p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.concern}</p>
               </div>
             )}
             {selectedOrder.interest && (
               <div className="col-span-2">
-                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>관심사</p>
+                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
+                  {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 알고 싶은 것' : '관심사'}
+                </p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.interest}</p>
               </div>
             )}
