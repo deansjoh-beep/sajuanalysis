@@ -38,13 +38,13 @@ const BlogMediaLibrary: React.FC<BlogMediaLibraryProps> = ({
     <div className="rounded-2xl border border-white/70 bg-white/70 backdrop-blur p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest opacity-50">미디어 라이브러리</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest opacity-50">미디어 라이브러리</p>
           <p className="text-[11px] text-zinc-500">업로드한 이미지를 다시 선택할 수 있어요.</p>
         </div>
         <button
           type="button"
           onClick={onRefresh}
-          className="px-3 py-2 min-h-[40px] rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 flex items-center gap-2"
+          className="px-3 py-2 min-h-[40px] rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11px] font-bold hover:bg-indigo-100 flex items-center gap-2"
         >
           <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
           새로고침
@@ -58,11 +58,11 @@ const BlogMediaLibrary: React.FC<BlogMediaLibraryProps> = ({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="파일명 검색"
-          className="w-full pl-9 pr-3 py-2 min-h-[40px] rounded-xl border border-zinc-200 bg-white text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full pl-9 pr-3 py-2 min-h-[40px] rounded-xl border border-zinc-200 bg-white text-[13px] outline-none focus:ring-2 focus:ring-indigo-400"
         />
       </div>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-[11px] text-red-500">{error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-56 overflow-y-auto pr-1">
         {filteredAssets.map((asset) => {
@@ -87,13 +87,13 @@ const BlogMediaLibrary: React.FC<BlogMediaLibraryProps> = ({
                 />
               </div>
               <div className="px-2 py-1.5">
-                <p className="text-[10px] text-zinc-600 truncate" title={asset.name}>{asset.name}</p>
+                <p className="text-[11px] text-zinc-600 truncate" title={asset.name}>{asset.name}</p>
               </div>
             </button>
           );
         })}
         {!loading && filteredAssets.length === 0 && (
-          <div className="col-span-full text-xs text-zinc-500 py-4 text-center">표시할 이미지가 없습니다.</div>
+          <div className="col-span-full text-[11px] text-zinc-500 py-4 text-center">표시할 이미지가 없습니다.</div>
         )}
       </div>
     </div>

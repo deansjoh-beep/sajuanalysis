@@ -59,7 +59,7 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
         {guideSubPage !== 'main' && (
           <button
             onClick={() => setGuideSubPage('main')}
-            className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-8 hover:underline transition-all group"
+            className="flex items-center gap-2 text-indigo-600 font-bold text-[13px] mb-8 hover:underline transition-all group"
           >
             <div className="p-2 rounded-full bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
               <ArrowLeft className="w-4 h-4" />
@@ -71,26 +71,30 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
         {guideSubPage === 'main' ? (
           <>
             <div className={`${glassPanelStrongClass} rounded-[3rem] p-8 md:p-10`}>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                  <Compass className="w-6 h-6" />
+              <div className="flex items-center gap-3 min-h-[28px] mb-2">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+                  <Compass className="w-5 h-5" />
                 </div>
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-zinc-900">사이트맵</h2>
-                  <p className="text-sm text-zinc-500">원하는 메뉴를 빠르게 찾을 수 있도록 핵심 흐름을 정리했어요.</p>
-                </div>
+                <h2 className="text-[16px] font-bold leading-tight text-zinc-900">사이트맵</h2>
               </div>
+              <p className="text-[11px] text-zinc-500 mb-6">원하는 메뉴를 빠르게 찾을 수 있도록 핵심 흐름을 정리했어요.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="rounded-2xl border border-indigo-100 bg-white/70 p-5 space-y-3">
-                  <p className="text-sm font-bold text-indigo-700">추천 이용 순서</p>
-                  <p className="text-sm text-zinc-700 leading-relaxed">HOME → 만세력 → 리포트 → 상담</p>
-                  <p className="text-xs text-zinc-500 leading-relaxed">먼저 만세력을 만든 뒤 리포트와 상담으로 들어가면 더 정확하게 볼 수 있습니다.</p>
+                  <div className="flex items-center gap-2 min-h-[28px]">
+                    <span className="inline-block w-1.5 h-4 rounded-full bg-indigo-500 shrink-0" />
+                    <h3 className="text-[16px] font-bold leading-tight text-indigo-700">추천 이용 순서</h3>
+                  </div>
+                  <p className="text-[13px] text-zinc-700 leading-relaxed">HOME → 만세력 → 리포트 → 상담</p>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed">먼저 만세력을 만든 뒤 리포트와 상담으로 들어가면 더 정확하게 볼 수 있습니다.</p>
                 </div>
 
                 <div className="rounded-2xl border border-indigo-100 bg-white/70 p-5 space-y-3">
-                  <p className="text-sm font-bold text-indigo-700">메인 탭 사이트맵</p>
-                  <ul className="space-y-1.5 text-sm text-zinc-700 leading-relaxed">
+                  <div className="flex items-center gap-2 min-h-[28px]">
+                    <span className="inline-block w-1.5 h-4 rounded-full bg-indigo-500 shrink-0" />
+                    <h3 className="text-[16px] font-bold leading-tight text-indigo-700">메인 탭 사이트맵</h3>
+                  </div>
+                  <ul className="space-y-1.5 text-[13px] text-zinc-700 leading-relaxed">
                     <li>• HOME: 시작 화면, 사주 입력, 추천 콘텐츠</li>
                     <li>• 만세력: 사주·오행·대운 분석 결과 확인</li>
                     <li>• 택일: 결혼/이사/개업/출산 등 일정 추천</li>
@@ -114,12 +118,12 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
                 </div>
                 <div className="relative z-10 space-y-4">
                   <h2 className="text-white text-3xl font-serif font-bold leading-tight">CEO 인사말</h2>
-                  <p className="text-indigo-100 text-xs font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
+                  <p className="text-indigo-100 text-[11px] font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
                 </div>
               </div>
               <div className="flex-1 p-10 md:p-14 space-y-8">
-                <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700">
-                  <p className="font-bold text-zinc-900 text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
+                <div className="space-y-6 text-base md:text-[16px] leading-relaxed font-serif text-zinc-700">
+                  <p className="font-bold text-zinc-900 text-[16px]">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
                   <div className="space-y-4">
                     <p>
                       유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다.
@@ -143,7 +147,7 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
                   </div>
                 </div>
                 <div className="pt-8 border-t border-black/5 text-right">
-                  <p className="text-sm font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
+                  <p className="text-[13px] font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
                 </div>
               </div>
             </div>
@@ -154,44 +158,49 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
                   <h2 className="text-white text-3xl font-handwriting leading-tight">유아이 앱이 다른 앱보다<br />좋은 세가지 이유</h2>
                 </div>
                 <div className="p-10 space-y-10">
-                  <div className="flex items-start gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
                       <div className="relative">
-                        <Database className="w-8 h-8 text-indigo-600 opacity-40" />
-                        <Lock className="w-5 h-5 text-indigo-600 absolute -bottom-1 -right-1" />
-                        <div className="absolute top-0 left-0 w-full h-0.5 bg-rose-500 rotate-45 origin-center translate-y-4" />
+                        <Database className="w-5 h-5 text-indigo-600 opacity-40" />
+                        <Lock className="w-3 h-3 text-indigo-600 absolute -bottom-0.5 -right-0.5" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">철저한 프라이버시 보호</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center min-h-[28px]">
+                        <p className="text-[16px] font-bold leading-tight text-zinc-800">철저한 프라이버시 보호</p>
+                      </div>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-                      <Zap className="w-8 h-8 text-indigo-600" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <Zap className="w-5 h-5 text-indigo-600" />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">정밀한 사주 데이터 학습</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center min-h-[28px]">
+                        <p className="text-[16px] font-bold leading-tight text-zinc-800">정밀한 사주 데이터 학습</p>
+                      </div>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
                       <div className="relative">
-                        <Bot className="w-8 h-8 text-indigo-600" />
-                        <BookOpen className="w-4 h-4 text-indigo-600 absolute -top-1 -right-1" />
+                        <Bot className="w-5 h-5 text-indigo-600" />
+                        <BookOpen className="w-3 h-3 text-indigo-600 absolute -top-0.5 -right-0.5" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">맞춤형 인생 가이드 제공</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center min-h-[28px]">
+                        <p className="text-[16px] font-bold leading-tight text-zinc-800">맞춤형 인생 가이드 제공</p>
+                      </div>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
                       </p>
                     </div>
@@ -204,33 +213,39 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
                   <h2 className="text-white text-3xl font-handwriting leading-tight">사용자 정보 입력 방법</h2>
                 </div>
                 <div className="p-10 space-y-10">
-                  <div className="flex items-start gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-                      <Clock className="w-8 h-8 text-indigo-500" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <Clock className="w-5 h-5 text-indigo-500" />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">생시 미입력 가능</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-                      <Calendar className="w-8 h-8 text-indigo-500" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">양력/음력 자동 인식</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center min-h-[28px]">
+                        <p className="text-[16px] font-bold leading-tight text-zinc-800">생시 미입력 가능</p>
+                      </div>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
-                      <Zap className="w-8 h-8 text-white fill-white" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <Calendar className="w-5 h-5 text-indigo-500" />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold text-indigo-600">분석 시작</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center min-h-[28px]">
+                        <p className="text-[16px] font-bold leading-tight text-zinc-800">양력/음력 자동 인식</p>
+                      </div>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5 shadow-lg shadow-indigo-500/20">
+                      <Zap className="w-5 h-5 text-white fill-white" />
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center min-h-[28px]">
+                        <p className="text-[16px] font-bold leading-tight text-indigo-600">분석 시작</p>
+                      </div>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
                     </div>
                   </div>
                 </div>
@@ -255,7 +270,7 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
                         <FileText className="w-8 h-8 text-indigo-500" />
                       </div>
                     </div>
-                    <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest">분석 프로세스</p>
+                    <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-widest">분석 프로세스</p>
                   </div>
 
                   <div className="hidden md:block w-px h-40 bg-zinc-100" />
@@ -268,10 +283,10 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <p className="text-xl font-bold text-zinc-800">
+                      <p className="text-[16px] font-bold text-zinc-800">
                         "운명은 정해진 결말이 아니라,<br />우리가 조종하는 돛의 방향입니다."
                       </p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         만세력 기반의 정밀 분석과 AI의 전략적 해석으로,<br />
                         당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.
                       </p>
@@ -312,8 +327,8 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
             <button onClick={() => setGuideSubPage('contact')} className="hover:text-indigo-500 transition-colors">문의하기 (Contact)</button>
           </div>
           <div className="mt-8 text-center space-y-2">
-            <p className="text-[10px] text-zinc-500 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
-            <p className="text-[9px] text-zinc-500 opacity-40 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-[11px] text-zinc-500 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
+            <p className="text-[11px] text-zinc-500 opacity-40 max-w-2xl mx-auto leading-relaxed">
               유아이 사주상담은 인공지능 기술을 활용한 명리학 가이드 서비스입니다. 모든 분석 결과는 참고용이며, 삶의 최종 결정은 본인의 판단하에 이루어져야 합니다.
             </p>
           </div>
@@ -321,7 +336,7 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
       </div>
 
       <div className="p-10 rounded-[2rem] bg-white/55 backdrop-blur-xl border border-white/60 shadow-xl shadow-indigo-200/20 text-center">
-        <p className="text-sm font-bold text-indigo-400/70 leading-relaxed">유아이(UI)와 함께 당신의 운명을 디자인하세요.</p>
+        <p className="text-[13px] font-bold text-indigo-400/70 leading-relaxed">유아이(UI)와 함께 당신의 운명을 디자인하세요.</p>
       </div>
     </motion.div>
   );

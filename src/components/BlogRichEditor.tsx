@@ -183,7 +183,7 @@ const BlogRichEditor: React.FC<BlogRichEditorProps> = ({
   }, [editor, value, sourceMode]);
 
   if (!editor) {
-    return <div className="text-xs text-zinc-500 px-3 py-2">에디터 초기화 중...</div>;
+    return <div className="text-[11px] text-zinc-500 px-3 py-2">에디터 초기화 중...</div>;
   }
 
   const insertImageFromUrl = () => {
@@ -271,7 +271,7 @@ const BlogRichEditor: React.FC<BlogRichEditorProps> = ({
           <button
             type="button"
             onClick={() => setSourceMode(false)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold ${
+            className={`px-3 py-2 rounded-xl text-[11px] font-bold ${
               !sourceMode ? 'bg-indigo-600 text-white' : 'bg-white text-zinc-600 border border-zinc-200'
             }`}
           >
@@ -280,7 +280,7 @@ const BlogRichEditor: React.FC<BlogRichEditorProps> = ({
           <button
             type="button"
             onClick={() => setSourceMode(true)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold ${
+            className={`px-3 py-2 rounded-xl text-[11px] font-bold ${
               sourceMode ? 'bg-indigo-600 text-white' : 'bg-white text-zinc-600 border border-zinc-200'
             }`}
           >
@@ -377,7 +377,7 @@ const BlogRichEditor: React.FC<BlogRichEditorProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-zinc-200 hover:bg-indigo-50"
+            className="px-3 py-2 rounded-xl text-[11px] font-bold bg-white border border-zinc-200 hover:bg-indigo-50"
           >
             이미지 업로드
           </button>
@@ -413,7 +413,7 @@ const BlogRichEditor: React.FC<BlogRichEditorProps> = ({
             <textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              className="w-full h-full min-h-[inherit] p-4 md:p-5 font-mono text-sm leading-relaxed outline-none resize-y"
+              className="w-full h-full min-h-[inherit] p-4 md:p-5 font-mono text-[13px] leading-relaxed outline-none resize-y"
               placeholder="HTML 또는 기존 마크다운 소스를 직접 편집하세요."
             />
           ) : (
@@ -421,7 +421,7 @@ const BlogRichEditor: React.FC<BlogRichEditorProps> = ({
           )}
         </div>
 
-        <div className="px-4 py-2 border-t border-zinc-200 bg-zinc-50/80 text-xs text-zinc-500 flex items-center justify-between">
+        <div className="px-4 py-2 border-t border-zinc-200 bg-zinc-50/80 text-[11px] text-zinc-500 flex items-center justify-between">
           <span>단어 {words.toLocaleString()} / 글자 {characters.toLocaleString()}</span>
           <span>티스토리/워드프레스형 편집: 문단, 표, 체크리스트, 코드블록, 이미지 지원</span>
         </div>

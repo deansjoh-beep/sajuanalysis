@@ -7,6 +7,7 @@ import {
 import { User as FirebaseUser } from 'firebase/auth';
 import { ReportInputData, ReportSection, LifeEvent } from '../../lib/premiumOrderStore';
 import { generateLifeNavReport } from '../../lib/generatePremiumReport';
+import { CardHeader } from '../CardHeader';
 
 // 샘플 데이터 (개발/검증용)
 const SAMPLE_DATA: ReportInputData = {
@@ -46,9 +47,9 @@ interface PremiumReportInputPanelProps {
 }
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-white/65 px-4 py-3 text-sm outline-none bg-white/70 backdrop-blur text-zinc-900 transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-200/70 placeholder-zinc-400';
+  'w-full rounded-2xl border border-white/65 px-4 py-3 text-[13px] outline-none bg-white/70 backdrop-blur text-zinc-900 transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-200/70 placeholder-zinc-400';
 
-const LABEL_CLASS = 'block text-xs font-bold text-zinc-600 mb-1.5 uppercase tracking-wider';
+const LABEL_CLASS = 'block text-[11px] font-bold text-zinc-600 mb-1.5 uppercase tracking-wider';
 
 const SectionCard: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({
   icon,
@@ -56,10 +57,7 @@ const SectionCard: React.FC<{ icon: React.ReactNode; title: string; children: Re
   children,
 }) => (
   <div className="rounded-3xl border border-white/60 bg-white/50 backdrop-blur-xl shadow-xl shadow-indigo-200/20 p-6 space-y-5">
-    <h2 className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-      {icon}
-      {title}
-    </h2>
+    <CardHeader icon={icon} title={title} />
     {children}
   </div>
 );
@@ -237,7 +235,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
             {onBack && (
               <button
                 onClick={onBack}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-zinc-500 hover:bg-white/60 border border-white/60 transition-all mr-1"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-zinc-500 hover:bg-white/60 border border-white/60 transition-all mr-1"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> 관리자
               </button>
@@ -246,15 +244,15 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
               <BookOpen className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-xs font-bold text-zinc-800 leading-none">인생 네비게이션</p>
-              <p className="text-[10px] text-zinc-400">프리미엄 리포트 제작</p>
+              <p className="text-[11px] font-bold text-zinc-800 leading-none">인생 네비게이션</p>
+              <p className="text-[11px] text-zinc-400">프리미엄 리포트 제작</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:block text-xs text-zinc-400">{user.email}</span>
+            <span className="hidden sm:block text-[11px] text-zinc-400">{user.email}</span>
             <button
               onClick={onLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-500 bg-white/60 border border-white/60 hover:bg-zinc-50 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold text-zinc-500 bg-white/60 border border-white/60 hover:bg-zinc-50 transition-all"
             >
               <LogOut className="w-3 h-3" /> 로그아웃
             </button>
@@ -265,8 +263,8 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {/* 타이틀 */}
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold text-zinc-900">고객 정보 입력</h1>
-          <p className="text-sm text-zinc-500">
+          <h1 className="text-[16px] font-bold text-zinc-900">고객 정보 입력</h1>
+          <p className="text-[13px] text-zinc-500">
             사주 데이터를 입력하면 AI가 인생 네비게이션 리포트를 제작합니다.
           </p>
         </div>
@@ -276,7 +274,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
           <button
             onClick={() => setForm({ ...SAMPLE_DATA })}
             disabled={generating}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shadow-sm disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl text-[11px] font-bold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shadow-sm disabled:opacity-40"
           >
             <FlaskConical className="w-3.5 h-3.5" />
             샘플 데이터 불러오기 (오세진)
@@ -304,7 +302,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
                   <button
                     key={g}
                     onClick={() => set('gender', g)}
-                    className={`flex-1 py-3 rounded-2xl text-sm font-bold border transition-all ${
+                    className={`flex-1 py-3 rounded-2xl text-[13px] font-bold border transition-all ${
                       form.gender === g
                         ? 'bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20'
                         : 'bg-white/70 text-zinc-600 border-white/65 hover:border-amber-300'
@@ -341,7 +339,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
                   <button
                     key={String(item.v)}
                     onClick={() => set('isLunar', item.v)}
-                    className={`flex-1 py-3 rounded-2xl text-sm font-bold border transition-all ${
+                    className={`flex-1 py-3 rounded-2xl text-[13px] font-bold border transition-all ${
                       form.isLunar === item.v
                         ? 'bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20'
                         : 'bg-white/70 text-zinc-600 border-white/65 hover:border-amber-300'
@@ -368,7 +366,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
                 disabled={form.unknownTime}
                 className={`${FIELD_CLASS} flex-1 disabled:opacity-40 disabled:cursor-not-allowed`}
               />
-              <label className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer whitespace-nowrap">
+              <label className="flex items-center gap-2 text-[13px] text-zinc-600 cursor-pointer whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={form.unknownTime}
@@ -382,7 +380,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
               </label>
             </div>
             {form.unknownTime && (
-              <p className="mt-1.5 text-xs text-amber-600">
+              <p className="mt-1.5 text-[11px] text-amber-600">
                 시간 미상으로 처리합니다. 시주(時柱) 분석이 제외됩니다.
               </p>
             )}
@@ -422,12 +420,12 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
           title="고객 입력 — 인생 이벤트"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs text-zinc-400">
+            <p className="text-[11px] text-zinc-400">
               주요 인생 사건을 입력하면 해당 대운 분석에 연결됩니다.
             </p>
             <button
               onClick={addEvent}
-              className="flex items-center gap-1 text-xs font-bold text-amber-700 hover:text-amber-800 transition-colors"
+              className="flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" /> 추가
             </button>
@@ -460,7 +458,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
               </div>
             ))}
             {form.lifeEvents.length === 0 && (
-              <div className="text-xs text-zinc-400 italic py-2 text-center">
+              <div className="text-[11px] text-zinc-400 italic py-2 text-center">
                 이벤트를 추가하면 대운 분석에 반영됩니다.
               </div>
             )}
@@ -484,7 +482,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
                 <button
                   key={item.v}
                   onClick={() => set('reportLevel', item.v)}
-                  className={`flex-1 py-3 px-3 rounded-2xl text-sm font-bold border transition-all text-left ${
+                  className={`flex-1 py-3 px-3 rounded-2xl text-[13px] font-bold border transition-all text-left ${
                     form.reportLevel === item.v
                       ? 'bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20'
                       : 'bg-white/70 text-zinc-600 border-white/65 hover:border-amber-300'
@@ -492,7 +490,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
                 >
                   <div>{item.l}</div>
                   <div
-                    className={`text-[10px] font-normal mt-0.5 ${
+                    className={`text-[11px] font-normal mt-0.5 ${
                       form.reportLevel === item.v ? 'text-amber-100' : 'text-zinc-400'
                     }`}
                   >
@@ -518,7 +516,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
 
         {/* 오류 메시지 */}
         {error && (
-          <div className="rounded-2xl bg-rose-50 border border-rose-200 px-5 py-4 text-sm text-rose-700 font-medium flex items-start gap-3">
+          <div className="rounded-2xl bg-rose-50 border border-rose-200 px-5 py-4 text-[13px] text-rose-700 font-medium flex items-start gap-3">
             <span className="text-rose-500 text-base leading-none mt-0.5">⚠</span>
             <span>{error}</span>
           </div>
@@ -532,7 +530,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
           {generating && (
             <div className="space-y-2">
               {/* 상태 텍스트 */}
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-[11px]">
                 <span className={`font-bold ${isPaused ? 'text-amber-500' : 'text-indigo-600'}`}>
                   {isPaused ? '⏸ 일시정지됨' : '⚙ AI 분석 중...'}
                 </span>
@@ -560,21 +558,21 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
                 {isPaused ? (
                   <button
                     onClick={handleResume}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm"
                   >
                     <Play className="w-3.5 h-3.5" /> 재개
                   </button>
                 ) : (
                   <button
                     onClick={handlePause}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 transition-all shadow-sm"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-bold bg-amber-500 text-white hover:bg-amber-600 transition-all shadow-sm"
                   >
                     <Pause className="w-3.5 h-3.5" /> 일시정지
                   </button>
                 )}
                 <button
                   onClick={handleCancel}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-bold bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm"
                 >
                   <XCircle className="w-3.5 h-3.5" /> 취소
                 </button>
