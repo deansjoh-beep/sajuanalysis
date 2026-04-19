@@ -85,7 +85,7 @@ const ReportAccordion: React.FC<{ content: string; forceOpen?: boolean }> = ({ c
 
   if (sections.length === 0) {
     return (
-      <div className="markdown-body prose max-w-none text-sm p-4">
+      <div className="markdown-body prose max-w-none text-[13px] p-4">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
@@ -94,7 +94,7 @@ const ReportAccordion: React.FC<{ content: string; forceOpen?: boolean }> = ({ c
   return (
     <div className="space-y-3">
       {greeting && (
-        <div className="p-6 md:p-8 rounded-[2.5rem] bg-indigo-50 text-indigo-950 border-indigo-100 font-report text-[14px] leading-relaxed mb-8 shadow-sm border">
+        <div className="p-6 md:p-8 rounded-[2.5rem] bg-indigo-50 text-indigo-950 border-indigo-100 font-report text-[13px] leading-relaxed mb-8 shadow-sm border">
           <ReactMarkdown>{greeting}</ReactMarkdown>
         </div>
       )}
@@ -110,7 +110,7 @@ const ReportAccordion: React.FC<{ content: string; forceOpen?: boolean }> = ({ c
               className="w-full px-5 py-4 flex items-center justify-between text-left group"
             >
               <div className="flex-1 pr-4">
-                <h3 className="text-sm font-report font-bold leading-tight transition-colors text-zinc-800 group-hover:text-indigo-600">
+                <h3 className="text-[16px] font-report font-bold leading-tight transition-colors text-zinc-800 group-hover:text-indigo-600">
                   {section.header}
                 </h3>
               </div>
@@ -133,7 +133,7 @@ const ReportAccordion: React.FC<{ content: string; forceOpen?: boolean }> = ({ c
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.25, ease: 'easeInOut' }}
                 >
-                  <div className="px-5 pb-5 pt-0 text-sm leading-relaxed text-zinc-700">
+                  <div className="px-5 pb-5 pt-0 text-[13px] leading-relaxed text-zinc-700">
                     <div className="w-full h-px bg-black/5 mb-4" />
                     <div className="report-markdown markdown-body prose max-w-none">
                       <ReactMarkdown>{section.body}</ReactMarkdown>
@@ -191,7 +191,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
             <button
               onClick={() => switchReportMode('basic')}
               disabled={loading}
-              className={`px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+              className={`px-5 py-2 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 ${
                 consultationMode === 'basic'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-500 hover:text-zinc-700'
@@ -202,7 +202,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
             <button
               onClick={() => switchReportMode('advanced')}
               disabled={loading}
-              className={`px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+              className={`px-5 py-2 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 ${
                 consultationMode === 'advanced'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-500 hover:text-zinc-700'
@@ -218,7 +218,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
               <button
                 onClick={handleGenerateReport}
                 disabled={loading || sajuResultLength === 0}
-                className="w-full px-4 py-2 min-h-[44px] rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/20"
+                className="w-full px-4 py-2 min-h-[44px] rounded-xl text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/20"
               >
                 리포트 생성하기
               </button>
@@ -229,7 +229,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
               <button
                 onClick={onGoToOrder}
                 disabled={!onGoToOrder}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-40"
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl text-[11px] font-bold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-40"
               >
                 <Ticket className="w-3.5 h-3.5" />
                 프리미엄 주문
@@ -241,7 +241,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
             <button
               onClick={handleDownloadPDF}
               disabled={loading || isPrinting || !reportContent}
-              className="flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl text-xs font-bold bg-white/65 backdrop-blur border border-white/60 text-zinc-600 hover:bg-indigo-100/50 hover:text-indigo-600 transition-all disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl text-[11px] font-bold bg-white/65 backdrop-blur border border-white/60 text-zinc-600 hover:bg-indigo-100/50 hover:text-indigo-600 transition-all disabled:opacity-40"
             >
               <Download className={`w-4 h-4 ${isPrinting ? 'animate-bounce' : ''}`} />
               PDF 저장
@@ -263,8 +263,8 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
                 <Compass className="w-6 h-6 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
               <div className="text-center space-y-2">
-                <p className="text-lg font-bold animate-pulse">운명의 지도를 그리는 중...</p>
-                <p className="text-xs text-zinc-500">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
+                <p className="text-[16px] font-bold animate-pulse">운명의 지도를 그리는 중...</p>
+                <p className="text-[11px] text-zinc-500">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
               </div>
             </motion.div>
           ) : reportContent ? (
@@ -279,7 +279,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
                 <ReportAccordion content={reportContent} forceOpen={isPrinting} />
               </div>
               <div className="mt-10 pt-6 border-t border-white/60">
-                <p className="text-[10px] text-zinc-500 leading-relaxed text-center">
+                <p className="text-[11px] text-zinc-500 leading-relaxed text-center">
                   본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                 </p>
               </div>
@@ -288,22 +288,24 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
               {onGoToYearlyOrder && (
                 <div className="mt-8 rounded-[2rem] border border-amber-200/70 bg-gradient-to-br from-amber-50 via-rose-50 to-indigo-50 p-6 md:p-8 shadow-lg shadow-amber-200/20">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center shrink-0 shadow-md">
-                      <Calendar className="w-5 h-5 text-white" />
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center shrink-0 shadow-md mt-0.5">
+                      <Calendar className="w-4 h-4 text-white" />
                     </div>
-                    <div>
-                      <h4 className="text-base md:text-lg font-bold text-zinc-900">프리미엄 일년운세 2026</h4>
-                      <p className="text-xs text-zinc-600 mt-0.5">사주 원국 · 대운 · 2026 세운 · 월별까지 통합한 10페이지 맞춤 리포트 · 5,000원</p>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center min-h-[28px]">
+                        <h4 className="text-[16px] font-bold leading-tight text-zinc-900">프리미엄 일년운세 2026</h4>
+                      </div>
+                      <p className="text-[11px] text-zinc-600 leading-relaxed">사주 원국 · 대운 · 2026 세운 · 월별까지 통합한 10페이지 맞춤 리포트 · 5,000원</p>
                     </div>
                   </div>
-                  <ul className="text-xs text-zinc-700 space-y-1 mb-4 pl-1">
+                  <ul className="text-[11px] text-zinc-700 space-y-1 mb-4 pl-1">
                     <li>• 가장 알고 싶은 것과 가장 큰 고민에 먼저 직답</li>
                     <li>• 2026년 한 해 종합운 + 12개월 상세 흐름</li>
                     <li>• 실행 가능한 연간 체크리스트까지</li>
                   </ul>
                   <button
                     onClick={onGoToYearlyOrder}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white hover:opacity-90 transition-all shadow-lg shadow-rose-500/20"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] rounded-xl text-[13px] font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white hover:opacity-90 transition-all shadow-lg shadow-rose-500/20"
                   >
                     <Calendar className="w-4 h-4" />
                     프리미엄 일년운세 2026 주문하기
@@ -322,8 +324,8 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
                 <FileText className="w-10 h-10 text-indigo-500/30" />
               </div>
               <div className="space-y-4">
-                <h3 className="text-2xl font-title font-bold">운세 리포트가 아직 없습니다.</h3>
-                <p className="text-sm text-zinc-500 max-w-sm mx-auto leading-relaxed">
+                <h3 className="text-[16px] font-title font-bold">운세 리포트가 아직 없습니다.</h3>
+                <p className="text-[13px] text-zinc-500 max-w-sm mx-auto leading-relaxed">
                   먼저 모드를 선택한 뒤
                   <br />
                   상단의 "리포트 생성하기" 버튼을 눌러 생성해 주세요.

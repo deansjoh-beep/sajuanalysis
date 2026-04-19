@@ -153,7 +153,7 @@ const GuidelinesEditor: React.FC<{
           <button
             key={key}
             onClick={() => setActiveKey(key)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all ${
               activeKey === key
                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
                 : 'bg-white/60 border-white/60 text-zinc-600 hover:border-indigo-300'
@@ -166,33 +166,33 @@ const GuidelinesEditor: React.FC<{
 
       <div className="flex-1 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-zinc-700">{GUIDELINE_LABELS[activeKey]}</h3>
+          <h3 className="text-[13px] font-bold text-zinc-700">{GUIDELINE_LABELS[activeKey]}</h3>
           <div className="flex items-center gap-2">
             {saveStatus === 'saving' && (
-              <span className="flex items-center gap-1 text-xs text-zinc-500">
+              <span className="flex items-center gap-1 text-[11px] text-zinc-500">
                 <Loader2 className="w-3 h-3 animate-spin" /> 저장 중...
               </span>
             )}
             {saveStatus === 'saved' && (
-              <span className="flex items-center gap-1 text-xs text-emerald-600">
+              <span className="flex items-center gap-1 text-[11px] text-emerald-600">
                 <CheckCircle className="w-3 h-3" /> {saveMessage}
               </span>
             )}
             {saveStatus === 'error' && (
-              <span className="flex items-center gap-1 text-xs text-rose-600">
+              <span className="flex items-center gap-1 text-[11px] text-rose-600">
                 <AlertCircle className="w-3 h-3" /> {saveMessage}
               </span>
             )}
             <button
               onClick={() => handleReset(activeKey)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-100 hover:bg-zinc-200 text-zinc-600 border border-zinc-200 transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-zinc-100 hover:bg-zinc-200 text-zinc-600 border border-zinc-200 transition-all"
             >
               <RotateCcw className="w-3 h-3" /> 기본값으로
             </button>
             <button
               onClick={() => handleSave(activeKey)}
               disabled={saveStatus === 'saving'}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
             >
               <Save className="w-3 h-3" /> 저장
             </button>
@@ -202,11 +202,11 @@ const GuidelinesEditor: React.FC<{
         <textarea
           value={currentText}
           onChange={e => setDrafts(prev => ({ ...prev, [activeKey]: e.target.value }))}
-          className="flex-1 min-h-[400px] w-full rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3 text-sm font-mono text-zinc-800 resize-y outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200/70 leading-relaxed"
+          className="flex-1 min-h-[400px] w-full rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3 text-[13px] font-mono text-zinc-800 resize-y outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200/70 leading-relaxed"
           placeholder="지침 내용을 입력하세요..."
           spellCheck={false}
         />
-        <p className="text-xs text-zinc-400">
+        <p className="text-[11px] text-zinc-400">
           저장하면 즉시 AI 상담/리포트에 반영됩니다. 새로고침 없이 실시간 적용됩니다.
         </p>
       </div>
@@ -292,7 +292,7 @@ const GuidePageEditor: React.FC<{
           <button
             key={page}
             onClick={() => setActivePage(page)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
               activePage === page
                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                 : 'bg-white/70 text-zinc-600 border border-zinc-200 hover:bg-indigo-50'
@@ -303,27 +303,27 @@ const GuidePageEditor: React.FC<{
         ))}
       </div>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-zinc-700">{GUIDE_PAGE_LABELS[activePage]} (Markdown 지원)</h3>
+        <h3 className="text-[13px] font-bold text-zinc-700">{GUIDE_PAGE_LABELS[activePage]} (Markdown 지원)</h3>
         <div className="flex items-center gap-2">
           {saveStatus === 'saving' && (
-            <span className="flex items-center gap-1 text-xs text-zinc-500">
+            <span className="flex items-center gap-1 text-[11px] text-zinc-500">
               <Loader2 className="w-3 h-3 animate-spin" /> 저장 중...
             </span>
           )}
           {saveStatus === 'saved' && (
-            <span className="flex items-center gap-1 text-xs text-emerald-600">
+            <span className="flex items-center gap-1 text-[11px] text-emerald-600">
               <CheckCircle className="w-3 h-3" /> {saveMessage}
             </span>
           )}
           {saveStatus === 'error' && (
-            <span className="flex items-center gap-1 text-xs text-rose-600">
+            <span className="flex items-center gap-1 text-[11px] text-rose-600">
               <AlertCircle className="w-3 h-3" /> {saveMessage}
             </span>
           )}
           <button
             onClick={() => { void handleSave(); }}
             disabled={saveStatus === 'saving'}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
           >
             <Save className="w-3 h-3" /> 저장
           </button>
@@ -332,11 +332,11 @@ const GuidePageEditor: React.FC<{
       <textarea
         value={drafts[activePage]}
         onChange={e => setDrafts(prev => ({ ...prev, [activePage]: e.target.value }))}
-        className="min-h-[500px] w-full rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3 text-sm font-mono text-zinc-800 resize-y outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200/70 leading-relaxed"
+        className="min-h-[500px] w-full rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3 text-[13px] font-mono text-zinc-800 resize-y outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200/70 leading-relaxed"
         placeholder={`${GUIDE_PAGE_LABELS[activePage]} 내용을 마크다운으로 입력하세요...`}
         spellCheck={false}
       />
-      <p className="text-xs text-zinc-400">
+      <p className="text-[11px] text-zinc-400">
         마크다운 형식을 지원합니다. 저장 후 가이드 탭의 해당 페이지에 즉시 반영됩니다.
       </p>
     </div>
@@ -390,9 +390,9 @@ const AdminDashboard: React.FC<{ user: FirebaseUser; onNavigate: (s: AdminSectio
           <Shield className="w-6 h-6 text-white" />
         </div>
         <div>
-          <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">관리자 대시보드</p>
-          <p className="text-sm font-bold text-zinc-800">{user.email}</p>
-          <p className="text-xs text-zinc-500">관리자 권한으로 로그인되어 있습니다.</p>
+          <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-widest">관리자 대시보드</p>
+          <p className="text-[13px] font-bold text-zinc-800">{user.email}</p>
+          <p className="text-[11px] text-zinc-500">관리자 권한으로 로그인되어 있습니다.</p>
         </div>
       </div>
 
@@ -411,7 +411,7 @@ const AdminDashboard: React.FC<{ user: FirebaseUser; onNavigate: (s: AdminSectio
               {card.title}
               <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" />
             </h3>
-            <p className="text-xs text-zinc-500 mt-1">{card.desc}</p>
+            <p className="text-[11px] text-zinc-500 mt-1">{card.desc}</p>
           </button>
         ))}
       </div>
@@ -564,8 +564,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <Shield className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">관리자 로그인</h1>
-            <p className="text-sm text-zinc-500 mt-2">관리자 계정으로 로그인하면 시스템 설정을 관리할 수 있습니다.</p>
+            <h1 className="text-[16px] font-bold text-zinc-900">관리자 로그인</h1>
+            <p className="text-[13px] text-zinc-500 mt-2">관리자 계정으로 로그인하면 시스템 설정을 관리할 수 있습니다.</p>
           </div>
           <button
             onClick={onLogin}
@@ -575,7 +575,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
             {isLoggingIn ? '로그인 중...' : 'Google로 관리자 로그인'}
           </button>
-          <p className="text-xs text-zinc-400">승인된 관리자 계정만 접근할 수 있습니다.</p>
+          <p className="text-[11px] text-zinc-400">승인된 관리자 계정만 접근할 수 있습니다.</p>
         </div>
       </div>
     );
@@ -589,8 +589,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <AlertCircle className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-rose-800">접근 권한이 없습니다</h1>
-            <p className="text-sm text-rose-600 mt-2">
+            <h1 className="text-[16px] font-bold text-rose-800">접근 권한이 없습니다</h1>
+            <p className="text-[13px] text-rose-600 mt-2">
               현재 계정 <span className="font-bold">{user.email}</span>은 관리자 권한이 없습니다.
             </p>
           </div>
@@ -652,8 +652,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
               <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-xs font-bold text-zinc-800">관리자 페이지</p>
-              <p className="text-[10px] text-zinc-400 truncate" title={user.email ?? ''}>{user.email}</p>
+              <p className="text-[11px] font-bold text-zinc-800">관리자 페이지</p>
+              <p className="text-[11px] text-zinc-400 truncate" title={user.email ?? ''}>{user.email}</p>
             </div>
           </div>
         </div>
@@ -664,7 +664,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
               key={item.section}
               onClick={() => setActiveSection(item.section)}
               disabled={item.section === 'board'}
-              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition-all ${
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-[13px] font-bold transition-all ${
                 activeSection === item.section
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                   : item.section === 'board'
@@ -681,13 +681,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
         <div className="p-3 border-t border-white/60">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold text-rose-600 hover:bg-rose-50 transition-all"
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold text-rose-600 hover:bg-rose-50 transition-all"
           >
             <LogOut className="w-4 h-4" /> 로그아웃
           </button>
           <a
             href="/"
-            className="mt-1 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-500 hover:bg-white/60 transition-all"
+            className="mt-1 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold text-zinc-500 hover:bg-white/60 transition-all"
           >
             <ChevronRight className="w-4 h-4 rotate-180" /> 메인으로 돌아가기
           </a>
@@ -700,12 +700,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <div className="flex items-center gap-2 mb-6">
               <button
                 onClick={() => setActiveSection('dashboard')}
-                className="text-xs font-bold text-indigo-600 hover:underline"
+                className="text-[11px] font-bold text-indigo-600 hover:underline"
               >
                 대시보드
               </button>
               <ChevronRight className="w-3 h-3 text-zinc-400" />
-              <span className="text-xs font-bold text-zinc-600">
+              <span className="text-[11px] font-bold text-zinc-600">
                 {navItems.find(n => n.section === activeSection)?.label}
               </span>
             </div>
@@ -722,8 +722,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <BookOpen className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-900">상담 & 리포트 지침 관리</h2>
-                  <p className="text-xs text-zinc-500">저장 즉시 AI 상담 및 리포트에 실시간 반영됩니다.</p>
+                  <h2 className="text-[16px] font-bold text-zinc-900">상담 & 리포트 지침 관리</h2>
+                  <p className="text-[11px] text-zinc-500">저장 즉시 AI 상담 및 리포트에 실시간 반영됩니다.</p>
                 </div>
               </div>
               <GuidelinesEditor
@@ -740,8 +740,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <Newspaper className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-900">블로그 관리</h2>
-                  <p className="text-xs text-zinc-500">게시글 작성, 수정, 삭제를 관리합니다.</p>
+                  <h2 className="text-[16px] font-bold text-zinc-900">블로그 관리</h2>
+                  <p className="text-[11px] text-zinc-500">게시글 작성, 수정, 삭제를 관리합니다.</p>
                 </div>
               </div>
               <div className="p-4">
@@ -765,8 +765,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <Compass className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-900">가이드 페이지 수정</h2>
-                  <p className="text-xs text-zinc-500">이용 가이드 탭에 표시될 커스텀 안내문을 편집합니다.</p>
+                  <h2 className="text-[16px] font-bold text-zinc-900">가이드 페이지 수정</h2>
+                  <p className="text-[11px] text-zinc-500">이용 가이드 탭에 표시될 커스텀 안내문을 편집합니다.</p>
                 </div>
               </div>
               <GuidePageEditor
@@ -778,8 +778,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           {activeSection === 'board' && (
             <div className="rounded-2xl border border-white/60 bg-white/50 backdrop-blur-xl p-12 text-center space-y-4">
               <LayoutDashboard className="w-12 h-12 text-zinc-300 mx-auto" />
-              <h2 className="text-lg font-bold text-zinc-600">게시판 관리 (추후 반영)</h2>
-              <p className="text-sm text-zinc-400">게시판 기능이 추가되면 이곳에서 관리할 수 있습니다.</p>
+              <h2 className="text-[16px] font-bold text-zinc-600">게시판 관리 (추후 반영)</h2>
+              <p className="text-[13px] text-zinc-400">게시판 기능이 추가되면 이곳에서 관리할 수 있습니다.</p>
             </div>
           )}
         </div>

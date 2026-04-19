@@ -376,13 +376,13 @@ const HanjaBox: React.FC<{
   const emphasisClasses = highlight ? 'ring-2 ring-indigo-500/70 shadow-lg shadow-indigo-500/20 scale-110' : '';
   
   const sizeClasses = {
-    sm: 'w-6 h-6 text-[10px] rounded',
-    md: 'w-10 h-10 text-xl rounded-lg',
-    lg: 'w-12 h-12 text-2xl rounded-xl'
+    sm: 'w-6 h-6 text-[11px] rounded',
+    md: 'w-10 h-10 text-[16px] rounded-lg',
+    lg: 'w-12 h-12 text-[16px] rounded-xl'
   };
 
   const deityEl = deity ? (
-    <span className={`text-[9px] font-title font-bold text-indigo-600 absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
+    <span className={`text-[11px] font-title font-bold text-indigo-600 absolute ${deityPosition === 'top' ? '-top-3.5' : '-bottom-3.5'} left-1/2 -translate-x-1/2 whitespace-nowrap`}>
       {deity}
     </span>
   ) : null;
@@ -1526,7 +1526,7 @@ const App: React.FC = () => {
                   key={analysisStep}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-lg font-medium text-white"
+                  className="text-[16px] font-medium text-white"
                 >
                   {[
                     "천문 데이터를 분석하고 있습니다...",
@@ -1544,7 +1544,7 @@ const App: React.FC = () => {
                   />
                 </div>
                 
-                <p className="text-xs text-white/40">잠시만 기다려 주세요. 정밀한 분석이 진행 중입니다.</p>
+                <p className="text-[11px] text-white/40">잠시만 기다려 주세요. 정밀한 분석이 진행 중입니다.</p>
               </div>
             </div>
           </motion.div>
@@ -1559,8 +1559,8 @@ const App: React.FC = () => {
               <Sparkles className="text-white w-4 h-4 md:w-5 h-5" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-base md:text-xl font-title font-bold tracking-tight">유아이 사주상담</h1>
-              <p className="hidden md:block text-[10px] opacity-40 uppercase tracking-widest font-bold">전문 사주 분석</p>
+              <h1 className="text-base md:text-[16px] font-title font-bold tracking-tight">유아이 사주상담</h1>
+              <p className="hidden md:block text-[11px] opacity-40 uppercase tracking-widest font-bold">전문 사주 분석</p>
             </div>
           </div>
           
@@ -1634,7 +1634,7 @@ const App: React.FC = () => {
                           당신의 운명을 읽는<br />
                           <span className="bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">가장 명료한 시선</span>
                         </h2>
-                        <p className="mt-3 md:mt-4 text-sm md:text-lg max-w-2xl mx-auto text-zinc-600/90 leading-relaxed">
+                        <p className="mt-3 md:mt-4 text-[13px] md:text-[16px] max-w-2xl mx-auto text-zinc-600/90 leading-relaxed">
                           사주명리학의 정교함을 AI와 결합한 현대적 사주명리 스튜디오. 오늘의 고민을 내일의 전략으로 바꿔드립니다.
                         </p>
                       </section>
@@ -1642,15 +1642,15 @@ const App: React.FC = () => {
                       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-5">
                         <button
                           onClick={() => setShowInputForm(true)}
-                          className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
+                          className="group flex flex-col text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
                         >
                           <div className="flex items-center gap-3 mb-4 min-h-[52px]">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-cyan-400/30">
                               <User className="w-6 h-6" />
                             </div>
-                            <h3 className="text-lg md:text-xl font-bold text-zinc-900">사주 입력 시작</h3>
+                            <h3 className="text-[16px] font-bold leading-tight text-zinc-900">사주 입력 시작</h3>
                           </div>
-                          <p className="text-sm text-zinc-600 leading-relaxed">
+                          <p className="text-[13px] text-zinc-600 leading-relaxed">
                             당신이 태어난 날을 알려주세요. 사주분석을 시작합니다.
                             <br />
                             당신의 사주에 대해 궁금하면 리포트로 가서 운세리포트를 보세요.
@@ -1661,65 +1661,65 @@ const App: React.FC = () => {
 
                         <button
                           onClick={() => { setOrderProductType('premium'); setActiveTab("order"); }}
-                          className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
+                          className="group flex flex-col text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
                         >
                           <div className="flex items-center gap-3 mb-4 min-h-[52px]">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-400/30">
                               <Ticket className="w-6 h-6" />
                             </div>
-                            <h3 className="text-lg md:text-xl font-bold text-zinc-900">인생가이드북 주문(유료)</h3>
+                            <h3 className="text-[16px] font-bold leading-tight text-zinc-900">인생가이드북 주문(유료)</h3>
                           </div>
-                          <p className="text-sm text-zinc-600 leading-relaxed">
+                          <p className="text-[13px] text-zinc-600 leading-relaxed">
                             유아이의 과학적 만세력 데이타분석으로 만들어낸 당신만의 인생가이드북을 만나보세요. 당신이라는 사람을 더 잘 이해하게 해드립니다. 당신의 인생흐름을 통찰하고 남은 인생을 더 잘 살기 위한 방법을 알려드립니다.
                           </p>
                         </button>
 
                         <button
                           onClick={() => { setOrderProductType('yearly2026'); setActiveTab("order"); }}
-                          className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-amber-300/60 bg-gradient-to-br from-amber-50/90 via-rose-50/60 to-indigo-50/70 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-rose-300/20 hover:-translate-y-1 transition-all"
+                          className="group flex flex-col text-left rounded-[1.6rem] md:rounded-[2rem] border border-amber-300/60 bg-gradient-to-br from-amber-50/90 via-rose-50/60 to-indigo-50/70 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-rose-300/20 hover:-translate-y-1 transition-all"
                         >
                           <div className="flex items-center gap-3 mb-4 min-h-[52px]">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-rose-400/30">
                               <Calendar className="w-6 h-6" />
                             </div>
-                            <h3 className="text-lg md:text-xl font-bold text-zinc-900">프리미엄 2026 일년운세(유료)</h3>
+                            <h3 className="text-[16px] font-bold leading-tight text-zinc-900">프리미엄 2026 일년운세(유료)</h3>
                           </div>
-                          <p className="text-sm text-zinc-600 leading-relaxed">
+                          <p className="text-[13px] text-zinc-600 leading-relaxed">
                             2026년 한 해를 사주 원국·대운·세운·월별 흐름으로 통합 분석한 10페이지 맞춤 리포트. 가장 알고 싶은 것과 가장 큰 고민에 먼저 직답한 뒤 월별 상세까지 짚어드립니다.
                           </p>
                         </button>
 
                         <button
                           onClick={() => setActiveTab("blog")}
-                          className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
+                          className="group flex flex-col text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
                         >
                           <div className="flex items-center gap-3 mb-4 min-h-[52px]">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-400/30">
                               <Newspaper className="w-6 h-6" />
                             </div>
-                            <h3 className="text-lg md:text-xl font-bold text-zinc-900">사주팔자란? 공부하기</h3>
+                            <h3 className="text-[16px] font-bold leading-tight text-zinc-900">사주팔자란? 공부하기</h3>
                           </div>
-                          <p className="mt-2 text-sm text-zinc-600">사주용어가 어렵죠? 쉽게 설명한 글을 보세요. 재미있는 사주 이야기도 계속 올릴께요. 사주에 대해 좀 더 깊게 공부해보려면 블로그를 방문해주세요.</p>
+                          <p className="mt-2 text-[13px] text-zinc-600">사주용어가 어렵죠? 쉽게 설명한 글을 보세요. 재미있는 사주 이야기도 계속 올릴께요. 사주에 대해 좀 더 깊게 공부해보려면 블로그를 방문해주세요.</p>
                         </button>
 
                         <button
                           onClick={() => setActiveTab("guide")}
-                          className="group text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
+                          className="group flex flex-col text-left rounded-[1.6rem] md:rounded-[2rem] border border-white/50 bg-white/45 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-zinc-300/20 hover:-translate-y-1 transition-all"
                         >
                           <div className="flex items-center gap-3 mb-4 min-h-[52px]">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-amber-400/30">
                               <Compass className="w-6 h-6" />
                             </div>
-                            <h3 className="text-lg md:text-xl font-bold text-zinc-900">이용 가이드</h3>
+                            <h3 className="text-[16px] font-bold leading-tight text-zinc-900">이용 가이드</h3>
                           </div>
-                          <p className="mt-2 text-sm text-zinc-600">서비스를 200% 활용하는 흐름을 빠르게 익힙니다.</p>
+                          <p className="mt-2 text-[13px] text-zinc-600">서비스를 200% 활용하는 흐름을 빠르게 익힙니다.</p>
                         </button>
                       </section>
 
                       <section className="space-y-3 md:space-y-4">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-xl md:text-2xl font-bold text-zinc-900">블로그 추천 컨텐츠</h3>
-                          <button onClick={() => setActiveTab("blog")} className="px-3 min-h-[44px] inline-flex items-center text-sm font-bold text-indigo-600 hover:underline">전체보기</button>
+                          <h3 className="text-[16px] md:text-[16px] font-bold text-zinc-900">블로그 추천 컨텐츠</h3>
+                          <button onClick={() => setActiveTab("blog")} className="px-3 min-h-[44px] inline-flex items-center text-[13px] font-bold text-indigo-600 hover:underline">전체보기</button>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
                           {recommendedPosts.map((post, idx) => (
@@ -1730,13 +1730,13 @@ const App: React.FC = () => {
                             >
                               <div className="aspect-video overflow-hidden relative">
                                 <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" referrerPolicy="no-referrer" />
-                                <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-emerald-500'}`}>
+                                <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-white text-[11px] font-bold uppercase tracking-widest ${idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-rose-500' : 'bg-emerald-500'}`}>
                                   {idx === 0 ? "Latest" : idx === 1 ? "Popular" : "Pick"}
                                 </div>
                               </div>
                               <div className="p-4 md:p-5 space-y-2">
                                 <h4 className="font-bold line-clamp-1 text-zinc-900">{post.title}</h4>
-                                <p className="text-xs text-zinc-600 line-clamp-2">{post.excerpt || stripRichText(post.content).slice(0, 80)}</p>
+                                <p className="text-[11px] text-zinc-600 line-clamp-2">{post.excerpt || stripRichText(post.content).slice(0, 80)}</p>
                               </div>
                             </article>
                           ))}
@@ -1760,7 +1760,7 @@ const App: React.FC = () => {
                             <div className="w-14 h-14 rounded-2xl bg-white/40 flex items-center justify-center border border-white/60 shrink-0">
                               <Zap className="text-violet-600 w-8 h-8" />
                             </div>
-                            <h3 className="text-xl md:text-2xl font-bold text-zinc-900">당신만을 위한 일대일상담, 경험해 보세요.</h3>
+                            <h3 className="text-[16px] md:text-[16px] font-bold text-zinc-900">당신만을 위한 일대일상담, 경험해 보세요.</h3>
                           </div>
                           <ul className="space-y-2">
                             {[
@@ -1769,7 +1769,7 @@ const App: React.FC = () => {
                               "남들에게 말하지 못하는 고민을 여기에 물어보세요.",
                               "자기 MBTI를 알려주면 더욱 재미있는 상담이 됩니다."
                             ].map((item, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                              <li key={i} className="flex items-start gap-2 text-[13px] text-zinc-700">
                                 <Check className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
                                 {item}
                               </li>
@@ -1793,7 +1793,7 @@ const App: React.FC = () => {
                             <div className="w-14 h-14 rounded-2xl bg-white/40 flex items-center justify-center border border-white/60 shrink-0">
                               <FileText className="text-indigo-600 w-8 h-8" />
                             </div>
-                            <h3 className="text-xl md:text-2xl font-bold text-zinc-900">당신을 분석해 드립니다</h3>
+                            <h3 className="text-[16px] md:text-[16px] font-bold text-zinc-900">당신을 분석해 드립니다</h3>
                           </div>
                           <ul className="space-y-2">
                             {[
@@ -1801,7 +1801,7 @@ const App: React.FC = () => {
                               "궁금한 주제를 입력하면 핵심 흐름과 포인트를 한눈에 정리해 드립니다.",
                               "분석 결과를 확인한 뒤 상담 탭과 함께 활용하면 더 깊게 이해할 수 있습니다."
                             ].map((item, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                              <li key={i} className="flex items-start gap-2 text-[13px] text-zinc-700">
                                 <Check className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
                                 {item}
                               </li>
@@ -1811,7 +1811,7 @@ const App: React.FC = () => {
                       </section>
 
                       <section className="space-y-3 md:space-y-4">
-                        <h3 className="text-xl md:text-2xl font-bold text-zinc-900">유아이가 제공하는 특별서비스</h3>
+                        <h3 className="text-[16px] md:text-[16px] font-bold text-zinc-900">유아이가 제공하는 특별서비스</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                           <a
                             href="https://k-manseryeok.vercel.app/"
@@ -1822,9 +1822,9 @@ const App: React.FC = () => {
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-indigo-400/30">
                               <Calendar className="w-6 h-6" />
                             </div>
-                            <h4 className="text-lg md:text-xl font-bold text-zinc-900">만세력으로 표시한 달력</h4>
-                            <p className="mt-2 text-sm text-zinc-600">일진과 절기를 일정처럼 확인하는 별도 도구입니다.</p>
-                            <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-sm">바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
+                            <h4 className="text-[16px] md:text-[16px] font-bold text-zinc-900">만세력으로 표시한 달력</h4>
+                            <p className="mt-2 text-[13px] text-zinc-600">일진과 절기를 일정처럼 확인하는 별도 도구입니다.</p>
+                            <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[13px]">바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
                           </a>
 
                           <a
@@ -1836,9 +1836,9 @@ const App: React.FC = () => {
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-rose-400/30">
                               <Ticket className="w-6 h-6" />
                             </div>
-                            <h4 className="text-lg md:text-xl font-bold text-zinc-900">내 사주에 맞는 로또 번호</h4>
-                            <p className="mt-2 text-sm text-zinc-600">오늘 운세와 오행을 조합해 행운 번호를 추천합니다.</p>
-                            <div className="mt-4 flex items-center gap-2 text-rose-600 font-bold text-sm">바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
+                            <h4 className="text-[16px] md:text-[16px] font-bold text-zinc-900">내 사주에 맞는 로또 번호</h4>
+                            <p className="mt-2 text-[13px] text-zinc-600">오늘 운세와 오행을 조합해 행운 번호를 추천합니다.</p>
+                            <div className="mt-4 flex items-center gap-2 text-rose-600 font-bold text-[13px]">바로가기 <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
                           </a>
                         </div>
                       </section>
@@ -1850,7 +1850,7 @@ const App: React.FC = () => {
 
                     <button
                       onClick={() => setShowInputForm(false)}
-                      className="relative inline-flex items-center gap-2 min-h-[44px] px-2 text-sm font-bold text-zinc-600 hover:text-zinc-900 transition-colors"
+                      className="relative inline-flex items-center gap-2 min-h-[44px] px-2 text-[13px] font-bold text-zinc-600 hover:text-zinc-900 transition-colors"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       랜딩페이지로 돌아가기
@@ -1869,7 +1869,7 @@ const App: React.FC = () => {
                           onChange={(e) => setIsAgreed(e.target.checked)}
                           className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                         />
-                        <label htmlFor="privacyAgree" className="text-sm font-bold text-zinc-700 cursor-pointer">개인정보 이용에 동의합니다</label>
+                        <label htmlFor="privacyAgree" className="text-[13px] font-bold text-zinc-700 cursor-pointer">개인정보 이용에 동의합니다</label>
                       </div>
 
                       <div className={`space-y-5 transition-all ${!isAgreed ? "opacity-40 pointer-events-none grayscale" : "opacity-100"}`}>
@@ -1893,7 +1893,7 @@ const App: React.FC = () => {
                                 value={userData.birthYear}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({ ...userData, birthYear: e.target.value })}
-                                className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-sm outline-none"
+                                className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-[13px] outline-none"
                               >
                                 {Array.from({ length: 100 }, (_, i) => currentSeoulYear - i).map((y) => (
                                   <option key={y} value={y}>{y}년</option>
@@ -1906,7 +1906,7 @@ const App: React.FC = () => {
                                 value={userData.birthMonth}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({ ...userData, birthMonth: e.target.value })}
-                                className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-sm outline-none"
+                                className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-[13px] outline-none"
                               >
                                 {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                                   <option key={m} value={m}>{m}월</option>
@@ -1919,7 +1919,7 @@ const App: React.FC = () => {
                                 value={userData.birthDay}
                                 disabled={!isAgreed}
                                 onChange={(e) => setUserData({ ...userData, birthDay: e.target.value })}
-                                className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-sm outline-none"
+                                className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-[13px] outline-none"
                               >
                                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                                   <option key={d} value={d}>{d}일</option>
@@ -1936,7 +1936,7 @@ const App: React.FC = () => {
                                   value={userData.birthHour}
                                   disabled={!isAgreed}
                                   onChange={(e) => setUserData({ ...userData, birthHour: e.target.value })}
-                                  className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-sm outline-none"
+                                  className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-[13px] outline-none"
                                 >
                                   {Array.from({ length: 24 }, (_, i) => i).map((h) => (
                                     <option key={h} value={h}>{h}시</option>
@@ -1949,7 +1949,7 @@ const App: React.FC = () => {
                                   value={userData.birthMinute}
                                   disabled={!isAgreed}
                                   onChange={(e) => setUserData({ ...userData, birthMinute: e.target.value })}
-                                  className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-sm outline-none"
+                                  className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-white/70 bg-white/70 text-[13px] outline-none"
                                 >
                                   {Array.from({ length: 60 }, (_, i) => i).map((m) => (
                                     <option key={m} value={m}>{m}분</option>
@@ -1968,23 +1968,23 @@ const App: React.FC = () => {
                               onChange={(e) => setUserData({ ...userData, unknownTime: e.target.checked })}
                               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                             />
-                            <label htmlFor="unknownTime" className="text-sm font-medium opacity-70">생시를 몰라요</label>
+                            <label htmlFor="unknownTime" className="text-[13px] font-medium opacity-70">생시를 몰라요</label>
                           </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center justify-between p-2 rounded-2xl bg-white/55 border border-white/70 backdrop-blur-xl">
                             <div className="flex items-center gap-1.5 p-1 rounded-xl w-full">
-                              <button onClick={() => setUserData({ ...userData, calendarType: "solar" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all ${userData.calendarType === "solar" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>양력</button>
-                              <button onClick={() => setUserData({ ...userData, calendarType: "lunar" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all ${userData.calendarType === "lunar" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>음력(평)</button>
-                              <button onClick={() => setUserData({ ...userData, calendarType: "leap" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all ${userData.calendarType === "leap" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>음력(윤)</button>
+                              <button onClick={() => setUserData({ ...userData, calendarType: "solar" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${userData.calendarType === "solar" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>양력</button>
+                              <button onClick={() => setUserData({ ...userData, calendarType: "lunar" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${userData.calendarType === "lunar" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>음력(평)</button>
+                              <button onClick={() => setUserData({ ...userData, calendarType: "leap" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${userData.calendarType === "leap" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>음력(윤)</button>
                             </div>
                           </div>
 
                           <div className="flex items-center justify-between p-2 rounded-2xl bg-white/55 border border-white/70 backdrop-blur-xl">
                             <div className="flex items-center gap-1.5 p-1 rounded-xl w-full">
-                              <button onClick={() => setUserData({ ...userData, gender: "M" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all ${userData.gender === "M" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>남자</button>
-                              <button onClick={() => setUserData({ ...userData, gender: "F" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all ${userData.gender === "F" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>여자</button>
+                              <button onClick={() => setUserData({ ...userData, gender: "M" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${userData.gender === "M" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>남자</button>
+                              <button onClick={() => setUserData({ ...userData, gender: "F" })} disabled={!isAgreed} className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${userData.gender === "F" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-500"}`}>여자</button>
                             </div>
                           </div>
                         </div>
@@ -2000,7 +2000,7 @@ const App: React.FC = () => {
                       </div>
                     </section>
 
-                    <p className="text-center text-xs tracking-tight text-zinc-500/70">
+                    <p className="text-center text-[11px] tracking-tight text-zinc-500/70">
                       생시를 알면 더 정확한 운세 분석이 가능합니다. 몰라도 상담은 가능합니다.
                       <br />
                       유아이는 사용자의 개인 정보를 저장하지 않습니다.
@@ -2039,8 +2039,8 @@ const App: React.FC = () => {
                         <MessageCircle className="text-violet-500 w-5 h-5 md:w-10 md:h-10" />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-sm md:text-2xl font-bold leading-tight">AI와 더 깊은 대화 나누기</h3>
-                        <p className={`text-[10px] md:text-sm leading-relaxed opacity-60`}>
+                        <h3 className="text-[13px] md:text-[16px] font-bold leading-tight">AI와 더 깊은 대화 나누기</h3>
+                        <p className={`text-[11px] md:text-[13px] leading-relaxed opacity-60`}>
                           분석된 사주를 바탕으로 지금 가장 필요한 질문의 답을 빠르게 받아보세요.
                         </p>
                       </div>
@@ -2056,8 +2056,8 @@ const App: React.FC = () => {
                         <FileText className="text-indigo-500 w-5 h-5 md:w-10 md:h-10" />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-sm md:text-2xl font-bold leading-tight">프리미엄 운세 리포트</h3>
-                        <p className={`text-[10px] md:text-sm leading-relaxed opacity-60`}>
+                        <h3 className="text-[13px] md:text-[16px] font-bold leading-tight">프리미엄 운세 리포트</h3>
+                        <p className={`text-[11px] md:text-[13px] leading-relaxed opacity-60`}>
                           핵심 흐름을 압축한 정밀 운세 리포트를 생성하고 PDF로 저장할 수 있습니다.
                         </p>
                       </div>
@@ -2073,13 +2073,13 @@ const App: React.FC = () => {
                 <div className="space-y-8 md:space-y-12">
                   {/* Saju Grid - 2x4 Layout */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>사주팔자 (四柱八字)</h3>
+                    <h3 className={`text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>사주팔자 (四柱八字)</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
                         return (
                           <div key={i} className={`p-3 md:p-5 rounded-3xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-xl shadow-indigo-200/20 flex flex-col items-center gap-2 transition-transform hover:scale-[1.02]`}>
-                            <span className={`text-[10px] md:text-xs font-bold opacity-50`}>{p.title}</span>
+                            <span className={`text-[11px] md:text-[11px] font-bold opacity-50`}>{p.title}</span>
                             <div className="flex flex-col gap-4 py-2">
                               {[p.stem, p.branch].map((item, j) => (
                                 <HanjaBox 
@@ -2105,8 +2105,8 @@ const App: React.FC = () => {
                       </div>
                       <div className="space-y-4 flex-1">
                         <div className="space-y-2">
-                          <p className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">사주팔자 분석 결론</p>
-                          <h4 className={`text-base md:text-xl font-bold leading-tight text-zinc-900`}>
+                          <p className="text-[11px] md:text-[11px] font-bold text-indigo-500 uppercase tracking-[0.2em]">사주팔자 분석 결론</p>
+                          <h4 className={`text-base md:text-[16px] font-bold leading-tight text-zinc-900`}>
                             {userData.name}님의 사주는 <span className="text-indigo-500">{gyeokResult?.composition}</span>로 구성되어 있으며, <br className="hidden md:block"/><span className="text-indigo-500 font-black">[{gyeokResult?.gyeok}]</span>의 사주입니다.
                           </h4>
                         </div>
@@ -2115,14 +2115,14 @@ const App: React.FC = () => {
                         <div className="flex flex-wrap gap-3 pt-2">
                           <button 
                             onClick={() => setActiveTab("chat")}
-                            className="flex min-h-[44px] items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
+                            className="flex min-h-[44px] items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-[11px] font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                             AI와 상담하기
                           </button>
                           <button 
                             onClick={() => setActiveTab("report")}
-                            className="flex min-h-[44px] items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-700 transition-all"
+                            className="flex min-h-[44px] items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-[11px] font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-700 transition-all"
                           >
                             <FileText className="w-3.5 h-3.5" />
                             운세리포트 생성
@@ -2134,14 +2134,14 @@ const App: React.FC = () => {
 
                   {/* Five Elements Distribution */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>오행분포 (五行分布)</h3>
+                    <h3 className={`text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>오행분포 (五行分布)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {(() => {
                         const chartData = getChartData();
                         return (
                           <>
                       <div className={`p-6 rounded-3xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-xl shadow-indigo-200/20 flex flex-col justify-center gap-4`}>
-                        <p className={`text-sm md:text-base leading-relaxed text-zinc-600 font-medium`}>
+                        <p className={`text-[13px] md:text-base leading-relaxed text-zinc-600 font-medium`}>
                           {userData.name}님의 오행 분포는 <br className="hidden md:block"/>
                           {chartData.map(d => `${d.name} ${d.value}개`).join(', ')}으로 구성되어 있습니다.
                         </p>
@@ -2157,14 +2157,14 @@ const App: React.FC = () => {
                           const info = strengthLabel[s] ?? { label: s, desc: '', color: 'text-zinc-700', bg: 'bg-zinc-50 border-zinc-100' };
                           return (
                             <div className={`rounded-2xl border px-4 py-3 ${info.bg}`}>
-                              <p className={`text-xs font-bold mb-1 ${info.color}`}>{info.label}</p>
-                              <p className={`text-xs leading-relaxed ${info.color} opacity-80`}>{info.desc}</p>
+                              <p className={`text-[11px] font-bold mb-1 ${info.color}`}>{info.label}</p>
+                              <p className={`text-[11px] leading-relaxed ${info.color} opacity-80`}>{info.desc}</p>
                             </div>
                           );
                         })()}
                       </div>
                       <div className={`p-6 rounded-3xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-xl shadow-indigo-200/20 flex items-center justify-center`}>
-                        <Suspense fallback={<div className="text-xs text-zinc-500">차트 불러오는 중...</div>}>
+                        <Suspense fallback={<div className="text-[11px] text-zinc-500">차트 불러오는 중...</div>}>
                           <FiveElementsPieChart data={chartData} />
                         </Suspense>
                       </div>
@@ -2174,7 +2174,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                       {getChartData().map((d, i) => (
-                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/55 bg-white/55 backdrop-blur text-xs font-bold shadow-sm shadow-indigo-200/30">
+                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/55 bg-white/55 backdrop-blur text-[11px] font-bold shadow-sm shadow-indigo-200/30">
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div>
                           <span className={'text-zinc-700'}>{d.name}</span>
                         </div>
@@ -2184,7 +2184,7 @@ const App: React.FC = () => {
 
                   {/* Jiji and Jijangan */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>지지와 지장간 (地支/地藏干)</h3>
+                    <h3 className={`text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>지지와 지장간 (地支/地藏干)</h3>
                     <div className="grid grid-cols-4 gap-3 md:gap-4">
                       {sajuResult.map((p, i) => {
                         if (userData.unknownTime && p.title === '시주') return null;
@@ -2200,7 +2200,7 @@ const App: React.FC = () => {
                                 size="md"
                               />
                             </div>
-                            <span className={`text-[10px] md:text-xs font-bold mt-2 opacity-70`}>{p.branch.hangul}({p.branch.hanja})</span>
+                            <span className={`text-[11px] md:text-[11px] font-bold mt-2 opacity-70`}>{p.branch.hangul}({p.branch.hanja})</span>
                             <div className="flex gap-2 mt-4 pb-2">
                               {(p.branch.hidden ? p.branch.hidden.split(', ') : []).map((h, k, hiddenArray) => {
                                 const hanja = Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '';
@@ -2219,7 +2219,7 @@ const App: React.FC = () => {
                                     : 'text-zinc-400';
                                 return (
                                   <div key={k} className="flex flex-col items-center gap-1">
-                                    <span className={`text-[8px] font-bold ${labelColor}`}>{label}</span>
+                                    <span className={`text-[11px] font-bold ${labelColor}`}>{label}</span>
                                     <HanjaBox
                                       hanja={hanja}
                                       size="sm"
@@ -2235,7 +2235,7 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    <p className={`text-xs md:text-sm leading-relaxed mt-4 italic opacity-60`}>
+                    <p className={`text-[11px] md:text-[13px] leading-relaxed mt-4 italic opacity-60`}>
                       지지와 지장간은 사주의 뿌리이자 에너지가 저장된 곳입니다. 지장간은 지지 속에 숨겨진 천간의 기운으로, 당신의 내면적인 성향과 잠재력을 나타냅니다.
                       {hiddenStemExposureText ? (
                         <>
@@ -2251,7 +2251,7 @@ const App: React.FC = () => {
                     const dayStem = sajuResult.find((p: any) => p.title === '일주')?.stem.hanja || '';
                     return (
                       <div className="space-y-4">
-                        <h3 className="text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60">12운성 (十二運星)</h3>
+                        <h3 className="text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60">12운성 (十二運星)</h3>
                         <div className="grid grid-cols-4 gap-3 md:gap-4">
                           {sajuResult.map((p: any, i: number) => {
                             if (userData.unknownTime && p.title === '시주') return null;
@@ -2260,9 +2260,9 @@ const App: React.FC = () => {
                             const isMid = ['장생', '목욕', '양', '태'].includes(unseong);
                             return (
                               <div key={i} className="p-3 md:p-4 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg flex flex-col items-center gap-2">
-                                <span className="text-[10px] font-bold opacity-50">{p.title}</span>
-                                <span className="text-sm font-bold opacity-70">{p.branch.hangul}({p.branch.hanja})</span>
-                                <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                                <span className="text-[11px] font-bold opacity-50">{p.title}</span>
+                                <span className="text-[13px] font-bold opacity-70">{p.branch.hangul}({p.branch.hanja})</span>
+                                <span className={`text-[13px] font-bold px-3 py-1 rounded-full ${
                                   isStrong ? 'bg-emerald-500/20 text-emerald-700' :
                                   isMid ? 'bg-blue-500/15 text-blue-600' :
                                   'bg-zinc-500/10 text-zinc-500'
@@ -2283,134 +2283,205 @@ const App: React.FC = () => {
                   {/* ===== 형충회합 ===== */}
                   {sajuResult.length >= 2 && (() => {
                     const pillars = sajuResult.filter((p: any) => !(userData.unknownTime && p.title === '시주'));
-                    const relations: { pair: string; types: string[] }[] = [];
+                    const pillarLabel = (t: string) => t === '년주' ? '연지' : t === '월주' ? '월지' : t === '일주' ? '일지' : t === '시주' ? '시지' : t;
+                    const pillarDomain = (l: string) => {
+                      if (l === '연지') return '조상·뿌리·초년기';
+                      if (l === '월지') return '부모·직장·사회';
+                      if (l === '일지') return '배우자·가정·자신';
+                      if (l === '시지') return '자녀·말년·미래';
+                      return '';
+                    };
+                    const josaWa = (hanja: string) => (['丑', '寅', '辰', '申', '戌'].includes(hanja) ? '과' : '와');
+                    const josaGa = (hanja: string) => (['丑', '寅', '辰', '申', '戌'].includes(hanja) ? '이' : '가');
+
+                    type Rel = { p1: string; p2: string; b1: string; b2: string; kind: string; sentence: string };
+                    const relations: Rel[] = [];
+
                     for (let a = 0; a < pillars.length; a++) {
                       for (let b = a + 1; b < pillars.length; b++) {
                         const b1 = pillars[a].branch.hanja;
                         const b2 = pillars[b].branch.hanja;
-                        const types: string[] = [];
-                        if (isChung(b1, b2)) types.push('충(沖)');
-                        if (isHyeong(b1, b2)) types.push('형(刑)');
-                        if (isHae(b1, b2)) types.push('해(害)');
-                        if (isPa(b1, b2)) types.push('파(破)');
-                        const yukhap = getYukhap(b1, b2);
-                        if (yukhap) types.push(`육합(${yukhap})`);
-                        if (isWonjin(b1, b2)) types.push('원진');
-                        if (types.length > 0) {
+                        const p1 = pillarLabel(pillars[a].title);
+                        const p2 = pillarLabel(pillars[b].title);
+                        const d1 = pillarDomain(p1);
+                        const d2 = pillarDomain(p2);
+                        const bh1 = hanjaToHangul[b1];
+                        const bh2 = hanjaToHangul[b2];
+
+                        if (isChung(b1, b2)) {
                           relations.push({
-                            pair: `${pillars[a].title} ${hanjaToHangul[b1]}(${b1}) ↔ ${pillars[b].title} ${hanjaToHangul[b2]}(${b2})`,
-                            types,
+                            p1, p2, b1, b2, kind: '충',
+                            sentence: `${bh1}${bh2}충을 이룹니다. 강한 에너지 충돌로 ${d1}과 ${d2} 축이 부딪히며, 이사·이직·이별·큰 계획 전환 같은 변동이 촉발되기 쉽습니다.`,
+                          });
+                        }
+                        if (isHyeong(b1, b2)) {
+                          const self = b1 === b2;
+                          relations.push({
+                            p1, p2, b1, b2, kind: '형',
+                            sentence: self
+                              ? `${bh1}${bh2} 자형(自刑)을 이룹니다. 같은 글자가 겹쳐 스스로를 찌르는 형태로, ${d1}·${d2} 영역의 내면 갈등·자책·건강 관리 이슈로 드러나기 쉽습니다.`
+                              : `${bh1}${bh2}형을 이룹니다. 마찰·구설·수술·법적 분쟁의 소지가 있고, 같은 글자가 돌아오는 세운에 갈등이 표면화되기 쉽습니다.`,
+                          });
+                        }
+                        if (isHae(b1, b2)) {
+                          relations.push({
+                            p1, p2, b1, b2, kind: '해',
+                            sentence: `${bh1}${bh2}해를 이룹니다. ${d1}과 ${d2} 사이에 은근한 방해·배신·오해·지체가 잠복하며, 겉으로 드러나지 않는 갈등으로 작용합니다.`,
+                          });
+                        }
+                        if (isPa(b1, b2)) {
+                          relations.push({
+                            p1, p2, b1, b2, kind: '파',
+                            sentence: `${bh1}${bh2}파를 이룹니다. 일시적인 단절·깨짐을 암시하며, 충·형보다 약하지만 ${d1}과 ${d2} 축에 작은 균열이 반복됩니다.`,
+                          });
+                        }
+                        const yukhap = getYukhap(b1, b2);
+                        if (yukhap) {
+                          relations.push({
+                            p1, p2, b1, b2, kind: '육합',
+                            sentence: `${bh1}${bh2} 육합(${yukhap})을 이룹니다. 두 지지가 화합·결합하여 ${d1}과 ${d2} 사이에 협력·계약·인연의 유리한 배경을 제공합니다.`,
+                          });
+                        }
+                        if (isWonjin(b1, b2)) {
+                          relations.push({
+                            p1, p2, b1, b2, kind: '원진',
+                            sentence: `${bh1}${bh2} 원진을 이룹니다. 서로를 미워하는 기운이 흘러 ${d1}과 ${d2} 관계에서 원망·질시·지속적인 불화로 드러나기 쉽습니다.`,
                           });
                         }
                       }
                     }
-                    // 삼합 체크
+
+                    // 삼합
                     const allBranches = pillars.map((p: any) => p.branch.hanja);
-                    const samhapGroups: [string[], string][] = [
-                      [['申', '子', '辰'], '수삼합'], [['巳', '酉', '丑'], '금삼합'],
-                      [['寅', '午', '戌'], '화삼합'], [['亥', '卯', '未'], '목삼합'],
+                    const samhapGroups: { combo: string[]; name: string; meaning: string }[] = [
+                      { combo: ['申', '子', '辰'], name: '수삼합', meaning: '지혜·흐름·재물' },
+                      { combo: ['巳', '酉', '丑'], name: '금삼합', meaning: '결단·원칙·마무리' },
+                      { combo: ['寅', '午', '戌'], name: '화삼합', meaning: '열정·추진·창의' },
+                      { combo: ['亥', '卯', '未'], name: '목삼합', meaning: '성장·학문·인덕' },
                     ];
-                    const samhapMatches: string[] = [];
-                    for (const [combo, name] of samhapGroups) {
+                    const samhapSentences: string[] = [];
+                    for (const { combo, name, meaning } of samhapGroups) {
                       const matched = combo.filter(b => allBranches.includes(b));
-                      if (matched.length >= 2) samhapMatches.push(`${name}(${matched.map(b => hanjaToHangul[b]).join('·')})`);
+                      if (matched.length >= 2) {
+                        const full = matched.length === 3;
+                        const mk = matched.map(b => hanjaToHangul[b]).join('·');
+                        samhapSentences.push(
+                          full
+                            ? `${name}(${mk})이 완전히 구성되어 ${meaning}의 기운이 강하게 모입니다. 인생 전반의 방향성이 이 주제로 수렴되는 구조입니다.`
+                            : `${name} 반합(${mk})이 구성되어 ${meaning}의 기운이 어느 정도 모입니다. 빠진 한 글자가 돌아오는 세운·대운에 완전한 국이 성립되어 해당 주제의 일이 크게 불거집니다.`
+                        );
+                      }
                     }
-                    // 방합 체크
-                    const banghapGroups: [string[], string][] = [
-                      [['寅', '卯', '辰'], '동방목국'], [['巳', '午', '未'], '남방화국'],
-                      [['申', '酉', '戌'], '서방금국'], [['亥', '子', '丑'], '북방수국'],
+
+                    // 방합
+                    const banghapGroups: { combo: string[]; name: string; ohaeng: string; season: string }[] = [
+                      { combo: ['寅', '卯', '辰'], name: '동방목국', ohaeng: '목', season: '봄의 성장' },
+                      { combo: ['巳', '午', '未'], name: '남방화국', ohaeng: '화', season: '여름의 활발' },
+                      { combo: ['申', '酉', '戌'], name: '서방금국', ohaeng: '금', season: '가을의 수확' },
+                      { combo: ['亥', '子', '丑'], name: '북방수국', ohaeng: '수', season: '겨울의 저장' },
                     ];
-                    const banghapMatches: string[] = [];
-                    for (const [combo, name] of banghapGroups) {
+                    const banghapSentences: string[] = [];
+                    for (const { combo, name, ohaeng, season } of banghapGroups) {
                       const matched = combo.filter(b => allBranches.includes(b));
-                      if (matched.length >= 2) banghapMatches.push(`${name}(${matched.map(b => hanjaToHangul[b]).join('·')})`);
+                      if (matched.length >= 2) {
+                        const full = matched.length === 3;
+                        const mk = matched.map(b => hanjaToHangul[b]).join('·');
+                        banghapSentences.push(
+                          full
+                            ? `${name}(${mk})이 완전히 구성되어 ${season} 기운이 모이고 ${ohaeng} 오행이 크게 강해집니다.`
+                            : `${name} 반합(${mk})이 구성되어 ${season} 기운이 부분적으로 모이고 ${ohaeng} 오행이 보강됩니다.`
+                        );
+                      }
                     }
+
+                    const isEmpty = relations.length === 0 && samhapSentences.length === 0 && banghapSentences.length === 0;
 
                     return (
                       <div className="space-y-4">
-                        <h3 className="text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60">형충회합 (刑沖會合)</h3>
-                        <div className="p-5 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg space-y-3">
-                          {relations.length === 0 && samhapMatches.length === 0 && banghapMatches.length === 0 ? (
-                            <p className="text-xs opacity-50 text-center">원국 지지간 특별한 형충회합 없음</p>
+                        <h3 className="text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60">형충회합 (刑沖會合)</h3>
+                        <div className="p-5 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg">
+                          {isEmpty ? (
+                            <p className="text-[13px] text-zinc-600 leading-relaxed">원국 지지 사이에 특별한 형·충·회·합 관계가 감지되지 않습니다. 큰 변동 신호가 약하고, 전반적으로 안정적인 구조입니다.</p>
                           ) : (
-                            <>
+                            <ul className="space-y-3 list-disc pl-5">
                               {relations.map((r, i) => (
-                                <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
-                                  <span className="font-bold opacity-70">{r.pair}</span>
-                                  {r.types.map((t, j) => (
-                                    <span key={j} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                      t.includes('충') ? 'bg-red-500/15 text-red-600' :
-                                      t.includes('형') ? 'bg-orange-500/15 text-orange-600' :
-                                      t.includes('해') || t.includes('파') ? 'bg-amber-500/15 text-amber-600' :
-                                      t.includes('원진') ? 'bg-rose-500/10 text-rose-500' :
-                                      'bg-emerald-500/15 text-emerald-600'
-                                    }`}>{t}</span>
-                                  ))}
-                                </div>
+                                <li key={`r-${i}`} className="text-[13px] leading-relaxed text-zinc-700">
+                                  <span className="font-bold text-zinc-900">{r.p1}의 {hanjaToHangul[r.b1]}({r.b1})</span>
+                                  {josaWa(r.b1)}{' '}
+                                  <span className="font-bold text-zinc-900">{r.p2}의 {hanjaToHangul[r.b2]}({r.b2})</span>
+                                  {josaGa(r.b2)} {r.sentence}
+                                </li>
                               ))}
-                              {samhapMatches.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-2 text-xs">
-                                  <span className="font-bold opacity-70">삼합:</span>
-                                  {samhapMatches.map((s, i) => (
-                                    <span key={i} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/15 text-teal-600">{s}</span>
-                                  ))}
-                                </div>
-                              )}
-                              {banghapMatches.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-2 text-xs">
-                                  <span className="font-bold opacity-70">방합:</span>
-                                  {banghapMatches.map((s, i) => (
-                                    <span key={i} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-600">{s}</span>
-                                  ))}
-                                </div>
-                              )}
-                            </>
+                              {samhapSentences.map((s, i) => (
+                                <li key={`sh-${i}`} className="text-[13px] leading-relaxed text-zinc-700">{s}</li>
+                              ))}
+                              {banghapSentences.map((s, i) => (
+                                <li key={`bh-${i}`} className="text-[13px] leading-relaxed text-zinc-700">{s}</li>
+                              ))}
+                            </ul>
                           )}
                         </div>
                       </div>
                     );
                   })()}
 
-                  {/* ===== 공망 (일주·월주 기준) ===== */}
+                  {/* ===== 공망 (연주·월주·일주 기준) ===== */}
                   {sajuResult.length >= 3 && (() => {
-                    const dayStem = sajuResult.find((p: any) => p.title === '일주')?.stem.hanja || '';
-                    const dayBranch = sajuResult.find((p: any) => p.title === '일주')?.branch.hanja || '';
+                    const yearStem = sajuResult.find((p: any) => p.title === '년주')?.stem.hanja || '';
+                    const yearBranch = sajuResult.find((p: any) => p.title === '년주')?.branch.hanja || '';
                     const monthStem = sajuResult.find((p: any) => p.title === '월주')?.stem.hanja || '';
                     const monthBranch = sajuResult.find((p: any) => p.title === '월주')?.branch.hanja || '';
-                    const dayGongmang = getGongmang(dayStem, dayBranch);
+                    const dayStem = sajuResult.find((p: any) => p.title === '일주')?.stem.hanja || '';
+                    const dayBranch = sajuResult.find((p: any) => p.title === '일주')?.branch.hanja || '';
+                    const yearGongmang = getGongmang(yearStem, yearBranch);
                     const monthGongmang = getGongmang(monthStem, monthBranch);
-                    const allBranches = sajuResult.filter((p: any) => !(userData.unknownTime && p.title === '시주')).map((p: any) => ({ title: p.title, branch: p.branch.hanja }));
+                    const dayGongmang = getGongmang(dayStem, dayBranch);
+                    const pillars = sajuResult.filter((p: any) => !(userData.unknownTime && p.title === '시주'));
+                    const pillarLabel = (t: string) => t === '년주' ? '연지' : t === '월주' ? '월지' : t === '일주' ? '일지' : t === '시주' ? '시지' : t;
+                    const pillarDomain = (l: string) => {
+                      if (l === '연지') return '조상·뿌리·초년기';
+                      if (l === '월지') return '부모·직장·사회';
+                      if (l === '일지') return '배우자·가정·자신';
+                      if (l === '시지') return '자녀·말년·미래';
+                      return '';
+                    };
+                    const josaGa = (hanja: string) => (['丑', '寅', '辰', '申', '戌'].includes(hanja) ? '이' : '가');
 
-                    const renderGongmang = (label: string, gm: string[]) => {
-                      const matching = allBranches.filter(p => gm.includes(p.branch));
+                    const describe = (label: string, gm: string[], key: string) => {
+                      if (!gm || gm.length === 0) return null;
+                      const matches = pillars
+                        .filter((p: any) => gm.includes(p.branch.hanja))
+                        .map((p: any) => ({ pos: pillarLabel(p.title), branch: p.branch.hanja }));
+                      const gmKor = gm.map(b => `${hanjaToHangul[b]}(${b})`).join('·');
+
                       return (
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="font-bold opacity-70 w-20">{label}</span>
-                          {gm.map((b, i) => {
-                            const isMatch = allBranches.some(p => p.branch === b);
-                            return (
-                              <span key={i} className={`px-2 py-1 rounded-lg text-[11px] font-bold ${
-                                isMatch ? 'bg-amber-500/25 text-amber-700 ring-1 ring-amber-400/40' : 'bg-zinc-100 text-zinc-500'
-                              }`}>
-                                {hanjaToHangul[b]}({b})
+                        <li key={key} className="text-[13px] leading-relaxed text-zinc-700">
+                          <span className="font-bold text-zinc-900">{label} 공망은 {gmKor}</span>
+                          {'입니다. '}
+                          {matches.length === 0 ? (
+                            '원국에 해당 지지가 나타나 있지 않아 직접적 공망 작용은 발현되지 않습니다.'
+                          ) : (
+                            matches.map((m, i) => (
+                              <span key={i}>
+                                <span className="font-bold text-amber-700">{m.pos}의 {hanjaToHangul[m.branch]}({m.branch})</span>
+                                {josaGa(m.branch)} 공망에 해당합니다. {pillarDomain(m.pos)} 영역의 실질 작용이 비어있는 상태로, 해당 자리가 상징하는 것에 허탈감·공허감을 느끼기 쉽고 물질적 성취가 약하게 나타납니다. 정신적·종교적·예술적 방향으로 전환하면 오히려 긍정적으로 활용할 수 있습니다.
+                                {i < matches.length - 1 ? ' ' : ''}
                               </span>
-                            );
-                          })}
-                          {matching.length > 0 && (
-                            <span className="text-[10px] text-amber-600 font-bold">
-                              → {matching.map(m => m.title).join('·')} 해당
-                            </span>
+                            ))
                           )}
-                        </div>
+                        </li>
                       );
                     };
 
                     return (
                       <div className="space-y-4">
-                        <h3 className="text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60">공망 (空亡)</h3>
-                        <div className="p-5 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg space-y-3">
-                          {renderGongmang('일주 기준', dayGongmang)}
-                          {renderGongmang('월주 기준', monthGongmang)}
+                        <h3 className="text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60">공망 (空亡)</h3>
+                        <div className="p-5 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg">
+                          <ul className="space-y-3 list-disc pl-5">
+                            {describe('연주 기준', yearGongmang, 'year')}
+                            {describe('월주 기준', monthGongmang, 'month')}
+                            {describe('일주 기준', dayGongmang, 'day')}
+                          </ul>
                         </div>
                       </div>
                     );
@@ -2424,15 +2495,15 @@ const App: React.FC = () => {
 
                     const renderShinsalRow = (label: string, baseBranch: string) => (
                       <div>
-                        <p className="text-[10px] font-bold opacity-50 mb-2">{label} ({hanjaToHangul[baseBranch]}{baseBranch})</p>
+                        <p className="text-[11px] font-bold opacity-50 mb-2">{label} ({hanjaToHangul[baseBranch]}{baseBranch})</p>
                         <div className="grid grid-cols-4 gap-2">
                           {pillars.map((p: any, i: number) => {
                             const shinsal = getShinsal(baseBranch, p.branch.hanja);
                             const isNotable = ['도화', '역마살', '겁살', '재살', '천살'].includes(shinsal);
                             return (
                               <div key={i} className="flex flex-col items-center gap-1">
-                                <span className="text-[9px] opacity-40">{p.title}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                <span className="text-[11px] opacity-40">{p.title}</span>
+                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                                   shinsal === '도화' ? 'bg-pink-500/15 text-pink-600' :
                                   shinsal === '역마살' ? 'bg-violet-500/15 text-violet-600' :
                                   isNotable ? 'bg-red-500/10 text-red-500' :
@@ -2449,7 +2520,7 @@ const App: React.FC = () => {
 
                     return (
                       <div className="space-y-4">
-                        <h3 className="text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60">12신살 (十二神殺)</h3>
+                        <h3 className="text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60">12신살 (十二神殺)</h3>
                         <div className="p-5 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg space-y-4">
                           {renderShinsalRow('연지 기준', yearBranch)}
                           {renderShinsalRow('일지 기준', dayBranch)}
@@ -2558,11 +2629,11 @@ const App: React.FC = () => {
 
                     return (
                       <div className="space-y-4">
-                        <h3 className="text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60">기타 신살</h3>
+                        <h3 className="text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60">기타 신살</h3>
                         <div className="p-5 rounded-2xl border border-white/55 bg-white/45 backdrop-blur-xl shadow-lg">
                             <div className="space-y-2">
                               {shinsalItems.map((item, i) => (
-                                <div key={i} className="flex items-center gap-3 text-xs">
+                                <div key={i} className="flex items-center gap-3 text-[11px]">
                                   <span className={`shrink-0 px-2.5 py-1 rounded-lg font-bold text-[11px] ${item.color}`}>{item.name}</span>
                                   <span className="opacity-50 shrink-0">{item.condition}</span>
                                   <span className="font-bold opacity-70">→ {item.hit}</span>
@@ -2581,9 +2652,9 @@ const App: React.FC = () => {
                   {/* Daeun Analysis */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>대운분석 (大運分析)</h3>
+                      <h3 className={`text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>대운분석 (大運分析)</h3>
                       {daeunResult.length > 0 && (
-                        <span className="text-[10px] md:text-xs font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
+                        <span className="text-[11px] md:text-[11px] font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
                           {daeunResult[0].startAge}대운
                         </span>
                       )}
@@ -2617,7 +2688,7 @@ const App: React.FC = () => {
                                     : 'border-white/50 bg-white/60 backdrop-blur opacity-60 hover:opacity-100'
                               }`}
                             >
-                              <div className="text-[10px] md:text-xs font-bold">{dy.startAge}세</div>
+                              <div className="text-[11px] md:text-[11px] font-bold">{dy.startAge}세</div>
                               <div className="flex flex-col gap-4 py-2">
                                 {[dy.stem, dy.branch].map((hanja, j) => {
                                   const isBranch = j === 1;
@@ -2633,10 +2704,10 @@ const App: React.FC = () => {
                                   );
                                 })}
                               </div>
-                              <div className="text-[10px] md:text-xs font-bold opacity-70">{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
+                              <div className="text-[11px] md:text-[11px] font-bold opacity-70">{hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}</div>
                               {/* 12운성 */}
                               {unseong && (
-                                <div className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                                <div className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                                   ['건록', '제왕', '관대'].includes(unseong)
                                     ? 'bg-emerald-500/15 text-emerald-700'
                                     : ['장생', '목욕', '양', '태'].includes(unseong)
@@ -2648,7 +2719,7 @@ const App: React.FC = () => {
                               )}
                               {/* 12신살 */}
                               {shinsal && (
-                                <div className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                                <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                                   ['도화', '역마살'].includes(shinsal)
                                     ? 'bg-pink-500/15 text-pink-600'
                                     : ['겁살', '재살', '천살', '망신살'].includes(shinsal)
@@ -2660,19 +2731,19 @@ const App: React.FC = () => {
                               )}
                               {/* 공망 */}
                               {isGongmang && (
-                                <div className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
+                                <div className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
                                   공망
                                 </div>
                               )}
                               {isCurrentDaeun && isTransitioning && (
-                                <div className="mt-1 px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[8px] md:text-[10px] font-bold rounded-full animate-pulse">
+                                <div className="mt-1 px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[11px] md:text-[11px] font-bold rounded-full animate-pulse">
                                   교운기
                                 </div>
                               )}
                             </div>
                           );
                         }) : (
-                          <div className={`text-sm py-8 w-full text-center opacity-40`}>분석을 시작하면 대운이 표시됩니다.</div>
+                          <div className={`text-[13px] py-8 w-full text-center opacity-40`}>분석을 시작하면 대운이 표시됩니다.</div>
                         )}
                       </div>
                     </div>
@@ -2693,15 +2764,15 @@ const App: React.FC = () => {
                             <div key={i} className="space-y-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-6 bg-indigo-500 rounded-full" />
-                                <h4 className={`text-sm md:text-base font-bold text-indigo-900`}>현재 대운: {dy.startAge}세 {hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}대운</h4>
+                                <h4 className={`text-[13px] md:text-base font-bold text-indigo-900`}>현재 대운: {dy.startAge}세 {hanjaToHangul[dy.stem]}{hanjaToHangul[dy.branch]}대운</h4>
                               </div>
-                              <p className={`text-xs md:text-sm leading-relaxed italic font-medium opacity-80`}>
+                              <p className={`text-[11px] md:text-[13px] leading-relaxed italic font-medium opacity-80`}>
                                 "{dy.description}"
                               </p>
                               {Math.abs(currentAge - dy.startAge) <= 1 && (
                                 <div className={`flex items-start gap-3 p-4 rounded-2xl border border-rose-300/50 bg-rose-100/50 backdrop-blur`}> 
                                   <Info className="w-4 h-4 text-rose-500 mt-0.5 shrink-0" />
-                                  <p className="text-[11px] md:text-xs text-rose-500 leading-relaxed">
+                                  <p className="text-[11px] md:text-[11px] text-rose-500 leading-relaxed">
                                     현재 <strong>교운기(인생의 변동기)</strong>에 진입해 있습니다. 환경의 변화나 심리적 변동이 클 수 있으니 신중한 판단이 필요합니다.
                                   </p>
                                 </div>
@@ -2733,8 +2804,8 @@ const App: React.FC = () => {
                     return (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>세운분석 (歲運分析)</h3>
-                          <span className="text-[10px] md:text-xs font-bold text-violet-500 bg-violet-500/10 px-3 py-1 rounded-full">
+                          <h3 className={`text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>세운분석 (歲運分析)</h3>
+                          <span className="text-[11px] md:text-[11px] font-bold text-violet-500 bg-violet-500/10 px-3 py-1 rounded-full">
                             {selDaeun.startAge}세 {hanjaToHangul[selDaeun.stem]}{hanjaToHangul[selDaeun.branch]}대운 기간
                           </span>
                         </div>
@@ -2754,8 +2825,8 @@ const App: React.FC = () => {
                                       ? 'border-white/30 bg-white/30 backdrop-blur opacity-40'
                                       : 'border-white/50 bg-white/60 backdrop-blur opacity-70 hover:opacity-100'
                                 }`}>
-                                  <div className="text-[10px] font-bold opacity-70">{sy.year}</div>
-                                  <div className="text-[9px] opacity-50">{sy.age}세</div>
+                                  <div className="text-[11px] font-bold opacity-70">{sy.year}</div>
+                                  <div className="text-[11px] opacity-50">{sy.age}세</div>
                                   <div className="flex flex-col gap-3 py-1">
                                     {[sy.stem, sy.branch].map((hanja, j) => {
                                       const isBranch = j === 1;
@@ -2771,10 +2842,10 @@ const App: React.FC = () => {
                                       );
                                     })}
                                   </div>
-                                  <div className="text-[9px] font-bold opacity-70">{hanjaToHangul[sy.stem]}{hanjaToHangul[sy.branch]}</div>
+                                  <div className="text-[11px] font-bold opacity-70">{hanjaToHangul[sy.stem]}{hanjaToHangul[sy.branch]}</div>
                                   {/* 12운성 */}
                                   {syUnseong && (
-                                    <div className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                                       ['건록', '제왕', '관대'].includes(syUnseong)
                                         ? 'bg-emerald-500/15 text-emerald-700'
                                         : ['장생', '목욕', '양', '태'].includes(syUnseong)
@@ -2786,7 +2857,7 @@ const App: React.FC = () => {
                                   )}
                                   {/* 12신살 */}
                                   {syShinsal && (
-                                    <div className={`text-[7px] font-bold px-1 py-0.5 rounded-full ${
+                                    <div className={`text-[11px] font-bold px-1 py-0.5 rounded-full ${
                                       ['도화', '역마살'].includes(syShinsal)
                                         ? 'bg-pink-500/15 text-pink-600'
                                         : ['겁살', '재살', '천살', '망신살'].includes(syShinsal)
@@ -2798,12 +2869,12 @@ const App: React.FC = () => {
                                   )}
                                   {/* 공망 */}
                                   {syGongmang && (
-                                    <div className="text-[7px] font-bold px-1 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
+                                    <div className="text-[11px] font-bold px-1 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
                                       공망
                                     </div>
                                   )}
                                   {isCurrentYear && (
-                                    <div className="px-1.5 py-0.5 bg-violet-500/20 text-violet-600 text-[8px] font-bold rounded-full">
+                                    <div className="px-1.5 py-0.5 bg-violet-500/20 text-violet-600 text-[11px] font-bold rounded-full">
                                       올해
                                     </div>
                                   )}
@@ -2812,7 +2883,7 @@ const App: React.FC = () => {
                             })}
                           </div>
                         </div>
-                        <p className={`text-xs md:text-sm leading-relaxed italic opacity-60`}>
+                        <p className={`text-[11px] md:text-[13px] leading-relaxed italic opacity-60`}>
                           세운은 해마다 바뀌는 연도별 천간지지의 기운입니다. 대운의 큰 흐름 안에서 각 해의 특성이 어떻게 작용하는지를 보여줍니다.
                         </p>
                       </div>
@@ -2821,15 +2892,15 @@ const App: React.FC = () => {
 
                   {/* Yongshin Analysis */}
                   <div className="space-y-4">
-                    <h3 className={`text-sm md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>용신(用神) 정밀 분석</h3>
+                    <h3 className={`text-[13px] md:text-base font-title font-bold uppercase tracking-widest opacity-60`}>용신(用神) 정밀 분석</h3>
                     {yongshinResult && (
                       <div className={`p-6 md:p-8 rounded-[2.5rem] border border-white/55 bg-white/45 backdrop-blur-2xl shadow-2xl shadow-indigo-200/30 space-y-6 md:space-y-8`}>
                         <div className="flex items-center justify-between">
                           <div className="space-y-2">
-                            <p className={`text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] opacity-40`}>핵심 에너지</p>
+                            <p className={`text-[11px] md:text-[11px] font-bold uppercase tracking-[0.2em] opacity-40`}>핵심 에너지</p>
                             <h4 className="text-2xl md:text-3xl font-title font-bold text-indigo-500">{userData.name}님의 용신: {yongshinResult.yongshin}</h4>
                           </div>
-                          <div className={`w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-2xl ${
+                          <div className={`w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center text-white font-bold text-[16px] md:text-[16px] shadow-2xl ${
                             yongshinResult.yongshin.includes('목') ? 'bg-emerald-500' :
                             yongshinResult.yongshin.includes('화') ? 'bg-red-500' :
                             yongshinResult.yongshin.includes('토') ? 'bg-amber-700' :
@@ -2842,46 +2913,46 @@ const App: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className={`p-4 md:p-6 rounded-3xl border border-white/55 bg-white/65 backdrop-blur`}>
-                            <p className="text-[10px] md:text-xs font-bold opacity-40 mb-2 uppercase tracking-wider">일간 강약 (억부)</p>
-                            <p className="text-sm md:text-lg font-bold">{yongshinResult.strength} ({yongshinResult.score}점)</p>
-                            <p className="text-[11px] md:text-sm text-indigo-500 mt-2 font-bold">억부용신: {yongshinResult.eokbuYongshin}</p>
+                            <p className="text-[11px] md:text-[11px] font-bold opacity-40 mb-2 uppercase tracking-wider">일간 강약 (억부)</p>
+                            <p className="text-[13px] md:text-[16px] font-bold">{yongshinResult.strength} ({yongshinResult.score}점)</p>
+                            <p className="text-[11px] md:text-[13px] text-indigo-500 mt-2 font-bold">억부용신: {yongshinResult.eokbuYongshin}</p>
                           </div>
                           <div className={`p-4 md:p-6 rounded-3xl border border-white/55 bg-white/65 backdrop-blur`}>
-                            <p className="text-[10px] md:text-xs font-bold opacity-40 mb-2 uppercase tracking-wider">계절 기운 (조후)</p>
-                            <p className="text-sm md:text-lg font-bold">{yongshinResult.johooStatus}</p>
-                            <p className="text-[11px] md:text-sm text-indigo-500 mt-2 font-bold">조후용신: {yongshinResult.johooYongshin}</p>
+                            <p className="text-[11px] md:text-[11px] font-bold opacity-40 mb-2 uppercase tracking-wider">계절 기운 (조후)</p>
+                            <p className="text-[13px] md:text-[16px] font-bold">{yongshinResult.johooStatus}</p>
+                            <p className="text-[11px] md:text-[13px] text-indigo-500 mt-2 font-bold">조후용신: {yongshinResult.johooYongshin}</p>
                           </div>
                         </div>
 
                         <div className="space-y-3">
-                          <p className="text-[10px] md:text-xs font-bold opacity-40 uppercase tracking-[0.2em]">분석 근거</p>
-                          <p className="text-xs md:text-sm opacity-70 leading-relaxed font-medium">
+                          <p className="text-[11px] md:text-[11px] font-bold opacity-40 uppercase tracking-[0.2em]">분석 근거</p>
+                          <p className="text-[11px] md:text-[13px] opacity-70 leading-relaxed font-medium">
                             {yongshinResult.logicBasis}
                           </p>
                         </div>
 
                         <div className="space-y-4 pt-6 border-t border-white/60">
-                          <p className="text-[10px] md:text-xs font-bold opacity-40 uppercase tracking-[0.2em]">실생활 가이드</p>
+                          <p className="text-[11px] md:text-[11px] font-bold opacity-40 uppercase tracking-[0.2em]">실생활 가이드</p>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                             <div className="flex items-center gap-3">
                               <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                              <span className="text-xs opacity-50">행운의 색:</span>
-                              <span className="text-xs font-bold">{yongshinResult.advice.color}</span>
+                              <span className="text-[11px] opacity-50">행운의 색:</span>
+                              <span className="text-[11px] font-bold">{yongshinResult.advice.color}</span>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                              <span className="text-xs opacity-50">행운의 숫자:</span>
-                              <span className="text-xs font-bold">{yongshinResult.advice.numbers}</span>
+                              <span className="text-[11px] opacity-50">행운의 숫자:</span>
+                              <span className="text-[11px] font-bold">{yongshinResult.advice.numbers}</span>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                              <span className="text-xs opacity-50">행운의 방향:</span>
-                              <span className="text-xs font-bold">{yongshinResult.advice.direction}</span>
+                              <span className="text-[11px] opacity-50">행운의 방향:</span>
+                              <span className="text-[11px] font-bold">{yongshinResult.advice.direction}</span>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                              <span className="text-xs opacity-50">추천 행위:</span>
-                              <span className="text-xs font-bold">{yongshinResult.advice.action}</span>
+                              <span className="text-[11px] opacity-50">추천 행위:</span>
+                              <span className="text-[11px] font-bold">{yongshinResult.advice.action}</span>
                             </div>
                           </div>
                         </div>
@@ -2896,7 +2967,7 @@ const App: React.FC = () => {
                     <LayoutDashboard className={`w-12 h-12 text-zinc-300`} />
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-2xl font-bold">사주 데이터가 없습니다</h3>
+                    <h3 className="text-[16px] font-bold">사주 데이터가 없습니다</h3>
                     <p className={`max-w-md mx-auto text-zinc-500`}>
                       HOME 탭에서 생년월일 정보를 입력하시면<br/>
                       정밀한 만세력 분석과 대운 정보를 확인하실 수 있습니다.
@@ -2913,7 +2984,7 @@ const App: React.FC = () => {
 
               {/* Disclaimer (Moved to bottom) */}
               <div className="relative z-10 max-w-3xl mx-auto p-6 rounded-3xl border border-white/60 bg-white/55 backdrop-blur-xl shadow-xl shadow-indigo-200/20 mt-12">
-                <p className="text-[10px] md:text-xs text-zinc-600 leading-relaxed text-center font-medium">
+                <p className="text-[11px] md:text-[11px] text-zinc-600 leading-relaxed text-center font-medium">
                   본 분석 결과는 인공지능의 해석이며, 과학적 사실이 아닌 참고 용도로만 사용해 주세요. 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
                 </p>
               </div>
@@ -2949,7 +3020,7 @@ const App: React.FC = () => {
                               setTaekilError(null);
                               setTaekilNotice(null);
                             }}
-                            className={`w-full min-h-[44px] rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-all ${
+                            className={`w-full min-h-[44px] rounded-2xl border px-4 py-3 text-left text-[13px] font-bold transition-all ${
                               isActive
                                 ? 'bg-indigo-500/15 border-indigo-300 text-indigo-700 shadow-lg shadow-indigo-300/20'
                                 : enabled
@@ -2970,7 +3041,7 @@ const App: React.FC = () => {
                       {taekilActiveCategory === '이사' ? 'Moving Taekil' : 'Marriage Taekil'}
                     </p>
                     <h2 className="mt-2 text-2xl md:text-4xl font-bold tracking-tight">{taekilActiveCategory} 택일</h2>
-                    <p className={`mt-3 text-sm md:text-base text-zinc-600`}>
+                    <p className={`mt-3 text-[13px] md:text-base text-zinc-600`}>
                       프로세스 Q1-Q4를 입력한 뒤 {taekilActiveCategory} 길일 조회를 실행하세요.
                     </p>
                   </div>
@@ -2979,8 +3050,10 @@ const App: React.FC = () => {
                     {taekilActiveCategory === '결혼' ? (
                       <>
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">배우자의 생년월일시는 언제 입니까?</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                            <h3 className="text-[16px] font-bold leading-tight">배우자의 생년월일시는 언제 입니까?</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>배우자 이름</span>
@@ -3026,14 +3099,16 @@ const App: React.FC = () => {
                             </label>
                             <label className={`flex min-h-[44px] items-center gap-3 rounded-2xl border border-white/65 px-4 py-3 cursor-pointer bg-white/70 text-zinc-700 backdrop-blur`}>
                               <input type="checkbox" checked={spouseUnknownTime} onChange={(e) => setSpouseUnknownTime(e.target.checked)} />
-                              <span className="text-sm font-medium">생시 미상</span>
+                              <span className="text-[13px] font-medium">생시 미상</span>
                             </label>
                           </div>
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">희망하는 결혼식 일정은 언제부터 언제까지 인가요?</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                            <h3 className="text-[16px] font-bold leading-tight">희망하는 결혼식 일정은 언제부터 언제까지 인가요?</h3>
+                          </div>
                           <p className={TAEKIL_HELP_TEXT_CLASS}>형식: YYYY-MM-DD</p>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
@@ -3048,8 +3123,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">희망하는 요일은 언제 인가요? 3순위까지 입력하세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                            <h3 className="text-[16px] font-bold leading-tight">희망하는 요일은 언제 인가요? 3순위까지 입력하세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>1순위</span>
@@ -3073,8 +3150,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">꼭 피해야 하는 날을 입력해 주세요. (최대 5개)</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                            <h3 className="text-[16px] font-bold leading-tight">꼭 피해야 하는 날을 입력해 주세요. (최대 5개)</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             {avoidDateInputs.map((value, idx) => (
                               <label key={`avoid-date-${idx}`} className="space-y-2">
@@ -3093,8 +3172,10 @@ const App: React.FC = () => {
                     ) : taekilActiveCategory === '이사' ? (
                       <>
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">가구주 및 가족 생년월일을 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                            <h3 className="text-[16px] font-bold leading-tight">가구주 및 가족 생년월일을 입력해 주세요.</h3>
+                          </div>
                           <p className={TAEKIL_HELP_TEXT_CLASS}>가구주 정보는 상단 기본 사주를 사용하며, 가족은 양력 YYYY-MM-DD 기준으로 입력합니다. 가족 정보는 비워도 조회 가능합니다.</p>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             {moveFamilyBirthDates.map((value, idx) => (
@@ -3112,8 +3193,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">현재 거주지와 이사 갈 주소를 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                            <h3 className="text-[16px] font-bold leading-tight">현재 거주지와 이사 갈 주소를 입력해 주세요.</h3>
+                          </div>
                           <p className={TAEKIL_HELP_TEXT_CLASS}>예: 역삼동, 정자동처럼 동 단위까지만 입력해도 조회 가능합니다.</p>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
@@ -3128,8 +3211,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">희망 이사 기간과 선호 요일을 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                            <h3 className="text-[16px] font-bold leading-tight">희망 이사 기간과 선호 요일을 입력해 주세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>시작일</span>
@@ -3163,8 +3248,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">무엇을 더 중시할지 선택해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                            <h3 className="text-[16px] font-bold leading-tight">무엇을 더 중시할지 선택해 주세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>중요도 설정</span>
@@ -3176,7 +3263,7 @@ const App: React.FC = () => {
                             </label>
                             <label className={`flex min-h-[44px] items-center gap-3 rounded-2xl border border-white/65 px-4 py-3 mt-6 md:mt-0 cursor-pointer bg-white/70 text-zinc-700 backdrop-blur`}>
                               <input type="checkbox" checked={moveOnlyWeekend} onChange={(e) => setMoveOnlyWeekend(e.target.checked)} />
-                              <span className="text-sm font-medium">주말만 가능</span>
+                              <span className="text-[13px] font-medium">주말만 가능</span>
                             </label>
                           </div>
                         </div>
@@ -3185,10 +3272,10 @@ const App: React.FC = () => {
                       <>
                         <div className={`rounded-3xl border border-indigo-300/40 p-4 md:p-6 bg-white/60 backdrop-blur-xl shadow-xl shadow-indigo-200/20`}>
                           <p className={`text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700`}>출산 택일 프롬프트</p>
-                          <p className={`mt-2 text-sm leading-relaxed text-zinc-700`}>
+                          <p className={`mt-2 text-[13px] leading-relaxed text-zinc-700`}>
                             "당신은 사주팔자를 설계하는 명리학 대가입니다. 아래 조건에 맞는 최상의 출산 택일을 수행하세요."
                           </p>
-                          <ul className={`mt-3 text-xs space-y-1 text-zinc-600`}>
+                          <ul className={`mt-3 text-[11px] space-y-1 text-zinc-600`}>
                             <li>1순위: 오행 중화 및 조후 적합</li>
                             <li>2순위: 초년/중년 대운 희신 방향</li>
                             <li>3순위: 부모와 원진/충 회피</li>
@@ -3196,8 +3283,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">부모 데이터 (생년월일시)</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                            <h3 className="text-[16px] font-bold leading-tight">부모 데이터 (생년월일시)</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>부 생년월일</span>
@@ -3219,8 +3308,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">태아 데이터</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                            <h3 className="text-[16px] font-bold leading-tight">태아 데이터</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>태아 성별</span>
@@ -3233,8 +3324,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">분만 가능일</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                            <h3 className="text-[16px] font-bold leading-tight">분만 가능일</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>시작일</span>
@@ -3248,9 +3341,11 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">결과 형식</h3>
-                          <p className={`mt-2 text-sm leading-relaxed text-zinc-600`}>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                            <h3 className="text-[16px] font-bold leading-tight">결과 형식</h3>
+                          </div>
+                          <p className={`mt-2 text-[13px] leading-relaxed text-zinc-600`}>
                             추천 날짜/시진 3안, 각 안의 성격·진로·건강운 요약을 기준으로 해석합니다.
                           </p>
                         </div>
@@ -3258,8 +3353,10 @@ const App: React.FC = () => {
                     ) : (
                       <>
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">희망 기간을 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q1</p>
+                            <h3 className="text-[16px] font-bold leading-tight">희망 기간을 입력해 주세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>시작일</span>
@@ -3273,8 +3370,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">{taekilActiveCategory}에 필요한 핵심 정보를 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q2</p>
+                            <h3 className="text-[16px] font-bold leading-tight">{taekilActiveCategory}에 필요한 핵심 정보를 입력해 주세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             {taekilActiveFields.map((field) => (
                               <label key={`${taekilActiveCategory}-${field.key}`} className={`space-y-2 ${field.key.endsWith('Priority') ? 'md:col-span-2' : ''}`}>
@@ -3305,8 +3404,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">희망 요일 우선순위를 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q3</p>
+                            <h3 className="text-[16px] font-bold leading-tight">희망 요일 우선순위를 입력해 주세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                             <label className="space-y-2">
                               <span className={TAEKIL_LABEL_CLASS}>1순위</span>
@@ -3330,8 +3431,10 @@ const App: React.FC = () => {
                         </div>
 
                         <div className={TAEKIL_SECTION_CARD_CLASS}>
-                          <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
-                          <h3 className="mt-1 text-base md:text-lg font-bold">피해야 할 날(선택)과 추가 메모를 입력해 주세요.</h3>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            <p className={TAEKIL_Q_BADGE_CLASS}>Q4</p>
+                            <h3 className="text-[16px] font-bold leading-tight">피해야 할 날(선택)과 추가 메모를 입력해 주세요.</h3>
+                          </div>
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             {generalAvoidDateInputs.map((value, idx) => (
                               <label key={`generic-avoid-date-${idx}`} className="space-y-2">
@@ -3364,20 +3467,20 @@ const App: React.FC = () => {
                         type="button"
                         onClick={handleGenerateTaekil}
                         disabled={taekilLoading}
-                        className={`w-full md:w-auto min-h-[44px] px-6 py-3 rounded-2xl text-white text-sm font-bold transition-all bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 ${taekilLoading ? 'opacity-60 cursor-wait' : ''}`}
+                        className={`w-full md:w-auto min-h-[44px] px-6 py-3 rounded-2xl text-white text-[13px] font-bold transition-all bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 ${taekilLoading ? 'opacity-60 cursor-wait' : ''}`}
                       >
                         {taekilLoading ? '계산 중...' : `${taekilActiveCategory} 길일 조회`}
                       </button>
                     </div>
 
                     {taekilNotice && (
-                      <div className={`rounded-2xl border border-sky-300/45 px-4 py-3 text-sm bg-sky-100/55 backdrop-blur text-sky-700`}>
+                      <div className={`rounded-2xl border border-sky-300/45 px-4 py-3 text-[13px] bg-sky-100/55 backdrop-blur text-sky-700`}>
                         {taekilNotice}
                       </div>
                     )}
 
                     {taekilError && (
-                      <div className={`rounded-2xl border border-rose-300/45 px-4 py-3 text-sm bg-rose-100/55 backdrop-blur text-rose-700`}>
+                      <div className={`rounded-2xl border border-rose-300/45 px-4 py-3 text-[13px] bg-rose-100/55 backdrop-blur text-rose-700`}>
                         {taekilError}
                       </div>
                     )}
@@ -3385,10 +3488,10 @@ const App: React.FC = () => {
                     {taekilDisplayResults.length > 0 && (
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center justify-between gap-3">
-                          <h4 className="text-base md:text-lg font-bold">
+                          <h4 className="text-base md:text-[16px] font-bold">
                             {taekilActiveCategory === '출산' ? '출산 택일 추천 3안' : `${taekilActiveCategory} 택일 추천`}
                           </h4>
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-700 border border-indigo-300/50`}>
+                          <span className={`text-[11px] font-bold px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-700 border border-indigo-300/50`}>
                             {taekilDisplayResults.length}개
                           </span>
                         </div>
@@ -3409,7 +3512,7 @@ const App: React.FC = () => {
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <p className="text-sm font-bold">{index + 1}안 · {item.date}</p>
+                                  <p className="text-[13px] font-bold">{index + 1}안 · {item.date}</p>
                                   <p className={TAEKIL_HELP_TEXT_CLASS}>
                                     추천 시진: {item.topTimeSlots?.[0]?.time || '산출 없음'}
                                   </p>
@@ -3417,16 +3520,16 @@ const App: React.FC = () => {
                               </div>
                               <div className="mt-3 space-y-1.5">
                                 {item.reasons.slice(0, 2).map((reason, reasonIdx) => (
-                                  <p key={`${item.date}-reason-${reasonIdx}`} className={`text-xs leading-relaxed text-zinc-600`}>
+                                  <p key={`${item.date}-reason-${reasonIdx}`} className={`text-[11px] leading-relaxed text-zinc-600`}>
                                     {reason}
                                   </p>
                                 ))}
                                 {profileSummary && (
                                   <div className={`mt-2 rounded-xl border px-3 py-2 space-y-1 border-white/65 bg-white/70 backdrop-blur`}>
-                                    <p className={`text-xs leading-relaxed text-zinc-700`}>{profileSummary.personality}</p>
-                                    <p className={`text-xs leading-relaxed text-zinc-700`}>{profileSummary.career}</p>
-                                    <p className={`text-xs leading-relaxed text-zinc-700`}>{profileSummary.health}</p>
-                                    <p className={`text-xs leading-relaxed text-zinc-600`}>{profileSummary.caution}</p>
+                                    <p className={`text-[11px] leading-relaxed text-zinc-700`}>{profileSummary.personality}</p>
+                                    <p className={`text-[11px] leading-relaxed text-zinc-700`}>{profileSummary.career}</p>
+                                    <p className={`text-[11px] leading-relaxed text-zinc-700`}>{profileSummary.health}</p>
+                                    <p className={`text-[11px] leading-relaxed text-zinc-600`}>{profileSummary.caution}</p>
                                   </div>
                                 )}
                               </div>
@@ -3444,19 +3547,19 @@ const App: React.FC = () => {
 
                             return (
                           <div className={`rounded-2xl border border-white/65 p-4 bg-white/65 backdrop-blur-xl shadow-lg shadow-indigo-200/20`}>
-                            <p className="text-sm font-bold">선택 후보: {selectedTaekilDetail.date}</p>
+                            <p className="text-[13px] font-bold">선택 후보: {selectedTaekilDetail.date}</p>
                             <div className="mt-2 space-y-1.5">
                               {selectedTaekilDetail.reasons.slice(0, 4).map((reason, idx) => (
-                                <p key={`detail-reason-${idx}`} className={`text-xs leading-relaxed text-zinc-600`}>
+                                <p key={`detail-reason-${idx}`} className={`text-[11px] leading-relaxed text-zinc-600`}>
                                   {reason}
                                 </p>
                               ))}
                               {detailProfileSummary && (
                                 <div className={`mt-2 rounded-xl border px-3 py-2 space-y-1 border-white/65 bg-white/75 backdrop-blur`}>
-                                  <p className={`text-xs leading-relaxed text-zinc-700`}>{detailProfileSummary.personality}</p>
-                                  <p className={`text-xs leading-relaxed text-zinc-700`}>{detailProfileSummary.career}</p>
-                                  <p className={`text-xs leading-relaxed text-zinc-700`}>{detailProfileSummary.health}</p>
-                                  <p className={`text-xs leading-relaxed text-zinc-600`}>{detailProfileSummary.caution}</p>
+                                  <p className={`text-[11px] leading-relaxed text-zinc-700`}>{detailProfileSummary.personality}</p>
+                                  <p className={`text-[11px] leading-relaxed text-zinc-700`}>{detailProfileSummary.career}</p>
+                                  <p className={`text-[11px] leading-relaxed text-zinc-700`}>{detailProfileSummary.health}</p>
+                                  <p className={`text-[11px] leading-relaxed text-zinc-600`}>{detailProfileSummary.caution}</p>
                                 </div>
                               )}
                             </div>
@@ -3483,11 +3586,11 @@ const App: React.FC = () => {
                 {/* Desktop Sidebar for Suggestions */}
                 <aside className="hidden md:flex w-64 flex-col border-r border-white/55 bg-white/45 backdrop-blur-xl p-4 space-y-6 overflow-y-auto relative shadow-xl shadow-indigo-200/20">
                   <div className="space-y-3">
-                    <h4 className="text-[12px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">상담 모드</h4>
+                    <h4 className="text-[13px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">상담 모드</h4>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => switchConsultationMode('basic')}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all ${
                           consultationMode === 'basic'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-white/60 border border-white/60 text-zinc-500'
@@ -3497,7 +3600,7 @@ const App: React.FC = () => {
                       </button>
                       <button
                         onClick={() => switchConsultationMode('advanced')}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all ${
                           consultationMode === 'advanced'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-white/60 border border-white/60 text-zinc-500'
@@ -3510,7 +3613,7 @@ const App: React.FC = () => {
 
                   {/* Consultation Tips */}
                   <div className="space-y-3 pt-4 border-t border-white/55">
-                    <h4 className="text-[12px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">사주상담시 유용한 팁</h4>
+                    <h4 className="text-[13px] font-bold uppercase tracking-[0.2em] opacity-40 px-2">사주상담시 유용한 팁</h4>
                     <ul className="space-y-2 px-2">
                       <li className="text-[13px] text-zinc-500 leading-relaxed flex gap-2">
                         <span className="text-indigo-500 shrink-0">•</span>
@@ -3539,13 +3642,13 @@ const App: React.FC = () => {
                   <div className="mt-auto space-y-3">
                     <button
                       onClick={() => { setOrderProductType('premium'); setActiveTab("order"); }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20 hover:opacity-90 transition-all"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl text-[11px] font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20 hover:opacity-90 transition-all"
                     >
                       <Ticket className="w-4 h-4" />
                       프리미엄 리포트 주문하기
                     </button>
                     <div className="border-t border-white/55 pt-3">
-                      <p className="text-[12px] text-zinc-500 text-center leading-relaxed">
+                      <p className="text-[13px] text-zinc-500 text-center leading-relaxed">
                         상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다. 마음 편하게 상담해 주세요.
                       </p>
                     </div>
@@ -3558,13 +3661,13 @@ const App: React.FC = () => {
                     <div className="md:hidden grid grid-cols-2 gap-1 pb-1">
                       <button
                         onClick={() => switchConsultationMode('basic')}
-                        className={`px-2 py-1 min-h-[44px] rounded-lg text-[12px] font-bold border ${consultationMode === 'basic' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white/75 border-white/65 text-gray-500 backdrop-blur'}`}
+                        className={`px-2 py-1 min-h-[44px] rounded-lg text-[13px] font-bold border ${consultationMode === 'basic' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white/75 border-white/65 text-gray-500 backdrop-blur'}`}
                       >
                         초급자
                       </button>
                       <button
                         onClick={() => switchConsultationMode('advanced')}
-                        className={`px-2 py-1 min-h-[44px] rounded-lg text-[12px] font-bold border ${consultationMode === 'advanced' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white/75 border-white/65 text-gray-500 backdrop-blur'}`}
+                        className={`px-2 py-1 min-h-[44px] rounded-lg text-[13px] font-bold border ${consultationMode === 'advanced' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white/75 border-white/65 text-gray-500 backdrop-blur'}`}
                       >
                         고급자
                       </button>
@@ -3599,7 +3702,7 @@ const App: React.FC = () => {
                           <div className="w-full max-w-[96%] md:max-w-[92%]">
                             <button
                               onClick={() => setShowInlineSuggestions((prev) => !prev)}
-                              className="w-full mt-1 px-3 py-2 rounded-xl border border-indigo-200/60 bg-white/50 text-zinc-600 hover:text-indigo-600 text-[12px] font-semibold"
+                              className="w-full mt-1 px-3 py-2 rounded-xl border border-indigo-200/60 bg-white/50 text-zinc-600 hover:text-indigo-600 text-[13px] font-semibold"
                             >
                               {showInlineSuggestions ? '추천 질문 접기' : suggestionsLoading ? '추천 질문 생성 중...' : '추천 질문 보기'}
                             </button>
@@ -3682,7 +3785,7 @@ const App: React.FC = () => {
                                       </button>
                                     ))}
                                     {!suggestionsLoading && suggestions.length === 0 && (
-                                      <div className="px-3 py-1.5 text-[12px] text-zinc-500">추천 질문을 준비 중입니다. 잠시만 기다려 주세요.</div>
+                                      <div className="px-3 py-1.5 text-[13px] text-zinc-500">추천 질문을 준비 중입니다. 잠시만 기다려 주세요.</div>
                                     )}
                                   </div>
                                 </div>
@@ -3716,7 +3819,7 @@ const App: React.FC = () => {
                               handleSuggestionClick(query);
                             }}
                             disabled={loading}
-                            className={`px-3 py-1.5 min-h-[40px] rounded-full text-[12px] font-semibold border transition-all disabled:opacity-50 bg-white/75 backdrop-blur border-indigo-200/60 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600`}
+                            className={`px-3 py-1.5 min-h-[40px] rounded-full text-[13px] font-semibold border transition-all disabled:opacity-50 bg-white/75 backdrop-blur border-indigo-200/60 text-zinc-700 hover:border-indigo-300 hover:text-indigo-600`}
                           >
                             {shortcut}{selectedTopics.length > 0 ? ` + ${selectedTopics.join('·')}` : ''}
                           </button>
@@ -3737,7 +3840,7 @@ const App: React.FC = () => {
                                 );
                               }}
                               disabled={loading}
-                              className={`px-3 py-1.5 min-h-[40px] rounded-full text-[12px] font-semibold border transition-all disabled:opacity-50 ${
+                              className={`px-3 py-1.5 min-h-[40px] rounded-full text-[13px] font-semibold border transition-all disabled:opacity-50 ${
                                 isActive
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-300/30'
                                   : 'bg-white/75 backdrop-blur border-indigo-200/60 text-zinc-600 hover:border-indigo-300 hover:text-indigo-600'
@@ -3774,7 +3877,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     {voiceStatusMessage && (
-                      <p className={`max-w-4xl mx-auto mt-1 text-[12px] text-rose-600`}>
+                      <p className={`max-w-4xl mx-auto mt-1 text-[13px] text-rose-600`}>
                         {voiceStatusMessage}
                       </p>
                     )}
@@ -3796,7 +3899,7 @@ const App: React.FC = () => {
           )}
 
           {activeTab === "report" && (
-            <Suspense fallback={<div className="p-8 text-center text-sm text-zinc-500">리포트 탭을 불러오는 중...</div>}>
+            <Suspense fallback={<div className="p-8 text-center text-[13px] text-zinc-500">리포트 탭을 불러오는 중...</div>}>
               <LazyReportTabContent
                 tabTransition={TAB_TRANSITION}
                 glassTabBgClass={GLASS_TAB_BG_CLASS}
@@ -3819,7 +3922,7 @@ const App: React.FC = () => {
           )}
 
           {activeTab === "guide" && (
-            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">가이드 화면 불러오는 중...</div>}>
+            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center text-[13px] text-zinc-500">가이드 화면 불러오는 중...</div>}>
               <LazyGuideTabContent
                 tabTransition={TAB_TRANSITION}
                 glassTabBgClass={GLASS_TAB_BG_CLASS}
@@ -3836,7 +3939,7 @@ const App: React.FC = () => {
           )}
 
           {activeTab === "blog" && (
-            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">블로그 화면 불러오는 중...</div>}>
+            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center text-[13px] text-zinc-500">블로그 화면 불러오는 중...</div>}>
               <LazyBlogTab
                 tabTransition={TAB_TRANSITION}
                 glassTabBgClass={GLASS_TAB_BG_CLASS}
@@ -3861,7 +3964,7 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col overflow-hidden bg-white dark:bg-black"
             >
-              <Suspense fallback={<div className="h-full flex items-center justify-center text-sm text-zinc-500">프리미엄 패널 불러오는 중...</div>}>
+              <Suspense fallback={<div className="h-full flex items-center justify-center text-[13px] text-zinc-500">프리미엄 패널 불러오는 중...</div>}>
                 <LazyPremiumOrdersPanel isDarkMode={isDarkMode} />
               </Suspense>
             </motion.div>
@@ -3875,7 +3978,7 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
               className="absolute inset-0 overflow-y-auto bg-gradient-to-b from-slate-50 to-indigo-50/30"
             >
-              <Suspense fallback={<div className="h-full flex items-center justify-center text-sm text-zinc-500">주문 폼 불러오는 중...</div>}>
+              <Suspense fallback={<div className="h-full flex items-center justify-center text-[13px] text-zinc-500">주문 폼 불러오는 중...</div>}>
                 <LazyPremiumOrderForm
                   productType={orderProductType}
                   initialUserData={userData.name ? userData : undefined}

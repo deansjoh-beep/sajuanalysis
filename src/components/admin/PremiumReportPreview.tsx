@@ -69,8 +69,8 @@ const DashboardCard: React.FC<{ inputData: ReportInputData; daeun: any[]; yongsh
         {cards.map((c, i) => (
           <div key={i} className={`rounded-xl ${c.color} p-3 text-white`}>
             <p className="text-[13px] text-white/65 font-serif uppercase tracking-wide mb-1">{c.label}</p>
-            <p className="text-[20px] font-bold leading-snug font-serif">{c.value}</p>
-            <p className="text-[14px] text-white/80 mt-0.5">{c.sub}</p>
+            <p className="text-[16px] font-bold leading-snug font-serif">{c.value}</p>
+            <p className="text-[13px] text-white/80 mt-0.5">{c.sub}</p>
           </div>
         ))}
       </div>
@@ -106,7 +106,7 @@ const HapchungSection: React.FC<{ section: ReportSection; saju: any[] }> = ({ se
     <div>
       <SummaryBox text={section.summary} />
       <div className="my-5 p-4 rounded-2xl bg-amber-50/40 border border-amber-200/50">
-        <p className="text-[14px] font-bold text-amber-700 uppercase tracking-wide mb-4 font-serif">합충형파해 관계도</p>
+        <p className="text-[13px] font-bold text-amber-700 uppercase tracking-wide mb-4 font-serif">합충형파해 관계도</p>
         {/* 주석 : 년월일시 4열 */}
         <div className="relative">
           <div className="grid grid-cols-4 gap-2 mb-2">
@@ -133,7 +133,7 @@ const HapchungSection: React.FC<{ section: ReportSection; saju: any[] }> = ({ se
             })}
           </svg>
         </div>
-        {rels.length === 0 && <p className="text-xs text-zinc-400 text-center py-2">주요 합충 관계 검출되지 않음</p>}
+        {rels.length === 0 && <p className="text-[11px] text-zinc-400 text-center py-2">주요 합충 관계 검출되지 않음</p>}
         <div className="flex gap-4 mt-3 justify-end">
           <span className="flex items-center gap-1 text-[13px] text-emerald-700"><span className="inline-block w-7 h-0.5 bg-emerald-500" /> 합(合)</span>
           <span className="flex items-center gap-1 text-[13px] text-red-600"><span className="inline-block w-7 h-0.5 border-dashed border-t-2 border-red-500" /> 충(沖)</span>
@@ -173,7 +173,7 @@ const FieldsSection: React.FC<{ section: ReportSection }> = ({ section }) => {
               <div key={f.tag} className={`rounded-2xl border ${f.color} p-4`}>
                 <div className="flex items-center gap-2 mb-2">
                   <f.Icon className={`w-4 h-4 ${f.iconColor}`} />
-                  <p className={`text-xs font-bold ${f.iconColor} font-serif`}>{f.label}</p>
+                  <p className={`text-[11px] font-bold ${f.iconColor} font-serif`}>{f.label}</p>
                 </div>
                 <RenderLines text={txt} />
               </div>
@@ -200,7 +200,7 @@ const HanjaBoxReport: React.FC<{ hanja: string; size?: 'sm' | 'md' | 'lg'; deity
 }) => {
   const element = elementMap[hanja];
   const isYang = yinYangMap[hanja] === '+';
-  const sizeClass = size === 'sm' ? 'w-9 h-9 text-base rounded-md' : size === 'lg' ? 'w-14 h-14 text-3xl rounded-xl' : 'w-11 h-11 text-xl rounded-lg';
+  const sizeClass = size === 'sm' ? 'w-9 h-9 text-base rounded-md' : size === 'lg' ? 'w-14 h-14 text-[16px] rounded-xl' : 'w-11 h-11 text-[16px] rounded-lg';
   const styles = element ? ELEMENT_STYLES[element] : null;
   const boxClass = styles ? (isYang ? styles.yang : styles.yin) : 'border-2 border-zinc-300 text-zinc-500 bg-transparent';
 
@@ -230,8 +230,8 @@ const SummaryBox: React.FC<{ text: string }> = ({ text }) => {
   return (
     <div className="my-5 pl-5 pr-6 py-4 bg-gradient-to-r from-amber-100 via-amber-50 to-amber-100/70 border-l-[6px] border-amber-600 rounded-r-2xl shadow-md shadow-amber-200/40">
       <div className="flex items-start gap-2.5">
-        <span className="text-[15px] font-extrabold text-amber-800 font-serif flex-shrink-0 mt-0.5 px-2 py-0.5 rounded-md bg-amber-600 text-white">핵심</span>
-        <p className="text-[17px] font-bold font-serif text-amber-950 leading-[1.9] tracking-wide">{cleaned}</p>
+        <span className="text-[16px] font-extrabold text-amber-800 font-serif flex-shrink-0 mt-0.5 px-2 py-0.5 rounded-md bg-amber-600 text-white">핵심</span>
+        <p className="text-[16px] font-bold font-serif text-amber-950 leading-[1.9] tracking-wide">{cleaned}</p>
       </div>
     </div>
   );
@@ -241,10 +241,10 @@ const SectionTitle: React.FC<{ children: React.ReactNode; number?: string }> = (
   <div className="flex items-center gap-3 mb-4">
     {number && (
       <div className="w-8 h-8 rounded-full bg-[#2d1a00] flex items-center justify-center flex-shrink-0">
-        <span className="text-[#d4a832] text-xs font-bold font-serif">{number}</span>
+        <span className="text-[#d4a832] text-[11px] font-bold font-serif">{number}</span>
       </div>
     )}
-    <h2 className="text-2xl font-brush font-black text-[#2d1a00] leading-tight tracking-wide">{children}</h2>
+    <h2 className="text-[16px] font-brush font-black text-[#2d1a00] leading-tight tracking-wide">{children}</h2>
     <div className="flex-1 h-px bg-amber-300/60" />
   </div>
 );
@@ -296,8 +296,8 @@ const RenderLines: React.FC<{ text: string; className?: string }> = ({ text, cla
             key={i}
             className="rounded-xl border-l-4 border-amber-600 bg-amber-50/90 px-4 py-3 shadow-sm"
           >
-            <p className="text-[15px] font-report text-amber-950 leading-[1.9] tracking-wide">
-              <span className="inline-block mr-2 px-2 py-0.5 rounded-md bg-amber-600 text-white text-[12px] font-extrabold font-serif align-middle">
+            <p className="text-[16px] font-report text-amber-950 leading-[1.9] tracking-wide">
+              <span className="inline-block mr-2 px-2 py-0.5 rounded-md bg-amber-600 text-white text-[13px] font-extrabold font-serif align-middle">
                 {leadMatch![1]}
               </span>
               {parts.map((p, pi) =>
@@ -311,7 +311,7 @@ const RenderLines: React.FC<{ text: string; className?: string }> = ({ text, cla
       }
 
       return (
-        <p key={i} className="text-[15px] font-report text-zinc-800 leading-[2] tracking-wide">
+        <p key={i} className="text-[16px] font-report text-zinc-800 leading-[2] tracking-wide">
           {parts.map((p, pi) =>
             pi % 2 === 1
               ? <strong key={pi} className="font-black text-amber-900 bg-amber-100/80 px-1.5 py-0.5 rounded-md shadow-[inset_0_-2px_0_rgba(180,83,9,0.25)]">{p}</strong>
@@ -359,10 +359,10 @@ const ContentText: React.FC<{ text: string }> = ({ text }) => {
           <ol className="space-y-3">
             {actionItems.map((item, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-amber-700 text-white text-[10px] font-bold flex items-center justify-center font-serif">
+                <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-amber-700 text-white text-[11px] font-bold flex items-center justify-center font-serif">
                   {i + 1}
                 </span>
-                <p className="text-[14px] font-report text-zinc-800 leading-[1.9] tracking-wide">{item}</p>
+                <p className="text-[13px] font-report text-zinc-800 leading-[1.9] tracking-wide">{item}</p>
               </li>
             ))}
           </ol>
@@ -370,7 +370,7 @@ const ContentText: React.FC<{ text: string }> = ({ text }) => {
       )}
       {easyText && (
         <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
-          <p className="text-[12px] font-bold text-sky-700 mb-3 uppercase tracking-wider">💡 쉬운 설명 (초급)</p>
+          <p className="text-[13px] font-bold text-sky-700 mb-3 uppercase tracking-wider">💡 쉬운 설명 (초급)</p>
           <RenderLines text={easyText} className="[&_p]:text-sky-900" />
         </div>
       )}
@@ -406,8 +406,8 @@ const DaeunSection: React.FC<{
                     isPast ? 'bg-amber-100/85 text-amber-800 border border-amber-300/70' :
                     'bg-amber-50/90 text-amber-900 border border-amber-300/60'
                   }`}>
-                    <p className="text-[14px] font-extrabold font-serif leading-none tracking-tight">{hanjaToHangul[d.stem] ?? d.stem ?? ''}{hanjaToHangul[d.branch] ?? d.branch ?? ''}</p>
-                    <p className="text-[12px] mt-0.5 font-semibold opacity-95">{d.startAge}세</p>
+                    <p className="text-[13px] font-extrabold font-serif leading-none tracking-tight">{hanjaToHangul[d.stem] ?? d.stem ?? ''}{hanjaToHangul[d.branch] ?? d.branch ?? ''}</p>
+                    <p className="text-[13px] mt-0.5 font-semibold opacity-95">{d.startAge}세</p>
                   </div>
                 </div>
               );
@@ -441,13 +441,13 @@ const DaeunSection: React.FC<{
                   }`}>
                     {block.label}
                   </span>
-                  {isCurrent && <span className="text-[12px] font-bold text-amber-600">★ 현재 대운</span>}
-                  {isPast && <span className="text-[12px] text-zinc-500">과거</span>}
+                  {isCurrent && <span className="text-[13px] font-bold text-amber-600">★ 현재 대운</span>}
+                  {isPast && <span className="text-[13px] text-zinc-500">과거</span>}
                 </div>
                 {block.lifeEvents.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-1.5">
                     {block.lifeEvents.map((ev, ei) => (
-                      <span key={ei} className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      <span key={ei} className="inline-flex items-center gap-1 text-[13px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                         <Star className="w-2.5 h-2.5" /> {ev.year}년 | {ev.description}
                       </span>
                     ))}
@@ -484,7 +484,7 @@ const FourPillarsSection: React.FC<{ section: ReportSection; saju: any[] }> = ({
           if (!p) return null;
           return (
             <div key={i} className="flex flex-col items-center gap-3 p-3 rounded-2xl border border-amber-200/60 bg-[#fffdf5]/70">
-              <span className="text-[14px] font-bold text-amber-700 font-serif">{labels[i]}</span>
+              <span className="text-[13px] font-bold text-amber-700 font-serif">{labels[i]}</span>
               <span className="text-[13px] text-zinc-600 font-serif">{pillars[i]}</span>
               <div className="flex flex-col gap-4 py-1">
                 <HanjaBoxReport hanja={p.stem?.hanja ?? '?'} deity={p.stem?.deity} deityPosition="top" size="md" />
@@ -492,7 +492,7 @@ const FourPillarsSection: React.FC<{ section: ReportSection; saju: any[] }> = ({
               </div>
               <div className="text-center">
                 <p className="text-[13px] text-zinc-600 font-serif">{p.stem?.hangul}{p.branch?.hangul}</p>
-                <p className="text-[12px] text-zinc-500 font-serif">{p.stem?.hanja}{p.branch?.hanja}</p>
+                <p className="text-[13px] text-zinc-500 font-serif">{p.stem?.hanja}{p.branch?.hanja}</p>
               </div>
             </div>
           );
@@ -512,11 +512,11 @@ const FourPillarsSection: React.FC<{ section: ReportSection; saju: any[] }> = ({
                 {elData.map((d, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
-                    <span className="text-[15px] text-zinc-700 w-20 font-serif">{d.name}</span>
+                    <span className="text-[16px] text-zinc-700 w-20 font-serif">{d.name}</span>
                     <div className="flex-1 h-2 rounded-full bg-amber-100/60">
                       <div className="h-full rounded-full" style={{ width: `${(d.value / total) * 100}%`, background: d.color }} />
                     </div>
-                    <span className="text-[15px] text-zinc-600 w-5 text-right font-serif">{d.value}</span>
+                    <span className="text-[16px] text-zinc-600 w-5 text-right font-serif">{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -570,12 +570,12 @@ const MonthlySection: React.FC<{ section: ReportSection }> = ({ section }) => {
               }`}
             >
               <div className="flex items-center gap-2 mb-3">
-                <span className={`text-[14px] font-extrabold font-serif px-3 py-1 rounded-full ${
+                <span className={`text-[13px] font-extrabold font-serif px-3 py-1 rounded-full ${
                   isCurrent ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800 border border-amber-300'
                 }`}>
                   {b.label}
                 </span>
-                {isCurrent && <span className="text-[12px] font-bold text-amber-700">★ 이번 달</span>}
+                {isCurrent && <span className="text-[13px] font-bold text-amber-700">★ 이번 달</span>}
               </div>
               <RenderLines text={b.content} />
             </div>
@@ -693,7 +693,7 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
       <div className="text-center flex flex-col items-center gap-4">
         <div className="flex items-center gap-4" style={{ color: palette.border }}>
           <span className="block h-px w-16" style={{ background: 'currentColor' }} />
-          <span className="text-[10px] font-serif tracking-[0.4em] uppercase" style={{ color: palette.chip }}>
+          <span className="text-[11px] font-serif tracking-[0.4em] uppercase" style={{ color: palette.chip }}>
             FOR
           </span>
           <span className="block h-px w-16" style={{ background: 'currentColor' }} />
@@ -701,7 +701,7 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
         <p className="text-[84px] font-handwriting leading-none tracking-[0.18em]" style={{ color: palette.title }}>
           {inputData.name}
         </p>
-        <p className="text-[14px] font-serif tracking-wide" style={{ color: palette.body }}>
+        <p className="text-[13px] font-serif tracking-wide" style={{ color: palette.body }}>
           {inputData.birthDate.replace(/-/g, '年').replace(/(\d{2})$/, '$1日').replace(/(\d{4}년)(\d{2}년)/, '$1$2月')}
           {inputData.unknownTime ? '' : ` ${inputData.birthTime} 生`}
         </p>
@@ -950,7 +950,7 @@ ${printRef.current.outerHTML}
       >
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-200 hover:text-white border border-amber-800/60 hover:border-amber-500 transition-all flex-shrink-0 mr-1"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold text-amber-200 hover:text-white border border-amber-800/60 hover:border-amber-500 transition-all flex-shrink-0 mr-1"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> 수정
         </button>
@@ -980,7 +980,7 @@ ${printRef.current.outerHTML}
         <button
           onClick={() => { void handlePdf(); }}
           disabled={pdfLoading || storageUploading || saveLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-500 transition-all flex-shrink-0 shadow-lg disabled:opacity-60"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-600 text-white hover:bg-amber-500 transition-all flex-shrink-0 shadow-lg disabled:opacity-60"
         >
           {pdfLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           {storageUploading ? '업로드 중...' : 'PDF'}
@@ -990,7 +990,7 @@ ${printRef.current.outerHTML}
           <button
             onClick={() => { void handleSaveReport(); }}
             disabled={saveLoading || pdfLoading || storageUploading || !pdfUrl}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-all flex-shrink-0 shadow-lg disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-all flex-shrink-0 shadow-lg disabled:opacity-50"
           >
             {saveLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckSquare className="w-3.5 h-3.5" />}
             검수 완료 저장
@@ -1058,11 +1058,11 @@ ${printRef.current.outerHTML}
 
             {/* 하단 저작권 */}
             <div data-pdf-block="footer" className="text-center py-6 border-t border-amber-300/40 space-y-1">
-              <p className="text-xs font-serif text-amber-800/50">
+              <p className="text-[11px] font-serif text-amber-800/50">
                 {isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
               </p>
-              <p className="text-[10px] text-amber-700/40">본 분석서는 AI 기반 사주명리 시스템으로 제작되었습니다. 참고용으로만 활용하세요.</p>
-              <p className="text-[10px] text-amber-700/30">© {new Date().getFullYear()} UI Saju · {user.email}</p>
+              <p className="text-[11px] text-amber-700/40">본 분석서는 AI 기반 사주명리 시스템으로 제작되었습니다. 참고용으로만 활용하세요.</p>
+              <p className="text-[11px] text-amber-700/30">© {new Date().getFullYear()} UI Saju · {user.email}</p>
             </div>
           </div>
         </div>
@@ -1072,8 +1072,8 @@ ${printRef.current.outerHTML}
           <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
             <FileText className="w-5 h-5 text-emerald-600 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-emerald-800">PDF 저장 완료</p>
-              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-600 underline break-all">{pdfUrl}</a>
+              <p className="text-[13px] font-bold text-emerald-800">PDF 저장 완료</p>
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-600 underline break-all">{pdfUrl}</a>
             </div>
           </div>
         )}

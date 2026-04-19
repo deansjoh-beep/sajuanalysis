@@ -43,9 +43,9 @@ export const PremiumReportMakerPage: React.FC<PremiumReportMakerPageProps> = ({
             <BookOpen className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">인생 네비게이션</h1>
-            <p className="text-sm text-zinc-500 mt-1">프리미엄 리포트 제작 시스템</p>
-            <p className="text-sm text-zinc-400 mt-3">관리자 계정으로 로그인하세요.</p>
+            <h1 className="text-[16px] font-bold text-zinc-900">인생 네비게이션</h1>
+            <p className="text-[13px] text-zinc-500 mt-1">프리미엄 리포트 제작 시스템</p>
+            <p className="text-[13px] text-zinc-400 mt-3">관리자 계정으로 로그인하세요.</p>
           </div>
           <button
             onClick={onLogin}
@@ -55,7 +55,7 @@ export const PremiumReportMakerPage: React.FC<PremiumReportMakerPageProps> = ({
             {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
             {isLoggingIn ? '로그인 중...' : 'Google로 관리자 로그인'}
           </button>
-          <p className="text-xs text-zinc-400">승인된 관리자 계정만 접근할 수 있습니다.</p>
+          <p className="text-[11px] text-zinc-400">승인된 관리자 계정만 접근할 수 있습니다.</p>
         </div>
       </div>
     );
@@ -69,8 +69,8 @@ export const PremiumReportMakerPage: React.FC<PremiumReportMakerPageProps> = ({
             <AlertCircle className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-rose-800">접근 권한이 없습니다</h1>
-            <p className="text-sm text-rose-600 mt-2">
+            <h1 className="text-[16px] font-bold text-rose-800">접근 권한이 없습니다</h1>
+            <p className="text-[13px] text-rose-600 mt-2">
               현재 계정 <span className="font-bold">{user.email}</span>은 관리자 권한이 없습니다.
             </p>
           </div>

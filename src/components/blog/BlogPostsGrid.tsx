@@ -19,8 +19,8 @@ export const BlogPostsGrid: React.FC<BlogPostsGridProps> = ({ posts, isAdmin, se
     return (
       <div className="text-center py-40 opacity-20">
         <Newspaper className="w-20 h-20 mx-auto mb-6 text-indigo-500" />
-        <p className="text-xl font-bold">조건에 맞는 글이 없습니다.</p>
-        <p className="text-sm mt-2">검색어, 정렬, 필터를 다시 확인해 보세요.</p>
+        <p className="text-[16px] font-bold">조건에 맞는 글이 없습니다.</p>
+        <p className="text-[13px] mt-2">검색어, 정렬, 필터를 다시 확인해 보세요.</p>
       </div>
     );
   }
@@ -38,7 +38,7 @@ export const BlogPostsGrid: React.FC<BlogPostsGridProps> = ({ posts, isAdmin, se
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
             <div className="absolute top-4 left-4">
-              <span className="px-3 py-1 rounded-full bg-indigo-600/90 text-white text-[9px] font-bold uppercase tracking-wider backdrop-blur-md shadow-lg">{post.category}</span>
+              <span className="px-3 py-1 rounded-full bg-indigo-600/90 text-white text-[11px] font-bold uppercase tracking-wider backdrop-blur-md shadow-lg">{post.category}</span>
             </div>
 
             {isAdmin && (
@@ -48,7 +48,7 @@ export const BlogPostsGrid: React.FC<BlogPostsGridProps> = ({ posts, isAdmin, se
                   e.stopPropagation();
                   onToggleSelect(post.id);
                 }}
-                className={`absolute bottom-4 left-4 w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-black transition-all ${
+                className={`absolute bottom-4 left-4 w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black transition-all ${
                   selectedPostIds.has(post.id)
                     ? 'bg-indigo-600 border-indigo-600 text-white'
                     : 'bg-white/95 border-white text-zinc-500 hover:border-indigo-300'
@@ -84,15 +84,15 @@ export const BlogPostsGrid: React.FC<BlogPostsGridProps> = ({ posts, isAdmin, se
           </div>
 
           <div className="p-8 space-y-4 flex-1 flex flex-col">
-            <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium">
+            <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-medium">
               <Calendar className="w-3 h-3" />
               <span>{post.date}</span>
             </div>
-            <h3 className="font-bold text-xl leading-tight line-clamp-2 text-zinc-900 group-hover:text-indigo-600 transition-colors cursor-pointer" onClick={() => onPostClick(post)}>
+            <h3 className="font-bold text-[16px] leading-tight line-clamp-2 text-zinc-900 group-hover:text-indigo-600 transition-colors cursor-pointer" onClick={() => onPostClick(post)}>
               {post.title}
             </h3>
-            <p className="text-sm text-zinc-600 line-clamp-3 leading-relaxed flex-1">{stripRichText(post.content).slice(0, 120)}...</p>
-            <button onClick={() => onPostClick(post)} className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-2 pt-4 group/btn">
+            <p className="text-[13px] text-zinc-600 line-clamp-3 leading-relaxed flex-1">{stripRichText(post.content).slice(0, 120)}...</p>
+            <button onClick={() => onPostClick(post)} className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-2 pt-4 group/btn">
               자세히 읽기
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
             </button>

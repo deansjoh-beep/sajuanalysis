@@ -111,10 +111,10 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-1">
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-40">관리자 운영 패널</p>
-              <h3 className="text-2xl font-bold">블로그 운영 도구</h3>
-              <p className="text-sm text-zinc-500">검색, 정렬, 임시저장 필터로 글을 빠르게 관리할 수 있습니다.</p>
+              <h3 className="text-[16px] font-bold">블로그 운영 도구</h3>
+              <p className="text-[13px] text-zinc-500">검색, 정렬, 임시저장 필터로 글을 빠르게 관리할 수 있습니다.</p>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs font-bold">
+            <div className="flex flex-wrap gap-2 text-[11px] font-bold">
               <span className="px-3 py-2 rounded-xl bg-indigo-500/10 text-indigo-700">표시 {visiblePostCount}개</span>
               <span className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700">전체 {totalPostCount}개</span>
               <span className="px-3 py-2 rounded-xl bg-amber-100 text-amber-700">수정 임시저장 {draftPostCount}개</span>
@@ -128,12 +128,12 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="제목, 요약, 카테고리로 검색"
-                className="w-full bg-transparent outline-none text-sm"
+                className="w-full bg-transparent outline-none text-[13px]"
               />
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-4 shadow-sm">
               <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
-              <select value={sortOption} onChange={(e) => onSortChange(e.target.value)} className="w-full bg-transparent outline-none text-sm">
+              <select value={sortOption} onChange={(e) => onSortChange(e.target.value)} className="w-full bg-transparent outline-none text-[13px]">
                 <option value="latest">최신순</option>
                 <option value="oldest">오래된순</option>
                 <option value="popular">조회수순</option>
@@ -142,7 +142,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-4 shadow-sm">
               <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
-              <select value={draftFilter} onChange={(e) => onDraftFilterChange(e.target.value)} className="w-full bg-transparent outline-none text-sm">
+              <select value={draftFilter} onChange={(e) => onDraftFilterChange(e.target.value)} className="w-full bg-transparent outline-none text-[13px]">
                 <option value="all">전체 글</option>
                 <option value="draft-only">임시저장 있는 글만</option>
                 <option value="without-draft">임시저장 없는 글만</option>
@@ -151,7 +151,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
           </div>
 
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
               <span className="px-3 py-1.5 rounded-xl bg-white text-indigo-700 border border-indigo-100">선택 {selectedCount}개</span>
               <button
                 type="button"
@@ -175,7 +175,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
                 <select
                   value={bulkCategory}
                   onChange={(e) => onBulkCategoryChange(e.target.value)}
-                  className="min-w-[180px] px-3 py-2 rounded-xl bg-white border border-zinc-200 text-sm"
+                  className="min-w-[180px] px-3 py-2 rounded-xl bg-white border border-zinc-200 text-[13px]"
                 >
                   <option value="사주기초">사주기초</option>
                   <option value="사주이야기">사주이야기</option>
@@ -185,7 +185,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
                   type="button"
                   onClick={onBulkCategoryApply}
                   disabled={selectedCount === 0}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   카테고리 일괄 변경
                 </button>
@@ -194,7 +194,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
                 type="button"
                 onClick={onBulkDeleteSelected}
                 disabled={selectedCount === 0}
-                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-[13px] font-bold hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 선택 글 삭제
               </button>
@@ -204,10 +204,10 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
           {hasNewPostStoredDraft && !isAddingPost && (
             <div className="flex items-center justify-between gap-4 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-4">
               <div>
-                <p className="text-sm font-bold text-amber-900">임시저장된 새 글이 있습니다.</p>
-                <p className="text-xs text-amber-700">버튼을 누르면 작성 화면을 다시 열고 이어서 쓸 수 있습니다.</p>
+                <p className="text-[13px] font-bold text-amber-900">임시저장된 새 글이 있습니다.</p>
+                <p className="text-[11px] text-amber-700">버튼을 누르면 작성 화면을 다시 열고 이어서 쓸 수 있습니다.</p>
               </div>
-              <button onClick={onOpenAddPost} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors">
+              <button onClick={onOpenAddPost} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-[13px] font-bold hover:bg-amber-600 transition-colors">
                 이어서 작성
               </button>
             </div>
@@ -267,9 +267,9 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
             <div className="p-6 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/20 space-y-4">
               <div className="flex items-center gap-2 text-indigo-600">
                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                <span className="text-xs font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">{isAdmin ? '관리자 모드' : '일반 사용자'}</span>
               </div>
-              <div className="space-y-2 text-xs text-zinc-700 bg-white/80 border border-white rounded-xl p-3">
+              <div className="space-y-2 text-[11px] text-zinc-700 bg-white/80 border border-white rounded-xl p-3">
                 <p><span className="font-bold">현재 로그인:</span> {user.email || '이메일 없음'}</p>
                 {!isAdmin && (
                   <>
@@ -279,7 +279,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
                   </>
                 )}
               </div>
-              <button onClick={onLogout} className="w-full py-3 rounded-xl bg-white text-xs font-bold hover:bg-zinc-50 transition-colors border border-black/5 shadow-sm">
+              <button onClick={onLogout} className="w-full py-3 rounded-xl bg-white text-[11px] font-bold hover:bg-zinc-50 transition-colors border border-black/5 shadow-sm">
                 로그아웃
               </button>
             </div>
@@ -289,7 +289,7 @@ export const BlogAdminPanel: React.FC<BlogAdminPanelProps> = ({
               <button
                 onClick={onLogin}
                 disabled={isLoggingIn}
-                className="w-full py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-xl bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoggingIn ? '로그인 중...' : '관리자 로그인'}
               </button>

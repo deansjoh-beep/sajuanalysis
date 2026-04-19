@@ -37,7 +37,7 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
         {guideSubPage !== 'main' && (
           <button
             onClick={() => setGuideSubPage('main')}
-            className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-8 hover:underline transition-all group"
+            className="flex items-center gap-2 text-indigo-600 font-bold text-[13px] mb-8 hover:underline transition-all group"
           >
             <div className="p-2 rounded-full bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
               <ArrowLeft className="w-4 h-4" />
@@ -58,12 +58,12 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                 </div>
                 <div className="relative z-10 space-y-4">
                   <h2 className="text-white text-3xl font-serif font-bold leading-tight">CEO 인사말</h2>
-                  <p className="text-indigo-100 text-xs font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
+                  <p className="text-indigo-100 text-[11px] font-serif opacity-70">당신의 삶을 비추는 고요한 등불</p>
                 </div>
               </div>
               <div className="flex-1 p-10 md:p-14 space-y-8">
-                <div className="space-y-6 text-base md:text-lg leading-relaxed font-serif text-zinc-700">
-                  <p className="font-bold text-zinc-900 text-xl">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
+                <div className="space-y-6 text-base md:text-[16px] leading-relaxed font-serif text-zinc-700">
+                  <p className="font-bold text-zinc-900 text-[16px]">안녕하세요. 삶의 소중한 길목에서 유아이를 찾아주신 귀하께 깊은 감사의 인사를 전합니다.</p>
                   <div className="space-y-4">
                     <p>
                       유아이는 단순히 정해진 운명을 말하는 곳이 아닙니다.
@@ -87,7 +87,7 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                   </div>
                 </div>
                 <div className="pt-8 border-t border-black/5 text-right">
-                  <p className="text-sm font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
+                  <p className="text-[13px] font-serif opacity-60 italic">유아이사주상담 디렉터 배상</p>
                 </div>
               </div>
             </div>
@@ -111,8 +111,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">철저한 프라이버시 보호</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                      <p className="text-[16px] font-bold text-zinc-800">철저한 프라이버시 보호</p>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         사용자의 개인정보와 프라이버시를 철저히 보호합니다. 분석과 상담을 위해 사용자가 제공한 개인정보와 프라이버시는 서버에 저장되지 않습니다.
                       </p>
                     </div>
@@ -123,8 +123,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       <Zap className="w-8 h-8 text-indigo-600" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">정밀한 사주 데이터 학습</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                      <p className="text-[16px] font-bold text-zinc-800">정밀한 사주 데이터 학습</p>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         AI 모델에 만세력에서 추출한 정밀한 사주데이타를 학습시켜 확실한 사주 감명이 되도록 시스템을 만들었습니다.
                       </p>
                     </div>
@@ -138,8 +138,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">맞춤형 인생 가이드 제공</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                      <p className="text-[16px] font-bold text-zinc-800">맞춤형 인생 가이드 제공</p>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         사용자의 고유한 상황을 고려해서 실질적인 인생의 가이드가 되도록 맞춤 상담을 제공합니다.
                       </p>
                     </div>
@@ -157,8 +157,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       <Clock className="w-8 h-8 text-indigo-500" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">생시 미입력 가능</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
+                      <p className="text-[16px] font-bold text-zinc-800">생시 미입력 가능</p>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">모르면 비워두세요. 6개의 글자로도 충분합니다.</p>
                     </div>
                   </div>
 
@@ -167,8 +167,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       <Calendar className="w-8 h-8 text-indigo-500" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-zinc-800">양력/음력 자동 인식</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
+                      <p className="text-[16px] font-bold text-zinc-800">양력/음력 자동 인식</p>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">별도 선택이 없으면 기본 양력으로 분석합니다.</p>
                     </div>
                   </div>
 
@@ -177,8 +177,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       <Zap className="w-8 h-8 text-white fill-white" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-indigo-600">분석 시작</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
+                      <p className="text-[16px] font-bold text-indigo-600">분석 시작</p>
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">버튼을 누르면 당신의 운세 분석이 시작됩니다.</p>
                     </div>
                   </div>
                 </div>
@@ -207,7 +207,7 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                         <FileText className="w-8 h-8 text-indigo-500" />
                       </div>
                     </div>
-                    <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest">분석 프로세스</p>
+                    <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-widest">분석 프로세스</p>
                   </div>
 
                   <div className="hidden md:block w-px h-40 bg-zinc-100"></div>
@@ -220,12 +220,12 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <p className="text-xl font-bold text-zinc-800">
+                      <p className="text-[16px] font-bold text-zinc-800">
                         "운명은 정해진 결말이 아니라,
                         <br />
                         우리가 조종하는 돛의 방향입니다."
                       </p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">
+                      <p className="text-[13px] text-zinc-500 leading-relaxed">
                         만세력 기반의 정밀 분석과 AI의 전략적 해석으로,
                         <br />
                         당신의 삶을 능동적으로 이끌 최고의 대응 전략을 제시합니다.
@@ -239,7 +239,7 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
             <div className="flex justify-center pt-2">
               <button
                 onClick={() => setGuideSubPage('taekil')}
-                className="px-5 py-3 rounded-2xl text-sm font-bold border bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 transition-colors"
+                className="px-5 py-3 rounded-2xl text-[13px] font-bold border bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 transition-colors"
               >
                 택일 서비스 가이드 바로가기
               </button>
@@ -377,8 +377,8 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
             <button onClick={() => setGuideSubPage('contact')} className="hover:text-indigo-500 transition-colors">문의하기 (Contact)</button>
           </div>
           <div className="mt-8 text-center space-y-2">
-            <p className="text-[10px] text-zinc-500 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
-            <p className="text-[9px] text-zinc-500 opacity-40 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-[11px] text-zinc-500 opacity-60">© 2024 UI Saju Consulting. All rights reserved.</p>
+            <p className="text-[11px] text-zinc-500 opacity-40 max-w-2xl mx-auto leading-relaxed">
               유아이 사주상담은 인공지능 기술을 활용한 명리학 가이드 서비스입니다. 모든 분석 결과는 참고용이며, 삶의 최종 결정은 본인의 판단하에 이루어져야 합니다.
             </p>
           </div>
@@ -386,7 +386,7 @@ const GuideTab: React.FC<GuideTabProps> = ({ guideSubPage, setGuideSubPage }) =>
       </div>
 
       <div className="p-10 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10 text-center">
-        <p className="text-sm font-bold text-indigo-400/70 leading-relaxed">유아이(UI)와 함께 당신의 운명을 디자인하세요.</p>
+        <p className="text-[13px] font-bold text-indigo-400/70 leading-relaxed">유아이(UI)와 함께 당신의 운명을 디자인하세요.</p>
       </div>
     </motion.div>
   );

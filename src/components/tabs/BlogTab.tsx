@@ -185,7 +185,7 @@ export const BlogTab: React.FC<BlogTabProps> = ({
                   <Sparkles className="w-full h-full text-white" />
                 </div>
                 <h2 className="text-4xl md:text-7xl font-handwriting text-white">유아이 사주 블로그</h2>
-                <p className="text-sm md:text-lg text-indigo-100/70 max-w-2xl mx-auto">깊이 있는 사주 명리학 이야기와 당신의 삶을 위한 지혜를 만나보세요.</p>
+                <p className="text-[13px] md:text-[16px] text-indigo-100/70 max-w-2xl mx-auto">깊이 있는 사주 명리학 이야기와 당신의 삶을 위한 지혜를 만나보세요.</p>
               </div>
 
               <div className="flex flex-col lg:flex-row gap-12">
@@ -265,7 +265,7 @@ export const BlogTab: React.FC<BlogTabProps> = ({
                       <button
                         type="button"
                         onClick={() => setVisibleCount((prev) => prev + LOAD_MORE_SIZE)}
-                        className="px-6 py-3 min-h-[44px] rounded-2xl bg-white/90 border border-white shadow-lg text-sm font-bold text-indigo-700 hover:bg-white"
+                        className="px-6 py-3 min-h-[44px] rounded-2xl bg-white/90 border border-white shadow-lg text-[13px] font-bold text-indigo-700 hover:bg-white"
                       >
                         더 보기 ({paginatedPosts.length}/{filteredPosts.length})
                       </button>

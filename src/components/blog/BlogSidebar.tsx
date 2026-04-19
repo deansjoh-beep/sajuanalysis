@@ -37,7 +37,7 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
             <button
               key={category}
               onClick={() => onBlogCategoryChange(category)}
-              className={`whitespace-nowrap text-left px-6 py-4 rounded-[1.25rem] text-sm font-bold transition-all duration-300 ${
+              className={`whitespace-nowrap text-left px-6 py-4 rounded-[1.25rem] text-[13px] font-bold transition-all duration-300 ${
                 blogCategory === category
                   ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02]'
                   : 'bg-white/65 backdrop-blur hover:bg-white/85 text-zinc-600 hover:text-indigo-600 border border-white/65'
@@ -54,10 +54,10 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
         <div className="flex flex-col gap-6">
           {popularPosts.map((post) => (
             <button key={post.id} onClick={() => onPostClick(post)} className="group text-left space-y-2.5">
-              <p className="text-sm font-bold leading-snug text-zinc-900 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</p>
+              <p className="text-[13px] font-bold leading-snug text-zinc-900 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</p>
               <div className="flex items-center gap-2 opacity-40">
                 <Calendar className="w-3 h-3" />
-                <span className="text-[10px] uppercase tracking-wider">{post.date}</span>
+                <span className="text-[11px] uppercase tracking-wider">{post.date}</span>
               </div>
             </button>
           ))}

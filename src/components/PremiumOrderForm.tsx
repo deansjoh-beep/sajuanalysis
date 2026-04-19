@@ -32,19 +32,19 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 // ─────────────────────────────── 섹션 타이틀 ───────────────────────────────
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h3 className="text-sm font-bold text-zinc-700 mb-3">{children}</h3>
+  <h3 className="text-[13px] font-bold text-zinc-700 mb-3">{children}</h3>
 );
 
 // ─────────────────────────────── 입력 라벨 ───────────────────────────────
 const Label: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
-  <label className="block text-xs font-bold text-zinc-600 mb-1">
+  <label className="block text-[11px] font-bold text-zinc-600 mb-1">
     {children}{required && <span className="text-rose-500 ml-0.5">*</span>}
   </label>
 );
 
 // ─────────────────────────────── 인풋 클래스 ───────────────────────────────
-const inputCls = 'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition';
-const errorCls = 'text-xs text-rose-500 mt-1';
+const inputCls = 'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition';
+const errorCls = 'text-[11px] text-rose-500 mt-1';
 
 const BIRTH_YEAR_MIN = 1900;
 const BIRTH_TIME_MINUTES = ['00', '10', '20', '30', '40', '50'];
@@ -419,19 +419,19 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         {/* 접수 완료 */}
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center space-y-3">
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
-          <h2 className="text-xl font-bold text-emerald-800">주문이 접수되었습니다</h2>
-          <p className="text-sm text-emerald-700">결제 완료 후 리포트 제작이 시작됩니다.<br />완성되면 입력하신 이메일로 전달됩니다.</p>
+          <h2 className="text-[16px] font-bold text-emerald-800">주문이 접수되었습니다</h2>
+          <p className="text-[13px] text-emerald-700">결제 완료 후 리포트 제작이 시작됩니다.<br />완성되면 입력하신 이메일로 전달됩니다.</p>
         </div>
 
         {/* 주문번호 + 복사 */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-2 text-sm">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-2 text-[13px]">
           <div className="flex items-center justify-between">
             <span className="text-zinc-500">주문번호</span>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-zinc-800">{createdOrderId}</span>
               <button
                 onClick={handleCopyOrderId}
-                className={`px-2 py-0.5 rounded text-xs font-bold border transition ${
+                className={`px-2 py-0.5 rounded text-[11px] font-bold border transition ${
                   orderIdCopied
                     ? 'border-emerald-300 text-emerald-600 bg-emerald-50'
                     : 'border-zinc-300 text-zinc-500 hover:bg-zinc-50'
@@ -444,24 +444,24 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
 
         {/* 결제 안내 */}
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 space-y-4">
-          <p className="font-bold text-blue-800 text-sm">결제 안내</p>
-          <ol className="text-xs text-blue-900 space-y-2 list-none pl-0">
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-[10px] font-bold">1</span><span>아래 버튼을 눌러 <b>네이버 스마트스토어</b>로 이동합니다.</span></li>
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-[10px] font-bold">2</span><span>상품 주문 시 <b>주문자 정보 혹은 배송메모(요청사항)</b>에 위 <b>주문번호</b>를 입력해 주세요.</span></li>
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-[10px] font-bold">3</span><span>결제 확인 후 <b>24시간 이내</b> 리포트 제작이 시작됩니다.</span></li>
+          <p className="font-bold text-blue-800 text-[13px]">결제 안내</p>
+          <ol className="text-[11px] text-blue-900 space-y-2 list-none pl-0">
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-[11px] font-bold">1</span><span>아래 버튼을 눌러 <b>네이버 스마트스토어</b>로 이동합니다.</span></li>
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-[11px] font-bold">2</span><span>상품 주문 시 <b>주문자 정보 혹은 배송메모(요청사항)</b>에 위 <b>주문번호</b>를 입력해 주세요.</span></li>
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-[11px] font-bold">3</span><span>결제 확인 후 <b>24시간 이내</b> 리포트 제작이 시작됩니다.</span></li>
           </ol>
           <button
             onClick={() => window.open(SMARTSTORE_URL, '_blank', 'noopener')}
-            className="w-full py-3 rounded-xl font-bold text-sm text-white transition"
+            className="w-full py-3 rounded-xl font-bold text-[13px] text-white transition"
             style={{ background: '#03C75A' }}
           >
             네이버 스마트스토어에서 결제하기
           </button>
-          <p className="text-[10px] text-blue-600 text-center">결제 페이지가 새 창으로 열립니다</p>
+          <p className="text-[11px] text-blue-600 text-center">결제 페이지가 새 창으로 열립니다</p>
         </div>
 
         {/* 제작 안내 */}
-        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800 space-y-1">
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-[11px] text-amber-800 space-y-1">
           <p className="font-bold">결제 완료 후 24시간 이내 제작이 시작됩니다</p>
           <p>제작이 시작되면 수정 및 취소가 불가합니다. 변경이 필요하시면 빠르게 수정 또는 취소해주세요.</p>
         </div>
@@ -470,7 +470,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         <div className="flex flex-col gap-2">
           <button
             onClick={() => { setFoundOrder(null); setLookupOrderId(createdOrderId); setScreen('lookup'); }}
-            className="w-full py-2.5 rounded-xl border border-indigo-300 text-indigo-700 font-bold text-sm hover:bg-indigo-50 transition"
+            className="w-full py-2.5 rounded-xl border border-indigo-300 text-indigo-700 font-bold text-[13px] hover:bg-indigo-50 transition"
           >주문 수정 / 취소하기</button>
           <button
             onClick={() => {
@@ -485,7 +485,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
               setOrderIdCopied(false);
               setScreen('form');
             }}
-            className="w-full py-2.5 rounded-xl border border-zinc-200 text-zinc-600 font-bold text-sm hover:bg-zinc-50 transition"
+            className="w-full py-2.5 rounded-xl border border-zinc-200 text-zinc-600 font-bold text-[13px] hover:bg-zinc-50 transition"
           >새 주문 작성</button>
         </div>
       </div>
@@ -498,10 +498,10 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       <div className="max-w-lg mx-auto p-4 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <button onClick={() => setScreen('form')} className="text-zinc-400 hover:text-zinc-700 transition"><X className="w-5 h-5" /></button>
-          <h2 className="text-lg font-bold text-zinc-800">주문 조회 / 수정 / 취소</h2>
+          <h2 className="text-[16px] font-bold text-zinc-800">주문 조회 / 수정 / 취소</h2>
         </div>
-        <p className="text-sm text-zinc-500">주문번호와 이메일이 일치하면 주문 내용을 확인하고 수정하거나 취소할 수 있습니다.</p>
-        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+        <p className="text-[13px] text-zinc-500">주문번호와 이메일이 일치하면 주문 내용을 확인하고 수정하거나 취소할 수 있습니다.</p>
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800">
           접수 완료 상태인 경우에만 수정/취소가 가능합니다. 제작이 시작된 주문은 변경이 어렵습니다.
         </div>
         <div className="space-y-3">
@@ -517,7 +517,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
           <button
             onClick={handleLookup}
             disabled={lookupLoading}
-            className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
           >
             {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             {lookupLoading ? '조회 중...' : '주문 확인하기'}
@@ -535,35 +535,35 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       <div className="max-w-lg mx-auto p-4 space-y-4">
         <div className="flex items-center gap-2">
           <button onClick={() => setScreen('lookup')} className="text-zinc-400 hover:text-zinc-700 transition"><X className="w-5 h-5" /></button>
-          <h2 className="text-lg font-bold text-zinc-800">주문 상세</h2>
+          <h2 className="text-[16px] font-bold text-zinc-800">주문 상세</h2>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3 text-sm">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3 text-[13px]">
           <div className="flex items-center justify-between">
             <span className="font-bold text-zinc-800">{foundOrder.name}</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${st.color}`}>{st.label}</span>
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${st.color}`}>{st.label}</span>
           </div>
           {foundOrder.updatedByCustomerAt && (
-            <span className="inline-block px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-bold">고객 수정됨</span>
+            <span className="inline-block px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[11px] font-bold">고객 수정됨</span>
           )}
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div><span className="text-zinc-400">생년월일</span><p className="font-bold text-zinc-700">{foundOrder.birthDate}</p></div>
             <div><span className="text-zinc-400">성별</span><p className="font-bold text-zinc-700">{foundOrder.gender === 'M' ? '남성' : '여성'}</p></div>
             <div><span className="text-zinc-400">주문번호</span><p className="font-mono font-bold text-zinc-700 truncate">{foundOrder.orderId}</p></div>
             <div><span className="text-zinc-400">접수일시</span><p className="font-bold text-zinc-700">{formatDate(foundOrder.createdAt)}</p></div>
           </div>
-          {foundOrder.concern && <div><p className="text-xs text-zinc-400">고민</p><p className="text-zinc-700">{foundOrder.concern}</p></div>}
-          {foundOrder.interest && <div><p className="text-xs text-zinc-400">관심분야</p><p className="text-zinc-700">{foundOrder.interest}</p></div>}
+          {foundOrder.concern && <div><p className="text-[11px] text-zinc-400">고민</p><p className="text-zinc-700">{foundOrder.concern}</p></div>}
+          {foundOrder.interest && <div><p className="text-[11px] text-zinc-400">관심분야</p><p className="text-zinc-700">{foundOrder.interest}</p></div>}
         </div>
 
         {!canModify && foundOrder.status !== 'cancelled' && (
-          <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 text-xs text-zinc-600">
+          <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 text-[11px] text-zinc-600">
             이미 제작이 시작된 주문입니다. 수정 및 취소가 어렵습니다. 불가피한 변경은 이메일로 문의해주세요.
           </div>
         )}
 
         {canModify && (
           <>
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800">
               ⏰ 접수 후 24시간 이내 제작이 시작됩니다. 제작 시작 후에는 변경이 불가합니다.
             </div>
             <div className="flex gap-2">
@@ -573,11 +573,11 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                   setEditError('');
                   setScreen('edit');
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition"
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 transition"
               >주문 수정하기</button>
               <button
                 onClick={() => { setCancelReason(''); setCancelError(''); setScreen('cancel'); }}
-                className="flex-1 py-2.5 rounded-xl border border-rose-300 text-rose-600 font-bold text-sm hover:bg-rose-50 transition"
+                className="flex-1 py-2.5 rounded-xl border border-rose-300 text-rose-600 font-bold text-[13px] hover:bg-rose-50 transition"
               >주문 취소하기</button>
             </div>
           </>
@@ -596,12 +596,12 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       <div className="max-w-lg mx-auto p-4 space-y-4">
         <div className="flex items-center gap-2">
           <button onClick={() => setScreen('detail')} className="text-zinc-400 hover:text-zinc-700 transition"><X className="w-5 h-5" /></button>
-          <h2 className="text-lg font-bold text-zinc-800">주문 내용 수정</h2>
+          <h2 className="text-[16px] font-bold text-zinc-800">주문 내용 수정</h2>
         </div>
-        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800">
           아직 제작 전이라 수정이 가능합니다. 단, 제작이 시작되면 더 이상 수정할 수 없습니다.
         </div>
-        <p className="text-xs text-zinc-400">이름, 생년월일, 이메일은 변경이 어렵습니다. 수정이 필요하면 이메일로 문의해주세요.</p>
+        <p className="text-[11px] text-zinc-400">이름, 생년월일, 이메일은 변경이 어렵습니다. 수정이 필요하면 이메일로 문의해주세요.</p>
 
         <div className="space-y-4">
           <div>
@@ -613,7 +613,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                 onChange={e => setEditForm(p => ({ ...p, concern: e.target.value }))}
               />
               {!editForm.concern && (
-                <p className="pointer-events-none absolute top-2.5 left-3 text-sm text-zinc-400 leading-relaxed">
+                <p className="pointer-events-none absolute top-2.5 left-3 text-[13px] text-zinc-400 leading-relaxed">
                   책자에서 꼭 다뤄주었으면 하는, 가장 고민이 되는 것을 자유롭게 적어 주세요.<br />
                   진로, 관계, 재물, 시기 등 어떤 주제든 괜찮습니다.
                 </p>
@@ -629,7 +629,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                 onChange={e => setEditForm(p => ({ ...p, interest: e.target.value }))}
               />
               {!editForm.interest && (
-                <p className="pointer-events-none absolute top-2.5 left-3 text-sm text-zinc-400 leading-relaxed">
+                <p className="pointer-events-none absolute top-2.5 left-3 text-[13px] text-zinc-400 leading-relaxed">
                   리포트에서 집중적으로 다뤄주었으면 하는 분야를 알려주세요.<br />
                   예) 올해 직장운, 결혼 시기, 재물 흐름, 건강 등
                 </p>
@@ -638,7 +638,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
           </div>
           <div>
             <Label>리포트 구성 선택</Label>
-            <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-xs text-zinc-600 space-y-1">
+            <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-[11px] text-zinc-600 space-y-1">
               <p><span className="font-bold text-zinc-700">기본형</span> — 사주용어를 잘 몰라요. 쉽게 써주세요.</p>
               <p><span className="font-bold text-zinc-700">고급형</span> — 사주용어를 좀 알아요. 심오하게 봐주세요.</p>
               <p><span className="font-bold text-zinc-700">둘다</span> — 사주에 관심이 있어요. 심오하게 봐주시되 설명도 부탁해요. <span className="text-indigo-600 font-bold">(가장 많이 선택)</span></p>
@@ -648,14 +648,14 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                 <button
                   key={opt.v}
                   onClick={() => setEditForm(p => ({ ...p, reportLevel: opt.v as any }))}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition ${editForm.reportLevel === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
+                  className={`flex-1 py-2 rounded-xl text-[13px] font-bold border transition ${editForm.reportLevel === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
                 >{opt.l}</button>
               ))}
             </div>
           </div>
           <div>
             <Label>인생 주요 이벤트 (선택)</Label>
-            <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 mb-2 text-xs text-blue-800 space-y-1">
+            <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 mb-2 text-[11px] text-blue-800 space-y-1">
               <p className="font-bold">연도와 사건을 한 쌍으로 입력해주세요.</p>
               <p>전환점 중심으로 작성: 입학·취업·이직·결혼·이사·건강 이슈 등</p>
               <p>3~7개 권장. 없으면 비워도 괜찮습니다.</p>
@@ -681,7 +681,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                   <button onClick={() => removeEditEvent(i)} className="text-zinc-400 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
                 </div>
               ))}
-              <button onClick={addEditEvent} className="flex items-center gap-1 text-xs text-indigo-600 font-bold hover:text-indigo-800 transition">
+              <button onClick={addEditEvent} className="flex items-center gap-1 text-[11px] text-indigo-600 font-bold hover:text-indigo-800 transition">
                 <Plus className="w-3.5 h-3.5" />이벤트 추가
               </button>
             </div>
@@ -692,7 +692,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         <button
           onClick={handleEditSubmit}
           disabled={editSubmitting}
-          className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
         >
           {editSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           {editSubmitting ? '저장 중...' : '수정 완료'}
@@ -707,9 +707,9 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       <div className="max-w-lg mx-auto p-4 space-y-4">
         <div className="flex items-center gap-2">
           <button onClick={() => setScreen('detail')} className="text-zinc-400 hover:text-zinc-700 transition"><X className="w-5 h-5" /></button>
-          <h2 className="text-lg font-bold text-zinc-800">주문 취소</h2>
+          <h2 className="text-[16px] font-bold text-zinc-800">주문 취소</h2>
         </div>
-        <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 space-y-1 text-sm text-rose-800">
+        <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 space-y-1 text-[13px] text-rose-800">
           <p className="font-bold">주문을 취소하시겠습니까?</p>
           <p>취소 후에는 되돌릴 수 없습니다. 이미 제작이 시작된 경우 취소가 불가합니다.</p>
         </div>
@@ -720,7 +720,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
               <button
                 key={r}
                 onClick={() => setCancelReason(r)}
-                className={`text-left px-3 py-2 rounded-xl text-sm border transition ${cancelReason === r ? 'bg-rose-100 border-rose-400 text-rose-700 font-bold' : 'bg-white border-zinc-200 text-zinc-600 hover:border-rose-300'}`}
+                className={`text-left px-3 py-2 rounded-xl text-[13px] border transition ${cancelReason === r ? 'bg-rose-100 border-rose-400 text-rose-700 font-bold' : 'bg-white border-zinc-200 text-zinc-600 hover:border-rose-300'}`}
               >{r}</button>
             ))}
           </div>
@@ -735,7 +735,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         <button
           onClick={handleCancelSubmit}
           disabled={cancelSubmitting}
-          className="w-full py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-rose-600 text-white font-bold text-[13px] hover:bg-rose-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
         >
           {cancelSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           {cancelSubmitting ? '취소 처리 중...' : '주문 취소 확인'}
@@ -749,46 +749,46 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
     <div className="max-w-lg mx-auto p-4 space-y-6">
       {/* 상단 헤더 */}
       <div className="text-center space-y-1">
-        <h2 className="text-xl font-bold text-zinc-900">{meta.title}</h2>
+        <h2 className="text-[16px] font-bold text-zinc-900">{meta.title}</h2>
         {isYearly && (
-          <p className="text-xs text-indigo-600">
+          <p className="text-[11px] text-indigo-600">
             사주 원국 · 대운 · 2026 세운 · 월별 운세를 종합한 10페이지 맞춤 리포트
           </p>
         )}
       </div>
 
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 p-5 text-sm text-zinc-800 space-y-4">
+      <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 p-5 text-[13px] text-zinc-800 space-y-4">
         <div className="space-y-1">
           <p className="font-bold text-indigo-900 text-base">{meta.description}</p>
-          <p className="text-xs text-indigo-700">가격: <b>{meta.priceLabel}</b></p>
+          <p className="text-[11px] text-indigo-700">가격: <b>{meta.priceLabel}</b></p>
         </div>
 
         <div className="space-y-2.5">
-          <p className="font-bold text-sm text-zinc-700">주문 방법</p>
-          <ol className="space-y-2 text-xs text-zinc-700 list-none pl-0">
+          <p className="font-bold text-[13px] text-zinc-700">주문 방법</p>
+          <ol className="space-y-2 text-[11px] text-zinc-700 list-none pl-0">
             <li className="flex gap-2.5 items-start">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-bold mt-0.5">1</span>
+              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[11px] font-bold mt-0.5">1</span>
               <span>아래 양식에 <b>주문정보</b>를 입력하고 <b>"주문 접수"</b> 버튼을 눌러주세요.</span>
             </li>
             <li className="flex gap-2.5 items-start">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-bold mt-0.5">2</span>
+              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[11px] font-bold mt-0.5">2</span>
               <span>접수 완료 후 <b>주문번호</b>가 발급됩니다. 주문번호를 복사해 주세요.</span>
             </li>
             <li className="flex gap-2.5 items-start">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-bold mt-0.5">3</span>
+              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[11px] font-bold mt-0.5">3</span>
               <span><b>네이버 스마트스토어</b> 결제 버튼을 눌러 상품을 주문하세요.<br />주문 시 <b>주문자 정보 혹은 배송메모(요청사항)</b>에 주문번호를 꼭 입력해 주세요.</span>
             </li>
             <li className="flex gap-2.5 items-start">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-bold mt-0.5">4</span>
+              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[11px] font-bold mt-0.5">4</span>
               <span>결제 확인 후 <b>24시간 이내</b> 리포트를 제작하여 이메일로 발송해 드립니다.</span>
             </li>
           </ol>
         </div>
 
         <div className="rounded-xl bg-white/70 border border-zinc-200 p-3.5 space-y-1.5">
-          <p className="font-bold text-xs text-zinc-700">현금 계좌이체도 가능합니다</p>
-          <p className="text-xs text-zinc-600">우리은행 1005-104-887610 (예금주: 유아이트레이딩)</p>
-          <p className="text-xs text-zinc-500">계좌이체 시 입금자명에 주문번호를 기재해 주세요.</p>
+          <p className="font-bold text-[11px] text-zinc-700">현금 계좌이체도 가능합니다</p>
+          <p className="text-[11px] text-zinc-600">우리은행 1005-104-887610 (예금주: 유아이트레이딩)</p>
+          <p className="text-[11px] text-zinc-500">계좌이체 시 입금자명에 주문번호를 기재해 주세요.</p>
         </div>
 
         <p className="text-[11px] text-zinc-500">제작이 시작되면 취소가 어렵습니다. 문의: dean.uitrading@gmail.com</p>
@@ -797,7 +797,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       {/* 조회 링크 */}
       <button
         onClick={() => { setLookupOrderId(''); setLookupEmail(''); setLookupError(''); setScreen('lookup'); }}
-        className="w-full text-center text-xs text-indigo-600 hover:underline font-medium"
+        className="w-full text-center text-[11px] text-indigo-600 hover:underline font-medium"
       >이미 주문하셨나요? 주문 조회 / 수정 / 취소 →</button>
 
       {/* 주문폼 카드 */}
@@ -806,7 +806,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         {/* 개인정보 보호 안내 */}
         <div className="bg-indigo-50 border-b border-indigo-100 p-4 flex gap-3 items-start">
           <Shield className="w-5 h-5 text-indigo-500 mt-0.5 shrink-0" />
-          <div className="text-xs text-indigo-800 space-y-0.5">
+          <div className="text-[11px] text-indigo-800 space-y-0.5">
             <p className="font-bold">고객정보 보호 안내</p>
             <p>입력하신 정보와 리포트 내용은 고객님께만 전달됩니다.</p>
             <p>작성된 리포트는 발송 후 고객님이 직접 보관하시며, 제3자에게 공유되지 않습니다.</p>
@@ -836,7 +836,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                   <button
                     key={opt.v}
                     onClick={() => setField('gender', opt.v as 'M' | 'F')}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition ${form.gender === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
+                    className={`flex-1 py-2 rounded-xl text-[13px] font-bold border transition ${form.gender === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
                   >{opt.l}</button>
                 ))}
               </div>
@@ -868,7 +868,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label>출생시간</Label>
-                <label className="flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer select-none">
+                <label className="flex items-center gap-1.5 text-[11px] text-zinc-500 cursor-pointer select-none">
                   <input type="checkbox" checked={form.unknownTime} onChange={e => setField('unknownTime', e.target.checked)} className="rounded" />
                   출생시간을 모릅니다
                 </label>
@@ -901,12 +901,12 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                   <button
                     key={String(opt.v)}
                     onClick={() => { setField('isLunar', opt.v); if (!opt.v) setField('isLeap', false); }}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition ${form.isLunar === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
+                    className={`flex-1 py-2 rounded-xl text-[13px] font-bold border transition ${form.isLunar === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
                   >{opt.l}</button>
                 ))}
               </div>
               {form.isLunar && (
-                <label className="flex items-center gap-1.5 text-xs text-zinc-500 mt-2 cursor-pointer select-none">
+                <label className="flex items-center gap-1.5 text-[11px] text-zinc-500 mt-2 cursor-pointer select-none">
                   <input type="checkbox" checked={form.isLeap} onChange={e => setField('isLeap', e.target.checked)} className="rounded" />
                   윤달입니다
                 </label>
@@ -942,7 +942,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                   onChange={e => setField('concern', e.target.value)}
                 />
                 {!form.concern && (
-                  <p className="pointer-events-none absolute top-2.5 left-3 right-3 text-sm text-zinc-400 leading-relaxed">
+                  <p className="pointer-events-none absolute top-2.5 left-3 right-3 text-[13px] text-zinc-400 leading-relaxed">
                     {isYearly ? (
                       <>
                         지금 가장 크게 마음에 걸리는 문제를 적어 주세요.<br />
@@ -967,7 +967,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                   onChange={e => setField('interest', e.target.value)}
                 />
                 {!form.interest && (
-                  <p className="pointer-events-none absolute top-2.5 left-3 right-3 text-sm text-zinc-400 leading-relaxed">
+                  <p className="pointer-events-none absolute top-2.5 left-3 right-3 text-[13px] text-zinc-400 leading-relaxed">
                     {isYearly ? (
                       <>
                         올해 가장 궁금한 한 가지 질문을 구체적으로 적어 주세요.<br />
@@ -986,7 +986,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
             {!isYearly && (
               <div>
                 <Label required>리포트 구성 선택</Label>
-                <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-xs text-zinc-600 space-y-1">
+                <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-[11px] text-zinc-600 space-y-1">
                   <p><span className="font-bold text-zinc-700">기본형</span> — 사주용어를 잘 몰라요. 쉽게 써주세요.</p>
                   <p><span className="font-bold text-zinc-700">고급형</span> — 사주용어를 좀 알아요. 심오하게 봐주세요.</p>
                   <p><span className="font-bold text-zinc-700">둘다</span> — 사주에 관심이 있어요. 심오하게 봐주시되 설명도 부탁해요. <span className="text-indigo-600 font-bold">(가장 많이 선택)</span></p>
@@ -996,7 +996,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                     <button
                       key={opt.v}
                       onClick={() => setField('reportLevel', opt.v as any)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-bold border transition ${form.reportLevel === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
+                      className={`flex-1 py-2 rounded-xl text-[13px] font-bold border transition ${form.reportLevel === opt.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300'}`}
                     >{opt.l}</button>
                   ))}
                 </div>
@@ -1010,8 +1010,8 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
           {/* 추가 정보 섹션 (premium 전용) */}
           {!isYearly && (
           <div className="space-y-3">
-            <SectionTitle>인생 주요 이벤트 <span className="font-normal text-zinc-400 text-xs">(선택)</span></SectionTitle>
-            <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 space-y-1">
+            <SectionTitle>인생 주요 이벤트 <span className="font-normal text-zinc-400 text-[11px]">(선택)</span></SectionTitle>
+            <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-[11px] text-blue-800 space-y-1">
               <p className="font-bold">살아오면서 기억에 남는 전환점을 연도와 함께 적어 주세요.</p>
               <p>예시: 2015년 — 첫 직장 입사 / 2019년 — 이직 후 번아웃 / 2022년 — 결혼</p>
               <p className="text-blue-700">입학·취업·이직·결혼·이사·사업 시작·건강 이슈·가족 사건 등을 참고해 보세요.</p>
@@ -1040,7 +1040,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
               ))}
               <button
                 onClick={addLifeEvent}
-                className="flex items-center gap-1 text-xs text-indigo-600 font-bold hover:text-indigo-800 transition mt-1"
+                className="flex items-center gap-1 text-[11px] text-indigo-600 font-bold hover:text-indigo-800 transition mt-1"
               >
                 <Plus className="w-3.5 h-3.5" />이벤트 추가
               </button>
@@ -1053,14 +1053,14 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         {/* 제출 영역 */}
         <div className="border-t border-zinc-100 p-5 space-y-3">
           {submitError && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-700">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-[13px] text-rose-700">
               <AlertCircle className="w-4 h-4 shrink-0" />{submitError}
             </div>
           )}
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+            className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {submitting ? '접수 중입니다...' : (isYearly ? '일년운세 주문하기' : '리포트 주문하기')}

@@ -241,7 +241,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
 
     const s = statusMap[status] || statusMap.submitted;
     return (
-      <div className={`${s.bg} ${s.text} rounded-full px-3 py-1 text-xs font-bold flex items-center gap-2 w-fit`}>
+      <div className={`${s.bg} ${s.text} rounded-full px-3 py-1 text-[11px] font-bold flex items-center gap-2 w-fit`}>
         {s.icon}
         {s.label}
       </div>
@@ -302,7 +302,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
             <button
               onClick={loadOrders}
               disabled={loading}
-              className={`px-2.5 py-1 rounded text-xs font-bold border transition ${
+              className={`px-2.5 py-1 rounded text-[11px] font-bold border transition ${
                 isDarkMode
                   ? 'border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50'
                   : 'border-gray-300 text-gray-700 hover:bg-white disabled:opacity-50'
@@ -316,7 +316,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                className={`px-3 py-1 rounded text-[11px] font-bold transition ${
                   statusFilter === status
                     ? `${isDarkMode ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700'}`
                     : `${isDarkMode ? 'bg-zinc-800 text-zinc-300' : 'bg-gray-200 text-gray-700'}`
@@ -335,7 +335,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               <button
                 key={opt.v}
                 onClick={() => setProductTypeFilter(opt.v)}
-                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                className={`px-3 py-1 rounded text-[11px] font-bold transition ${
                   productTypeFilter === opt.v
                     ? `${isDarkMode ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800'}`
                     : `${isDarkMode ? 'bg-zinc-800 text-zinc-300' : 'bg-gray-200 text-gray-700'}`
@@ -356,17 +356,17 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="주문번호, 이름, 이메일 검색..."
-              className={`flex-1 text-xs bg-transparent outline-none ${isDarkMode ? 'text-white placeholder-zinc-500' : 'text-black placeholder-gray-400'}`}
+              className={`flex-1 text-[11px] bg-transparent outline-none ${isDarkMode ? 'text-white placeholder-zinc-500' : 'text-black placeholder-gray-400'}`}
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-400'}`}>✕</button>
+              <button onClick={() => setSearchQuery('')} className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-400'}`}>✕</button>
             )}
           </div>
         </div>
 
         <div className="space-y-2 p-4">
           {loadError && (
-            <div className={`rounded-lg border p-3 text-xs ${isDarkMode ? 'bg-red-900/20 border-red-800 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
+            <div className={`rounded-lg border p-3 text-[11px] ${isDarkMode ? 'bg-red-900/20 border-red-800 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
               <p className="font-bold mb-1">주문 목록 조회 실패</p>
               <p>{loadError}</p>
             </div>
@@ -396,25 +396,25 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                 <div className="flex items-center gap-2">
                   <div className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{order.name}</div>
                   {(order.productType || 'premium') === 'yearly2026' ? (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">일년운세</span>
+                    <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">일년운세</span>
                   ) : (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">가이드북</span>
+                    <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">가이드북</span>
                   )}
                 </div>
                 {getStatusBadge(order.status)}
               </div>
-              <div className={`text-xs font-mono mb-0.5 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>
+              <div className={`text-[11px] font-mono mb-0.5 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>
                 #{order.orderId}
               </div>
               {order.naverOrderNumber && (
-                <div className={`text-xs font-mono mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                <div className={`text-[11px] font-mono mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
                   N: {order.naverOrderNumber}
                 </div>
               )}
-              <div className={`text-sm ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
+              <div className={`text-[13px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
                 {order.birthDate} | {(order.productType || 'premium') === 'yearly2026' ? '일년운세 2026' : '인생가이드북'}
               </div>
-              <div className={`flex items-center gap-2 text-xs ${isDarkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
+              <div className={`flex items-center gap-2 text-[11px] ${isDarkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
                 <span>v{order.version}</span>
                 {order.createdAt && (
                   <span>·&nbsp;{(() => { try { const d = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt); return d.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } })()}</span>
@@ -435,14 +435,14 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
         <div className={`w-3/5 p-6 overflow-y-auto`}>
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.name}</h2>
-              <p className={`text-sm ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>{selectedOrder.email}</p>
+              <h2 className={`text-[16px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.name}</h2>
+              <p className={`text-[13px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>{selectedOrder.email}</p>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(selectedOrder.orderId || '');
                 }}
                 title="클릭하여 복사"
-                className={`mt-1 flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded border transition ${
+                className={`mt-1 flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded border transition ${
                   isDarkMode
                     ? 'border-indigo-700 text-indigo-400 hover:bg-indigo-900/30'
                     : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'
@@ -457,7 +457,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                   value={naverOrderNumber}
                   onChange={(e) => setNaverOrderNumber(e.target.value)}
                   placeholder="네이버 주문번호 입력 후 저장"
-                  className={`text-xs font-mono px-2 py-1 rounded border flex-1 outline-none ${
+                  className={`text-[11px] font-mono px-2 py-1 rounded border flex-1 outline-none ${
                     isDarkMode
                       ? 'bg-zinc-800 border-zinc-700 text-zinc-200 placeholder-zinc-500'
                       : 'bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-400'
@@ -475,7 +475,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                     }
                   }}
                   disabled={savingNaverNum || !naverOrderNumber.trim()}
-                  className={`text-xs px-2 py-1 rounded font-bold transition ${
+                  className={`text-[11px] px-2 py-1 rounded font-bold transition ${
                     savingNaverNum || !naverOrderNumber.trim()
                       ? isDarkMode ? 'bg-zinc-700 text-zinc-500' : 'bg-gray-200 text-gray-400'
                       : isDarkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-500 hover:bg-indigo-600 text-white'
@@ -485,12 +485,12 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                 </button>
               </div>
               {selectedOrder.naverOrderNumber && (
-                <div className={`mt-1 text-xs font-mono ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                <div className={`mt-1 text-[11px] font-mono ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
                   네이버: {selectedOrder.naverOrderNumber}
                 </div>
               )}
               {selectedOrder.updatedByCustomerAt && (
-                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-bold">
+                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[11px] font-bold">
                   <PenLine className="w-3 h-3" />고객 수정됨
                 </span>
               )}
@@ -505,32 +505,32 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
 
           <div className={`grid grid-cols-2 gap-4 mb-6 p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
             <div>
-              <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>생년월일</p>
+              <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>생년월일</p>
               <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.birthDate}</p>
             </div>
             <div>
-              <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>출생시간</p>
+              <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>출생시간</p>
               <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.birthTime}</p>
             </div>
             <div>
-              <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>성별</p>
+              <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>성별</p>
               <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.gender === 'M' ? '남성' : '여성'}</p>
             </div>
             <div>
-              <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>상품</p>
+              <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>상품</p>
               <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
                 {(selectedOrder.productType || 'premium') === 'yearly2026' ? '프리미엄 일년운세 2026' : '인생가이드북(프리미엄 리포트)'} (₩{selectedOrder.price})
               </p>
             </div>
             {selectedOrder.currentJob && (
               <div className="col-span-2">
-                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>현재 하는 일</p>
+                <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>현재 하는 일</p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.currentJob}</p>
               </div>
             )}
             {selectedOrder.concern && (
               <div className="col-span-2">
-                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
+                <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
                   {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 큰 고민' : '특별한 고민'}
                 </p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.concern}</p>
@@ -538,7 +538,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
             )}
             {selectedOrder.interest && (
               <div className="col-span-2">
-                <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
+                <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
                   {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 알고 싶은 것' : '관심사'}
                 </p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.interest}</p>
@@ -613,12 +613,12 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-green-500/20' : 'bg-green-100'}`}>
                 <p className={`font-bold mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>✅ 고객에게 발송되었습니다.</p>
                 {selectedOrder.sentAt && (
-                  <p className={`text-xs ${isDarkMode ? 'text-green-300/70' : 'text-green-600'}`}>
+                  <p className={`text-[11px] ${isDarkMode ? 'text-green-300/70' : 'text-green-600'}`}>
                     발송일시: {(() => { try { const d = selectedOrder.sentAt?.toDate ? selectedOrder.sentAt.toDate() : new Date(selectedOrder.sentAt); return d.toLocaleString('ko-KR'); } catch { return '-'; } })()}
                   </p>
                 )}
                 {selectedOrder.emailSendCount && selectedOrder.emailSendCount > 1 && (
-                  <p className={`text-xs font-bold mt-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                  <p className={`text-[11px] font-bold mt-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>
                     📧 총 {selectedOrder.emailSendCount}회 발송됨
                   </p>
                 )}
@@ -627,11 +627,11 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               {/* 이메일 배달 상태 */}
               <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>📬 이메일 배달 상태</p>
+                  <p className={`text-[13px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>📬 이메일 배달 상태</p>
                   <button
                     onClick={() => handleCheckEmailStatus(selectedOrder)}
                     disabled={emailStatusLoading}
-                    className={`px-3 py-1 rounded text-xs font-bold transition ${
+                    className={`px-3 py-1 rounded text-[11px] font-bold transition ${
                       emailStatusLoading
                         ? isDarkMode ? 'bg-zinc-700 text-zinc-500' : 'bg-gray-200 text-gray-400'
                         : isDarkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-500 hover:bg-indigo-600 text-white'
@@ -654,15 +654,15 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                   const info = statusMap[status] || statusMap.unknown;
                   return (
                     <div className={`p-3 rounded-lg ${info.bg}`}>
-                      <p className={`text-sm font-bold ${info.color}`}>{info.label}</p>
-                      <p className={`text-xs mt-1 opacity-80 ${info.color}`}>{info.desc}</p>
+                      <p className={`text-[13px] font-bold ${info.color}`}>{info.label}</p>
+                      <p className={`text-[11px] mt-1 opacity-80 ${info.color}`}>{info.desc}</p>
                       {emailStatusResult?.lastEvent && (
-                        <p className={`text-[10px] mt-2 opacity-50 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        <p className={`text-[11px] mt-2 opacity-50 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
                           Resend 이벤트: {emailStatusResult.lastEvent} · 확인시각: {emailStatusResult.checkedAt}
                         </p>
                       )}
                       {!emailStatusResult && selectedOrder.emailStatusCheckedAt && (
-                        <p className={`text-[10px] mt-2 opacity-50 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        <p className={`text-[11px] mt-2 opacity-50 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
                           마지막 확인: {(() => { try { const d = selectedOrder.emailStatusCheckedAt?.toDate ? selectedOrder.emailStatusCheckedAt.toDate() : new Date(selectedOrder.emailStatusCheckedAt); return d.toLocaleString('ko-KR'); } catch { return '-'; } })()}
                         </p>
                       )}
@@ -671,7 +671,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                 })()}
 
                 {!selectedOrder.emailMessageId && (
-                  <p className={`text-xs italic ${isDarkMode ? 'text-zinc-500' : 'text-gray-400'}`}>
+                  <p className={`text-[11px] italic ${isDarkMode ? 'text-zinc-500' : 'text-gray-400'}`}>
                     이전 버전에서 발송된 주문이라 메시지 ID가 없습니다. 재발송하면 추적이 가능합니다.
                   </p>
                 )}
@@ -702,8 +702,8 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
           {selectedOrder.status === 'rejected' && (
             <div className="space-y-4">
               <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-red-500/20' : 'bg-red-100'}`}>
-                <p className={`text-sm font-bold ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}>반려 사유</p>
-                <p className={`text-sm ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>{selectedOrder.rejectReason}</p>
+                <p className={`text-[13px] font-bold ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}>반려 사유</p>
+                <p className={`text-[13px] ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>{selectedOrder.rejectReason}</p>
               </div>
               <button
                 onClick={() => handleGenerateReport(selectedOrder.orderId!)}
@@ -730,7 +730,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className={`${isDarkMode ? 'bg-zinc-900' : 'bg-white'} rounded-lg p-6 max-w-sm`}>
-            <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>반려 사유 입력</h3>
+            <h3 className={`text-[16px] font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>반려 사유 입력</h3>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
