@@ -27,6 +27,10 @@ interface ConsultingPromptParams {
   todayDayPillar: DayPillarInfo;
   currentYearPillar: YearPillarInfo;
   nearbyDayPillars: NearbyDayPillars;
+  /**
+   * 전년 1년 + 현재 + 미래 5년 = 총 7년치 세운 간지. 내년/2~3년 후 운세 질문에 근거 제공.
+   */
+  nearbyYearPillars: YearPillarInfo[];
 }
 
 interface ReportPromptParams {
@@ -49,7 +53,19 @@ export const buildConsultingSystemInstruction = ({
   todayDayPillar,
   currentYearPillar,
   nearbyDayPillars,
+  nearbyYearPillars,
 }: ConsultingPromptParams) => {
+  const seunRangeText = (nearbyYearPillars ?? [])
+    .map((p) => {
+      const rel =
+        p.year === currentYearPillar.year
+          ? ' (올해)'
+          : p.year > currentYearPillar.year
+            ? ` (${p.year - currentYearPillar.year}년 후)`
+            : ` (${currentYearPillar.year - p.year}년 전)`;
+      return `  ${p.year}년: ${p.yearPillarHangul}(${p.yearPillarHanja})${rel}`;
+    })
+    .join('\n');
   const personaInstruction = mode === 'basic'
     ? "당신의 상담 스타일은 초급자 친화형입니다. 사주를 처음 접하는 사람 기준으로 쉽게 설명합니다."
     : "당신의 상담 스타일은 **'MZ세대 감성'**입니다. 힙하고, 트렌디하며, 때로는 직설적이지만 따뜻한 공감을 잊지 않습니다.";
@@ -65,6 +81,8 @@ ${personaInstruction}
 
 현재 날짜(서울 기준): ${todayDayPillar.dateText}
 서울 기준 올해 세운(연도 간지): ${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})
+서울 기준 세운 흐름 — 전년/올해/미래 (반드시 아래 값만 사용, 임의 계산 금지):
+${seunRangeText}
 서울 기준 일진 달력 (반드시 아래 값만 사용, 임의 계산 금지):
   어제(${nearbyDayPillars.yesterday.dateText}): ${nearbyDayPillars.yesterday.dayPillarHangul}(${nearbyDayPillars.yesterday.dayPillarHanja})
   오늘(${nearbyDayPillars.today.dateText}): ${nearbyDayPillars.today.dayPillarHangul}(${nearbyDayPillars.today.dayPillarHanja})
@@ -83,7 +101,8 @@ ${personaInstruction}
 - **관계 호칭 확정 규칙:** 아래 [최신 사용자 질문]에서 관계 호칭을 우선 추출해 첫 문장에 그대로 사용하세요. 관계 호칭이 명시되지 않은 경우에만 "대상자"라는 중립 표현을 사용하세요.
 - **중복 요청 금지 규칙:** 이미 이전 대화에서 대상자의 생년월일/성별 정보가 제공되었고 사용자가 "해줘/진행해/분석해" 등 실행 의사를 밝히면, 같은 정보를 다시 묻지 말고 즉시 calculateSajuForPerson 도구를 호출해 분석을 진행하세요.
 - **생시 미상 자동 진행 규칙:** 생시 정보가 없거나 불명확하면 상담을 중단하지 마세요. unknownTime=true, birthTime='12:00'으로 도구를 호출해 우선 분석을 진행하고, 결과 문장에 "생시 미상 기준"임을 짧게 고지하세요.
-- **올해 세운 고정 규칙:** 연도 간지(예: "YYYY년 OOO년")를 언급할 때는 반드시 위에 제공된 "서울 기준 올해 세운(연도 간지)"를 그대로 사용하세요. 임의 추정/변경/혼용을 금지합니다.
+- **세운 간지 고정 규칙:** 연도 간지(세운)를 언급할 때는 반드시 위 "서울 기준 세운 흐름" 블록에 제공된 값만 그대로 사용하세요. 임의 추정/계산/변경/혼용을 금지합니다. 블록 범위를 벗어난 먼 미래 연도(예: 6년 이상 후)는 "해당 연도의 세운 간지가 컨텍스트에 포함되어 있지 않아 상세 분석은 어렵습니다"라고 고지하고, 현재 대운 흐름과 블록 내 가장 가까운 연도를 근거로 전반적 방향만 안내하세요.
+- **내년·향후 세운 답변 허용(필수):** 사용자가 "내년", "2년 후", "3년 후", "○○년 후" 등의 미래 운세를 묻는 경우, 위 "서울 기준 세운 흐름" 블록의 해당 연도 간지와 현재 대운을 근거로 반드시 답변하세요. 블록 범위(올해 기준 −1년 ~ +5년) 안이라면 "정보가 없어 어렵다", "내년 세운을 조회할 수 없다"는 식의 거절을 절대 금지합니다. 제공된 간지를 인용하며 원국·대운과의 상호작용을 해석해 답변하세요.
 - **일진 고정 규칙(최우선):** 어제·오늘·내일·모레 일진은 반드시 위 "서울 기준 일진 달력"에 제공된 값을 그대로 사용하세요. 60갑자 순서로 직접 계산하거나 다른 값을 추정/변경/혼용하는 것을 절대 금지합니다. 오늘 이외 날짜(어제/내일/모레)를 물어볼 때도 달력에 명시된 값만 사용하세요.
 - **타인 사주 분석(궁합 등) 및 개인정보 보호:** 사용자가 본인 외의 타인(궁합 상대, 가족 등)의 생년월일시를 제공하며 상담을 요청할 경우, **반드시 먼저 분석 승인을 얻어야 합니다.** 
   1. 먼저 "제공해주신 정보를 바탕으로 유아이의 정밀 간명 로직을 통해 더욱 정확한 분석을 진행해 드려도 될까요?"라고 정중히 물어보며 승인을 구하세요. 
