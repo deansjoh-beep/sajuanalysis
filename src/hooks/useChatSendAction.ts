@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { CONSULTING_GUIDELINE, BASIC_CONSULTING_GUIDELINE, ADVANCED_CONSULTING_GUIDELINE } from '../constants/guidelines';
-import { getTodayDayPillarKST, getCurrentYearPillarKST, getCurrentMonthPillarKST, getNearbyDayPillarsKST } from '../lib/seoulDateGanji';
+import { getTodayDayPillarKST, getCurrentYearPillarKST, getCurrentMonthPillarKST, getNearbyDayPillarsKST, getYearPillarsForRange } from '../lib/seoulDateGanji';
 import { buildConsultingSystemInstruction } from '../lib/promptBuilders';
 import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
@@ -221,6 +221,11 @@ export const useChatSendAction = ({
       const todayDayPillar = getTodayDayPillarKST();
       const nearbyDayPillars = getNearbyDayPillarsKST();
       const currentYearPillar = currentYearPillarForContext;
+      // 전년 1년 + 올해 + 미래 5년 = 총 7년치 세운. 내년/2~3년 후 질문 대응용.
+      const nearbyYearPillars = getYearPillarsForRange(
+        currentYearPillar.year - 1,
+        currentYearPillar.year + 5
+      );
       const systemInstruction = buildConsultingSystemInstruction({
         mode: modeAtRequest,
         isFirstMessage,
@@ -230,7 +235,8 @@ export const useChatSendAction = ({
         modeSpecificGuideline,
         todayDayPillar,
         currentYearPillar,
-        nearbyDayPillars
+        nearbyDayPillars,
+        nearbyYearPillars
       });
 
       const contextMessages = [...preservedChatContextRef.current, ...messages];
