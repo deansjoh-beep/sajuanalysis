@@ -5,6 +5,15 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { runTaekilEngine, TaekilRequest } from "./src/utils/taekilEngine.ts";
+import {
+  expressRateLimit,
+  pdfLimiter,
+  emailLimiter,
+  uploadLimiter,
+  orderCreateLimiter,
+  taekilLimiter,
+  generalLimiter,
+} from "./api/lib/rate-limit.ts";
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getStorage as getAdminStorage, Storage } from 'firebase-admin/storage';
 import { 
@@ -111,7 +120,11 @@ async function startServer() {
     res.json({ geminiApiKey });
   });
 
-  app.post('/api/generate-pdf', async (req, res) => {
+  app.post('/api/generate-pdf', expressRateLimit(pdfLimiter, (req) => {
+    // PDF_API_TOKEN 인증 성공 시 rate limit 스킵 (관리자 요청)
+    const pdfToken = String(process.env.PDF_API_TOKEN || '').trim();
+    return pdfToken !== '' && req.headers['x-pdf-token'] === pdfToken;
+  }), async (req, res) => {
     const html = typeof req.body?.html === 'string' ? req.body.html : '';
     const fileName = typeof req.body?.fileName === 'string' ? req.body.fileName : 'report';
 
@@ -187,7 +200,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/premium-report/upload', express.raw({ type: 'application/pdf', limit: '100mb' }), async (req, res) => {
+  app.post('/api/premium-report/upload', expressRateLimit(uploadLimiter), express.raw({ type: 'application/pdf', limit: '100mb' }), async (req, res) => {
     try {
       const reportDir = path.join(__dirname, '.tmp', 'premium-reports');
       if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
@@ -259,7 +272,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/premium-report/send-email', async (req, res) => {
+  app.post('/api/premium-report/send-email', expressRateLimit(emailLimiter), async (req, res) => {
     try {
       const apiKey = String(process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY || '').trim();
       const fromEmail = String(process.env.FROM_EMAIL || process.env.VITE_FROM_EMAIL || 'noreply@example.com').trim();
@@ -363,7 +376,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/taekil/recommend", (req, res) => {
+  app.post("/api/taekil/recommend", expressRateLimit(taekilLimiter), (req, res) => {
     try {
       const body = req.body as Partial<TaekilRequest>;
       const required = [
@@ -467,7 +480,7 @@ async function startServer() {
   });
 
   // Premium Order Creation API - uses Firebase Admin SDK (bypasses security rules)
-  app.post("/api/premium-order/create", async (req, res) => {
+  app.post("/api/premium-order/create", expressRateLimit(orderCreateLimiter), async (req, res) => {
     try {
       if (!adminDb) {
         console.error('Firebase Admin SDK not initialized. Place service-account.json in project root.');
@@ -531,7 +544,7 @@ async function startServer() {
   });
 
   // Premium Order List API - reads from Firestore via Admin SDK
-  app.get("/api/premium-orders", async (req, res) => {
+  app.get("/api/premium-orders", expressRateLimit(generalLimiter), async (req, res) => {
     try {
       if (!adminDb) {
         return res.status(500).json({

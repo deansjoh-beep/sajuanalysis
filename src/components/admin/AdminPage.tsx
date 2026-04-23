@@ -15,7 +15,9 @@ import {
   Loader2,
   Sparkles,
   Ticket,
+  Star,
 } from 'lucide-react';
+import { ReviewsPanel } from './ReviewsPanel';
 import { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -63,12 +65,12 @@ const GUIDELINE_LABELS: Record<GuidelineKey, string> = {
   guideContact: '문의하기 (Contact)',
 };
 
-type AdminSection = 'dashboard' | 'guidelines' | 'blog' | 'guide_editor' | 'board' | 'report_maker' | 'premium_orders';
+type AdminSection = 'dashboard' | 'guidelines' | 'blog' | 'guide_editor' | 'board' | 'report_maker' | 'premium_orders' | 'reviews';
 
 const getInitialAdminSection = (): AdminSection => {
   if (typeof window === 'undefined') return 'dashboard';
   const section = new URLSearchParams(window.location.search).get('section');
-  const allowed: AdminSection[] = ['dashboard', 'guidelines', 'blog', 'guide_editor', 'board', 'report_maker', 'premium_orders'];
+  const allowed: AdminSection[] = ['dashboard', 'guidelines', 'blog', 'guide_editor', 'board', 'report_maker', 'premium_orders', 'reviews'];
   return allowed.includes(section as AdminSection) ? (section as AdminSection) : 'dashboard';
 };
 
@@ -549,6 +551,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const navItems: { section: AdminSection; icon: React.FC<any>; label: string }[] = [
     { section: 'dashboard', icon: Settings, label: '대시보드' },
     { section: 'premium_orders', icon: Ticket, label: '프리미엄 주문' },
+    { section: 'reviews', icon: Star, label: '고객 후기' },
     { section: 'guidelines', icon: BookOpen, label: '지침 관리' },
     { section: 'blog', icon: Newspaper, label: '블로그 관리' },
     { section: 'guide_editor', icon: Compass, label: '가이드 수정' },
@@ -713,6 +716,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
           {activeSection === 'dashboard' && (
             <AdminDashboard user={user} onNavigate={setActiveSection} />
+          )}
+
+          {activeSection === 'reviews' && (
+            <ReviewsPanel />
           )}
 
           {activeSection === 'guidelines' && (

@@ -28,7 +28,8 @@ import {
   Mic,
   ExternalLink,
   Ticket,
-  Gift
+  Gift,
+  Star
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getSajuData, getDaeunData, calculateYongshin, hanjaToHangul, elementMap, yinYangMap, calculateDeity, calculateGyeok, getSipseung, getShinsal, getGongmang, getYangin, getCheoneulGuiin, isWonjin, isGoegang, isHyeong, isPa, isHae, isChung, getYukhap, getMunchang, getHakdang } from "./utils/saju";
@@ -98,6 +99,8 @@ const LazyPremiumOrdersPanel = React.lazy(() => import("./components/PremiumOrde
 const LazyReportTabContent = React.lazy(() => import("./components/tabs/ReportTabContent").then((mod) => ({ default: mod.ReportTabContent })));
 const LazyGuideTabContent = React.lazy(() => import("./components/tabs/GuideTabContent").then((mod) => ({ default: mod.GuideTabContent })));
 const LazyPremiumOrderForm = React.lazy(() => import("./components/PremiumOrderForm").then((mod) => ({ default: mod.PremiumOrderForm })));
+import { ReviewModal } from "./components/ReviewModal";
+import { ReviewsSection } from "./components/ReviewsSection";
 
 const stripRichText = (content: string) => {
   return content
@@ -513,6 +516,7 @@ const App: React.FC = () => {
   const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026'>('premium');
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   // State
   const [userData, setUserData] = useState<UserData>({
     name: "사용자",
@@ -1589,7 +1593,7 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-1 md:gap-4">
             {activeTab === "chat" && (
-              <button 
+              <button
                 onClick={handleDownloadChat}
                 disabled={messages.length === 0}
                 className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-indigo-500/10 text-indigo-500 transition-all flex items-center gap-2 disabled:opacity-30 group"
@@ -1599,8 +1603,17 @@ const App: React.FC = () => {
                 <span className="hidden md:block text-base font-bold">텍스트 저장</span>
               </button>
             )}
-            <button 
-              onClick={handleReset} 
+            {/* 후기 남기기 버튼 */}
+            <button
+              onClick={() => setReviewModalOpen(true)}
+              className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-amber-500/10 text-amber-500 transition-all flex items-center gap-2 group"
+              title="후기 남기기"
+            >
+              <Star className="w-5 h-5 opacity-70 group-hover:opacity-100 group-hover:fill-amber-400 transition-all" />
+              <span className="hidden md:block text-base font-bold">후기 남기기</span>
+            </button>
+            <button
+              onClick={handleReset}
               className="p-2 md:px-4 md:py-2 rounded-full md:rounded-xl hover:bg-rose-500/10 text-rose-500 transition-all flex items-center gap-2 group"
               title="상담 종료 및 데이터 삭제"
             >
@@ -1842,6 +1855,10 @@ const App: React.FC = () => {
                           </a>
                         </div>
                       </section>
+
+                      {/* 고객 후기 섹션 */}
+                      <ReviewsSection onWriteReview={() => setReviewModalOpen(true)} />
+
                     </div>
                   </div>
                 ) : (
@@ -4015,6 +4032,13 @@ const App: React.FC = () => {
           ))}
         </div>
       </nav>
+
+      {/* 후기 작성 모달 */}
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        sourcePage={activeTab}
+      />
       </div>
     </div>
   );
