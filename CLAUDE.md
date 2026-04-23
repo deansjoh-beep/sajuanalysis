@@ -78,6 +78,30 @@ These are treated as product content, not code comments. Edits to tone, section 
 
 `isAdminRoute()` swaps the shell for `AdminPage`. Admin can manage premium orders (Firestore `premiumOrders`) and generate the long-form PDF report via `api/generate-pdf.ts` (Puppeteer with `@sparticuz/chromium-min` on Vercel, local Chrome path fallback in dev). Reports are uploaded to Storage (`api/premium-report/upload.ts` / `upload-url.ts`) and emailed (`sendPremiumReportEmail.ts`, Resend). Firestore security is in `firestore.rules`; the Firestore **database id** is non-default — always pass `'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9'` when building new admin queries.
 
+### Security layer
+
+**HTTP headers** — `vercel.json` applies these globally via `"source": "/(.*)"`:
+- `Strict-Transport-Security` (max-age=31536000, includeSubDomains, preload)
+- `Content-Security-Policy` — allowlist-based; covers Gemini, Firebase, GA4, AdSense, Google Fonts, Naver/Pretendard fonts, YouTube embeds. Update the CSP when adding new external origins.
+- `X-Frame-Options: SAMEORIGIN` + CSP `frame-ancestors 'self'` (double-coverage for click-jacking)
+- `X-Content-Type-Options`, `Referrer-Policy`
+
+**Redirects** — `vercel.json` `redirects` (processed before the SPA catch-all rewrite) return 302 for:
+- `*.map` files — source map exposure prevention
+- `*.zip|bak|tar|gz|sql|dump|env|log|old|orig|backup|swp|db` — backup file scan protection
+
+**Rate limiting** — `api/lib/rate-limit.ts` exports a `createRateLimiter(config)` factory plus pre-configured per-endpoint limiters (`pdfLimiter`, `emailLimiter`, `uploadLimiter`, `orderCreateLimiter`, `taekilLimiter`, `generalLimiter`). Two adapter helpers:
+- `expressRateLimit(limiter, skipFn?)` — Express middleware (used in `server.ts`)
+- `checkVercelRateLimit(req, res, limiter)` — returns `false` and sends 429 when exceeded (used in Vercel function handlers)
+
+All responses include RFC 9440 `RateLimit-*` headers. The store is a module-level `Map`; if Vercel cold-start isolation becomes a problem at scale, swap the store for `@upstash/ratelimit` + `@upstash/redis`.
+
+When adding a new API endpoint, apply the appropriate limiter in **both** `server.ts` (Express middleware) and the corresponding `api/*.ts` handler (checkVercelRateLimit call).
+
+**Public scripts** — `public/ga-init.js` (GA4 init) and `public/process-polyfill.js` (`window.process` shim) are loaded via `<script src="...">` in `index.html`. They exist because the CSP disallows `unsafe-inline` for scripts. Do not move them back inline.
+
+**Build** — `vite.config.ts` sets `build.sourcemap: false` explicitly. Do not enable source maps for production builds.
+
 ## Conventions worth knowing
 
 - **Language**: UI + content are Korean; commit messages use Korean Conventional Commits (e.g. `feat(yearly-fortune): ...`). Match this style.

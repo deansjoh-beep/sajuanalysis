@@ -16,6 +16,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as fs from 'fs';
 import * as path from 'path';
+import { checkVercelRateLimit, pdfLimiter } from './lib/rate-limit.js';
 
 // --- Firebase Admin Utils (inlined) ---
 const VERIFIED_REPORTS_BUCKET = 'gen-lang-client-0938860351-reports';
@@ -211,8 +212,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // ── 인증 ────────────────────────────────────────────────────────────
+  // ── Rate Limiting (인증 토큰이 있으면 스킵) ─────────────────────────
   const PDF_TOKEN = process.env.PDF_API_TOKEN;
+  const providedToken = req.headers['x-pdf-token'];
+  const isAuthenticated = PDF_TOKEN && providedToken === PDF_TOKEN;
+  if (!isAuthenticated && !checkVercelRateLimit(req, res, pdfLimiter)) return;
+
+  // ── 인증 ────────────────────────────────────────────────────────────
   if (PDF_TOKEN) {
     const provided = req.headers['x-pdf-token'];
     if (provided !== PDF_TOKEN) {

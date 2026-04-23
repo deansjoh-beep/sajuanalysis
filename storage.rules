@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 후기 이미지 — 공개 읽기, 비로그인도 업로드 허용 (5MB 이하, 이미지만)
+    match /reviews/{filename} {
+      allow read: if true;
+      allow write: if request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // 프리미엄 리포트 PDF — 서비스 계정(Admin SDK)만 접근, 클라이언트 차단
+    match /premiumReports/{filename} {
+      allow read, write: if false;
+    }
+
+    // 나머지 경로 — 기본 거부
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
