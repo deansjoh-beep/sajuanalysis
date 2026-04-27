@@ -621,6 +621,23 @@ const YEARLY_SECTION_NUMBERS: Record<string, string> = {
   chart: '一', answer: '二', yearly: '三', monthly: '四', checklist: '五', glossary: '六',
 };
 
+// 직업운 리포트용
+const JOB_CAREER_SECTION_NAV = [
+  { id: 'chart',      short: '원국' },
+  { id: 'answer',     short: '질문답변' },
+  { id: 'foundation', short: '직업DNA' },
+  { id: 'sipseng',    short: '십성삼각' },
+  { id: 'ohaeng',     short: '오행직군' },
+  { id: 'timing',     short: '타이밍' },
+  { id: 'action',     short: '액션플랜' },
+  { id: 'glossary',   short: '용어' },
+];
+
+const JOB_CAREER_SECTION_NUMBERS: Record<string, string> = {
+  chart: '一', answer: '二', foundation: '三', sipseng: '四',
+  ohaeng: '五', timing: '六', action: '七', glossary: '八',
+};
+
 // 하위호환: 기존 참조 유지용
 const SECTION_NAV = PREMIUM_SECTION_NAV;
 const SECTION_NUMBERS = PREMIUM_SECTION_NUMBERS;
@@ -642,7 +659,10 @@ const getYongshinCoverPalette = (yongshinText: string) => {
 // ─── 표지 페이지 ──────────────────────────────────────────────────────────────
 const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinData: any }> = ({ inputData, saju, yongshinData }) => {
   const isYearly = inputData.productType === 'yearly2026';
-  const levelLabel = isYearly
+  const isJobCareer = inputData.productType === 'jobCareer';
+  const levelLabel = isJobCareer
+    ? '직업운 리포트'
+    : isYearly
     ? '프리미엄 2026 운세'
     : inputData.reportLevel === 'advanced' ? '고급 분석'
       : inputData.reportLevel === 'both' ? '초급+고급 병행'
@@ -781,8 +801,17 @@ export const PremiumReportPreview: React.FC<PremiumReportPreviewProps> = ({
   };
 
   const isYearlyProduct = inputData.productType === 'yearly2026';
-  const activeSectionNav = isYearlyProduct ? YEARLY_SECTION_NAV : PREMIUM_SECTION_NAV;
-  const activeSectionNumbers = isYearlyProduct ? YEARLY_SECTION_NUMBERS : PREMIUM_SECTION_NUMBERS;
+  const isJobCareerProduct = inputData.productType === 'jobCareer';
+  const activeSectionNav = isJobCareerProduct
+    ? JOB_CAREER_SECTION_NAV
+    : isYearlyProduct
+      ? YEARLY_SECTION_NAV
+      : PREMIUM_SECTION_NAV;
+  const activeSectionNumbers = isJobCareerProduct
+    ? JOB_CAREER_SECTION_NUMBERS
+    : isYearlyProduct
+      ? YEARLY_SECTION_NUMBERS
+      : PREMIUM_SECTION_NUMBERS;
 
   const getSectionComponent = (section: ReportSection) => {
     switch (section.id) {
@@ -849,9 +878,11 @@ ${printRef.current.outerHTML}
       // ────────────────────────────────────────────────────────────────
 
       const safeName = inputData.name.replace(/[^\w가-힣]/g, '_');
-      const fileName = isYearlyProduct
-        ? `프리미엄_2026_운세_${safeName}_${inputData.birthDate}`
-        : `인생네비게이션_${safeName}_${inputData.birthDate}`;
+      const fileName = isJobCareerProduct
+        ? `직업운_리포트_${safeName}_${inputData.birthDate}`
+        : isYearlyProduct
+          ? `프리미엄_2026_운세_${safeName}_${inputData.birthDate}`
+          : `인생네비게이션_${safeName}_${inputData.birthDate}`;
 
       const pdfToken = import.meta.env.VITE_PDF_API_TOKEN ?? '';
       const response = await fetch('/api/generate-pdf', {
@@ -1059,7 +1090,7 @@ ${printRef.current.outerHTML}
             {/* 하단 저작권 */}
             <div data-pdf-block="footer" className="text-center py-6 border-t border-amber-300/40 space-y-1">
               <p className="text-[11px] font-serif text-amber-800/50">
-                {isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
+                {isJobCareerProduct ? '직업운 리포트' : isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
               </p>
               <p className="text-[11px] text-amber-700/40">본 분석서는 AI 기반 사주명리 시스템으로 제작되었습니다. 참고용으로만 활용하세요.</p>
               <p className="text-[11px] text-amber-700/30">© {new Date().getFullYear()} UI Saju · {user.email}</p>

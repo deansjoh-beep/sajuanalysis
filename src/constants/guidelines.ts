@@ -8,6 +8,7 @@
  *   리포트지침(공통) → src/constants/guidelines/report-common.ts
  *   리포트지침(기본) → src/constants/guidelines/report-basic.ts
  *   리포트지침(고급) → src/constants/guidelines/report-advanced.ts
+ *   직업운 리포트    → src/constants/guidelines/job-career.ts
  */
 export {
   SAJU_GUIDELINE,
@@ -18,4 +19,5 @@ export {
   BASIC_REPORT_GUIDELINE,
   ADVANCED_REPORT_GUIDELINE,
   YEARLY_FORTUNE_2026_GUIDELINE,
+  JOB_CAREER_GUIDELINE,
 } from './guidelines/index';
