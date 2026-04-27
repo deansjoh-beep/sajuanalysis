@@ -504,6 +504,13 @@ async function startServer() {
         });
       }
 
+      const rawProductType = String(order.productType || 'premium');
+      const productType = rawProductType === 'yearly2026'
+        ? 'yearly2026'
+        : rawProductType === 'jobCareer'
+          ? 'jobCareer'
+          : 'premium';
+
       // Write directly to Firestore via Admin SDK (bypasses all security rules)
       const docRef = await adminDb.collection('premiumOrders').add({
         name: String(order.name),
@@ -516,10 +523,14 @@ async function startServer() {
         unknownTime: Boolean(order.unknownTime ?? false),
         tier: String(order.tier),
         price: Number(order.price),
+        productType,
+        currentJob: String(order.currentJob || ''),
+        workHistory: String(order.workHistory || ''),
         concern: String(order.concern || ''),
         interest: String(order.interest || ''),
         reportLevel: String(order.reportLevel || 'basic'),
         lifeEvents: Array.isArray(order.lifeEvents) ? order.lifeEvents : [],
+        adminNotes: String(order.adminNotes || ''),
         status: 'submitted',
         version: 1,
         createdAt: FieldValue.serverTimestamp(),
@@ -554,8 +565,9 @@ async function startServer() {
       }
 
       const status = req.query.status as string | undefined;
+      const productType = req.query.productType as string | undefined;
       let collectionRef = adminDb.collection('premiumOrders');
-      
+
       let snapshot;
       if (status && status !== 'all') {
         snapshot = await collectionRef
@@ -567,13 +579,17 @@ async function startServer() {
           .orderBy('createdAt', 'desc')
           .get();
       }
-      
-      const orders = snapshot.docs.map(doc => ({
+
+      let orders = snapshot.docs.map(doc => ({
         orderId: doc.id,
         ...doc.data()
       }));
 
-      console.log(`Retrieved ${orders.length} premium orders (status=${status})`);
+      if (productType && productType !== 'all') {
+        orders = orders.filter((o: any) => (o.productType || 'premium') === productType);
+      }
+
+      console.log(`Retrieved ${orders.length} premium orders (status=${status}, productType=${productType})`);
       return res.json({
         success: true,
         orders
