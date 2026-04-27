@@ -675,9 +675,13 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     ? saju.map(p => `${p.stem?.hanja ?? ''}${p.branch?.hanja ?? ''}`).join(' ')
     : '';
 
-  const mainTitle = isYearly ? '2026 연 운세' : '당신을 위한 인생가이드북';
-  const subLineTop = isYearly ? 'PREMIUM · 2026' : '운명의 로드맵';
-  const subLineChinese = isYearly ? '丙午年 年運 分析書' : '四柱命理 分析書';
+  const mainTitle = isJobCareer
+    ? '당신을 위한 JOB, 커리어 가이드'
+    : isYearly
+      ? '2026 연 운세'
+      : '당신을 위한 인생가이드북';
+  const subLineTop = isJobCareer ? 'JOB · CAREER GUIDE' : isYearly ? 'PREMIUM · 2026' : '운명의 로드맵';
+  const subLineChinese = isJobCareer ? '職業運 分析書' : isYearly ? '丙午年 年運 分析書' : '四柱命理 分析書';
 
   return (
     <div
