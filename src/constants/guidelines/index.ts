@@ -11,6 +11,7 @@
  *   리포트지침(공통) → report-common.ts
  *   리포트지침(기본) → report-basic.ts
  *   리포트지침(고급) → report-advanced.ts
+ *   직업운 리포트    → job-career.ts
  */
 export { SAJU_GUIDELINE } from './saju';
 export { CONSULTING_GUIDELINE } from './consulting-common';
@@ -20,3 +21,4 @@ export { REPORT_GUIDELINE } from './report-common';
 export { BASIC_REPORT_GUIDELINE } from './report-basic';
 export { ADVANCED_REPORT_GUIDELINE } from './report-advanced';
 export { YEARLY_FORTUNE_2026_GUIDELINE } from './yearly-fortune-2026';
+export { JOB_CAREER_GUIDELINE } from './job-career';

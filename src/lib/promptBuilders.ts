@@ -455,3 +455,90 @@ ${p.concern || '미입력'}
   return { system, user };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 직업운 리포트 프롬프트
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface JobCareerReportParams {
+  userName: string;
+  gender: 'M' | 'F';
+  birthDate: string;
+  birthTime: string;
+  isLunar: boolean;
+  isLeap: boolean;
+  unknownTime: boolean;
+  sajuContext: string;
+  daeunContext: string;
+  yongshinContext: string;
+  currentAge: number;
+  currentYearText: string;
+  seun3YText: string;
+  currentJob: string;
+  careerConcern: string;
+  careerGoal: string;
+  workHistory: string;
+  jobCareerGuideline: string;
+}
+
+export const buildJobCareerPrompt = (
+  p: JobCareerReportParams
+): { system: string; user: string } => {
+  const system = `당신은 30년 경력의 최고 수준 사주명리학자이자 커리어 코치입니다.
+고객의 사주 원국, 대운, 세운을 바탕으로 「직업운 리포트」를 작성합니다.
+
+[분석 원칙]
+- **원천 데이터 우선 규칙(최우선):** 모든 해석 근거는 제공된 사주·대운·용신·세운 데이터에만 기반합니다. 임의 재계산 및 값 치환 절대 금지.
+- **세운 간지 고정 규칙:** 2026·2027·2028년 세운은 반드시 [세운 데이터] 블록의 값만 사용합니다.
+- **careerConcern 우선:** answer 섹션에서 [커리어 고민]에 반드시 직답합니다. 일반론·서론 금지.
+- **currentJob 연결:** [현재 직업] 정보를 foundation·timing·action 섹션에 구체적으로 반영합니다.
+- **단정 금지:** "반드시 ○○해야 한다" 대신 "이런 환경에서 능력이 가장 잘 발휘된다" 방향으로 서술합니다.
+- **균형:** 유리한 시기와 리스크·주의 시기를 함께 명시합니다.
+- **건강:** 질병 진단·치료법 언급 절대 금지.
+- **출생시간 미상:** 시주 기반 해석 생략, 1회만 한계 안내.
+
+[출력 형식]
+- HTML 태그 사용 금지. 마크다운 텍스트만 사용.
+- # ## ### 등 헤더 기호를 [CONTENT] 내부에서 사용 금지. 소제목은 **굵은 글씨**로.
+- 아래 [Output Format]의 섹션 마커를 정확히 준수. 파싱 로직이 의존합니다.
+
+${p.jobCareerGuideline}
+`;
+
+  const user = `[분석 대상]
+이름: ${p.userName}
+성별: ${p.gender === 'M' ? '남성' : '여성'}
+생년월일: ${p.birthDate} ${p.unknownTime ? '(시간 미상)' : p.birthTime}
+음양력: ${p.isLunar ? '음력' : '양력'}${p.isLunar ? ` / 윤달: ${p.isLeap ? '예' : '아니오'}` : ''}
+현재 나이: ${p.currentAge}세
+올해 세운: ${p.currentYearText}
+
+[사주 원국]
+${p.sajuContext}
+
+[대운 흐름]
+${p.daeunContext}
+
+[용신 분석]
+${p.yongshinContext}
+
+[세운 데이터] (반드시 아래 값만 사용, 임의 계산 금지)
+${p.seun3YText}
+
+[현재 직업]
+${p.currentJob || '미입력'}
+
+[커리어 고민]
+${p.careerConcern || '미입력'}
+
+[원하는 방향]
+${p.careerGoal || '미입력'}
+
+[주요 경력 흐름]
+${p.workHistory || '미입력'}
+
+위 정보를 바탕으로 ${p.userName}님의 「직업운 리포트」를 지정된 섹션 형식으로 작성해주세요.
+특히 answer 섹션(핵심 질문 직답)을 가장 먼저, 가장 풍부한 분량으로 작성하고,
+timing 섹션의 [SEUN_BLOCK] 3개(2026·2027·2028)를 반드시 [세운 데이터] 값 그대로 사용하여 작성하세요.`;
+
+  return { system, user };
+};

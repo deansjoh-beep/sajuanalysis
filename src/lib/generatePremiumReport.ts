@@ -4,12 +4,12 @@ import {
   getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation,
   getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary, hanjaToHangul,
 } from "../utils/saju";
-import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE } from "../constants/guidelines";
+import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE, JOB_CAREER_GUIDELINE } from "../constants/guidelines";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PremiumOrder, ReportInputData, ReportSection, DaeunBlock } from "./premiumOrderStore";
 import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
-import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt } from './promptBuilders';
+import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt, buildJobCareerPrompt } from './promptBuilders';
 
 let runtimeGeminiApiKeyCache: string | undefined;
 
@@ -35,6 +35,18 @@ const YEARLY_FORTUNE_REQUIRED_SECTION_IDS = [
   'yearly',
   'monthly',
   'checklist',
+  'glossary',
+] as const;
+
+const JOB_CAREER_REQUIRED_SECTION_IDS = [
+  'cover',
+  'chart',
+  'answer',
+  'foundation',
+  'sipseng',
+  'ohaeng',
+  'timing',
+  'action',
   'glossary',
 ] as const;
 
@@ -507,6 +519,45 @@ const evaluateYearlyFortuneQuality = (
   return { score, issues, normalizedText, sections };
 };
 
+const evaluateJobCareerQuality = (
+  rawText: string
+): {
+  score: number;
+  issues: string[];
+  normalizedText: string;
+  sections: ReportSection[];
+} => {
+  const normalizedText = stripCodeFence(rawText);
+  const sections = parseLifeNavSections(normalizedText, []);
+  const issues: string[] = [];
+
+  if (sections.length === 0) issues.push('섹션 마커 파싱 실패');
+
+  const ids = new Set(sections.map((s) => s.id));
+  JOB_CAREER_REQUIRED_SECTION_IDS.forEach((id) => {
+    if (!ids.has(id)) issues.push(`필수 섹션 누락: ${id}`);
+  });
+
+  sections.forEach((section) => {
+    if (section.id === 'cover') return;
+    const contentLen = section.content.replace(/\s+/g, '').length;
+    if (section.id === 'answer' && contentLen < 800) {
+      issues.push(`answer 섹션 분량 부족: ${contentLen}자 (1,200자 권장)`);
+    } else if (section.id === 'timing') {
+      const seunBlockCount = (section.content.match(/\[SEUN_BLOCK\]/g) || []).length;
+      if (seunBlockCount < 3) issues.push(`SEUN_BLOCK 부족: ${seunBlockCount}/3`);
+      if (contentLen < 600) issues.push(`timing 섹션 분량 부족: ${contentLen}자`);
+    } else if (section.id === 'action') {
+      if (!section.content.includes('[ACTION_PLAN]')) issues.push('ACTION_PLAN 마커 누락');
+    } else if (contentLen < 120) {
+      issues.push(`본문이 너무 짧음: ${section.id}`);
+    }
+  });
+
+  const score = Math.max(0, 100 - issues.length * 12);
+  return { score, issues, normalizedText, sections };
+};
+
 export const generateLifeNavReport = async (
   inputData: ReportInputData,
   signal?: AbortSignal
@@ -563,11 +614,42 @@ export const generateLifeNavReport = async (
   const currentAge = currentYearPillar.year - birthYear;
 
   const isYearlyFortune = inputData.productType === 'yearly2026';
+  const isJobCareer = inputData.productType === 'jobCareer';
 
   let system: string;
   let user: string;
 
-  if (isYearlyFortune) {
+  if (isJobCareer) {
+    // 직업운 리포트: 2026~2028 세운 고정 블록 주입
+    const seun3YText = [
+      '2026년: 병오(丙午) — 천간 丙(양화), 지지 午(화)',
+      '2027년: 정미(丁未) — 천간 丁(음화), 지지 未(토)',
+      '2028년: 무신(戊申) — 천간 戊(양토), 지지 申(금)',
+    ].join('\n');
+
+    const built = buildJobCareerPrompt({
+      userName: inputData.name,
+      gender: inputData.gender,
+      birthDate: inputData.birthDate,
+      birthTime: inputData.birthTime,
+      isLunar: inputData.isLunar,
+      isLeap: inputData.isLeap,
+      unknownTime: inputData.unknownTime,
+      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
+      daeunContext,
+      yongshinContext,
+      currentAge,
+      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      seun3YText,
+      currentJob: inputData.currentJob || '',
+      careerConcern: inputData.concern || '',
+      careerGoal: inputData.interest || '',
+      workHistory: inputData.workHistory || '',
+      jobCareerGuideline: JOB_CAREER_GUIDELINE,
+    });
+    system = built.system;
+    user = built.user;
+  } else if (isYearlyFortune) {
     // 2026 월별 간지 텍스트
     const monthPillars = getMonthPillarsForYear(currentYearPillar.year);
     const monthPillarsText = monthPillars
@@ -719,9 +801,11 @@ export const generateLifeNavReport = async (
     { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 }
   );
 
-  let quality = isYearlyFortune
-    ? evaluateYearlyFortuneQuality(rawText)
-    : evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
+  let quality = isJobCareer
+    ? evaluateJobCareerQuality(rawText)
+    : isYearlyFortune
+      ? evaluateYearlyFortuneQuality(rawText)
+      : evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
 
   // 품질 점수가 낮으면 1회 보정 생성 시도
   if (quality.score < 80) {
@@ -741,9 +825,11 @@ export const generateLifeNavReport = async (
         user,
         { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 }
       );
-      const repairedQuality = isYearlyFortune
-        ? evaluateYearlyFortuneQuality(repairedRawText)
-        : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
+      const repairedQuality = isJobCareer
+        ? evaluateJobCareerQuality(repairedRawText)
+        : isYearlyFortune
+          ? evaluateYearlyFortuneQuality(repairedRawText)
+          : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
       if (repairedQuality.score >= quality.score) {
         quality = repairedQuality;
       }
