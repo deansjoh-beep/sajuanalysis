@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { Calendar, ChevronDown, Compass, Download, FileText, Ticket } from 'lucide-react';
+import { Briefcase, Calendar, ChevronDown, Compass, Download, FileText, Ticket } from 'lucide-react';
 import { useReportTabActions } from '../../hooks/useReportTabActions';
 import { ReportTab } from './ReportTab';
 
@@ -22,6 +22,7 @@ interface ReportTabContentProps {
   handleGenerateReport: () => void;
   onGoToOrder?: () => void;
   onGoToYearlyOrder?: () => void;
+  onGoToJobCareer?: () => void;
 }
 
 interface ParsedReportSection {
@@ -166,6 +167,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
   handleGenerateReport,
   onGoToOrder,
   onGoToYearlyOrder,
+  onGoToJobCareer,
 }) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const { switchReportMode, handleDownloadPDF } = useReportTabActions({
@@ -284,34 +286,6 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
                 </p>
               </div>
 
-              {/* 프리미엄 일년운세 2026 CTA — 결과 맨 아래 */}
-              {onGoToYearlyOrder && (
-                <div className="mt-8 rounded-[2rem] border border-amber-200/70 bg-gradient-to-br from-amber-50 via-rose-50 to-indigo-50 p-6 md:p-8 shadow-lg shadow-amber-200/20">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center shrink-0 shadow-md mt-0.5">
-                      <Calendar className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center min-h-[28px]">
-                        <h4 className="text-[16px] font-bold leading-tight text-zinc-900">프리미엄 일년운세 2026</h4>
-                      </div>
-                      <p className="text-[11px] text-zinc-600 leading-relaxed">사주 원국 · 대운 · 2026 세운 · 월별까지 통합한 10페이지 맞춤 리포트 · 5,000원</p>
-                    </div>
-                  </div>
-                  <ul className="text-[11px] text-zinc-700 space-y-1 mb-4 pl-1">
-                    <li>• 가장 알고 싶은 것과 가장 큰 고민에 먼저 직답</li>
-                    <li>• 2026년 한 해 종합운 + 12개월 상세 흐름</li>
-                    <li>• 실행 가능한 연간 체크리스트까지</li>
-                  </ul>
-                  <button
-                    onClick={onGoToYearlyOrder}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] rounded-xl text-[13px] font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white hover:opacity-90 transition-all shadow-lg shadow-rose-500/20"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    프리미엄 일년운세 2026 주문하기
-                  </button>
-                </div>
-              )}
             </motion.div>
           ) : (
             <motion.div
@@ -334,6 +308,57 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 프리미엄 리포트 주문 CTA — 항상 노출 */}
+        <div className="mt-8 space-y-3">
+          <p className="text-[11px] font-bold text-zinc-500 text-center tracking-wide uppercase">전문가 제작 프리미엄 리포트</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button
+              onClick={onGoToOrder}
+              disabled={!onGoToOrder}
+              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-violet-200/70 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50 hover:opacity-90 transition-all shadow-md shadow-violet-200/20 disabled:opacity-40 text-left"
+            >
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+                <Ticket className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-zinc-900 leading-tight">인생가이드북</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">사주 원국·격국·대운·분야별 운세</p>
+              </div>
+              <span className="mt-auto text-[11px] font-bold text-indigo-600">5,000원 · 주문하기 →</span>
+            </button>
+
+            <button
+              onClick={onGoToYearlyOrder}
+              disabled={!onGoToYearlyOrder}
+              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-rose-50 to-indigo-50 hover:opacity-90 transition-all shadow-md shadow-rose-200/20 disabled:opacity-40 text-left"
+            >
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center shadow-md">
+                <Calendar className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-zinc-900 leading-tight">프리미엄 일년운세 2026</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">세운·월별 흐름·연간 체크리스트</p>
+              </div>
+              <span className="mt-auto text-[11px] font-bold text-rose-600">5,000원 · 주문하기 →</span>
+            </button>
+
+            <button
+              onClick={onGoToJobCareer}
+              disabled={!onGoToJobCareer}
+              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 hover:opacity-90 transition-all shadow-md shadow-emerald-200/20 disabled:opacity-40 text-left"
+            >
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
+                <Briefcase className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-zinc-900 leading-tight">직업운 리포트</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">이직·창업·승진 타이밍·커리어 DNA</p>
+              </div>
+              <span className="mt-auto text-[11px] font-bold text-emerald-600">5,000원 · 주문하기 →</span>
+            </button>
+          </div>
+        </div>
       </div>
     </ReportTab>
   );
