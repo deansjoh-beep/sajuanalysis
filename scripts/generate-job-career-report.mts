@@ -92,6 +92,13 @@ const { system, user } = buildJobCareerPrompt({
   yongshinContext,
   currentAge,
   currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+  todayDateText: (() => {
+    const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const y = p.find(x => x.type === 'year')?.value ?? '';
+    const m = parseInt(p.find(x => x.type === 'month')?.value ?? '0');
+    const d = parseInt(p.find(x => x.type === 'day')?.value ?? '0');
+    return `${y}년 ${m}월 ${d}일`;
+  })(),
   seun3YText,
   currentJob: CURRENT_JOB,
   careerConcern: CAREER_CONCERN,

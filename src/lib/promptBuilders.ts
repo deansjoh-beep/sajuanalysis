@@ -219,6 +219,7 @@ export interface LifeNavReportParams {
   yongshinContext: string;
   currentAge: number;
   currentYearText: string;
+  todayDateText: string;
   lifeEventsText: string;
   concern: string;
   interest: string;
@@ -335,7 +336,15 @@ ${levelNote}
 ${p.levelGuideline}
 `;
 
-  const user = `[분석 대상]
+  const user = `[기준 시점]
+오늘 날짜: ${p.todayDateText} (양력, 서울 기준)
+※ 이 리포트의 "올해/현재"는 ${p.currentYearText} 기준입니다. 시제 규칙을 엄격히 지키세요:
+  - 올해(${p.currentYearText}) 사건: 현재 시제로 서술 ("~이 일어나고 있다", "~하는 시기다", "~한다")
+  - 이전 연도(작년 이전): 과거 시제 ("~였다", "~했다", "~해왔다")
+  - 다음 연도 이후(내년·미래): 미래 시제 ("~될 것이다", "~예상된다")
+  - "곧 다가올 ${p.currentYearText}" 같은 미래 시제로 올해를 묘사하지 마세요. 올해는 이미 진행 중입니다.
+
+[분석 대상]
 이름: ${p.userName}
 성별: ${p.gender === 'M' ? '남성' : '여성'}
 생년월일: ${p.birthDate} ${p.unknownTime ? '(시간 미상)' : p.birthTime}
@@ -387,6 +396,7 @@ export interface YearlyFortune2026Params {
   yongshinContext: string;
   currentAge: number;
   currentYearText: string;     // 예: "2026년 병오(丙午)"
+  todayDateText: string;       // 예: "2026년 4월 27일"
   monthPillarsText: string;    // 예: "1월 己丑(기축) / 2월 庚寅(경인) / ..."
   seunRangeText: string;       // 예: "2024년: 甲辰(갑진) ... 2030년: 庚戌(경술)"
   currentJob: string;
@@ -415,7 +425,15 @@ export const buildYearlyFortune2026Prompt = (
 ${p.yearlyFortuneGuideline}
 `;
 
-  const user = `[분석 대상]
+  const user = `[기준 시점]
+오늘 날짜: ${p.todayDateText} (양력, 서울 기준)
+※ 이 리포트의 "올해/현재"는 ${p.currentYearText} 기준입니다. 시제 규칙을 엄격히 지키세요:
+  - 올해(${p.currentYearText}) 사건: 현재 시제로 서술 ("~이 일어나고 있다", "~하는 시기다", "~한다")
+  - 이전 연도(작년 이전): 과거 시제 ("~였다", "~했다", "~해왔다")
+  - 다음 연도 이후(내년·미래): 미래 시제 ("~될 것이다", "~예상된다")
+  - "곧 다가올 ${p.currentYearText}" 같은 미래 시제로 올해를 묘사하지 마세요. 올해는 이미 진행 중입니다.
+
+[분석 대상]
 이름: ${p.userName}
 성별: ${p.gender === 'M' ? '남성' : '여성'}
 생년월일: ${p.birthDate} ${p.unknownTime ? '(시간 미상)' : p.birthTime}
@@ -472,6 +490,7 @@ export interface JobCareerReportParams {
   yongshinContext: string;
   currentAge: number;
   currentYearText: string;
+  todayDateText: string;
   seun3YText: string;
   currentJob: string;
   careerConcern: string;
@@ -504,7 +523,15 @@ export const buildJobCareerPrompt = (
 ${p.jobCareerGuideline}
 `;
 
-  const user = `[분석 대상]
+  const user = `[기준 시점]
+오늘 날짜: ${p.todayDateText} (양력, 서울 기준)
+※ 이 리포트의 "올해/현재"는 ${p.currentYearText} 기준입니다. 시제 규칙을 엄격히 지키세요:
+  - 올해(${p.currentYearText}) 사건: 현재 시제로 서술 ("~이 일어나고 있다", "~하는 시기다", "~한다")
+  - 이전 연도(작년 이전): 과거 시제 ("~였다", "~했다", "~해왔다")
+  - 다음 연도 이후(내년·미래): 미래 시제 ("~될 것이다", "~예상된다")
+  - "곧 다가올 ${p.currentYearText}" 같은 미래 시제로 올해를 묘사하지 마세요. 올해는 이미 진행 중입니다.
+
+[분석 대상]
 이름: ${p.userName}
 성별: ${p.gender === 'M' ? '남성' : '여성'}
 생년월일: ${p.birthDate} ${p.unknownTime ? '(시간 미상)' : p.birthTime}
