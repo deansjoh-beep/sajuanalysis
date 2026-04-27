@@ -613,6 +613,16 @@ export const generateLifeNavReport = async (
   const birthYear = parseInt(inputData.birthDate.split('-')[0]);
   const currentAge = currentYearPillar.year - birthYear;
 
+  // 오늘 날짜 (서울 기준) — AI가 "올해" 기준연도를 정확히 인식하도록 명시
+  const seoulNow = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const todayY = seoulNow.find(p => p.type === 'year')?.value ?? String(currentYearPillar.year);
+  const todayM = seoulNow.find(p => p.type === 'month')?.value ?? '01';
+  const todayD = seoulNow.find(p => p.type === 'day')?.value ?? '01';
+  const todayDateText = `${todayY}년 ${parseInt(todayM)}월 ${parseInt(todayD)}일`;
+
   const isYearlyFortune = inputData.productType === 'yearly2026';
   const isJobCareer = inputData.productType === 'jobCareer';
 
@@ -640,6 +650,7 @@ export const generateLifeNavReport = async (
       yongshinContext,
       currentAge,
       currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      todayDateText,
       seun3YText,
       currentJob: inputData.currentJob || '',
       careerConcern: inputData.concern || '',
@@ -685,6 +696,7 @@ export const generateLifeNavReport = async (
       yongshinContext,
       currentAge,
       currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      todayDateText,
       monthPillarsText,
       seunRangeText,
       currentJob: inputData.currentJob || '',
@@ -715,6 +727,7 @@ export const generateLifeNavReport = async (
       yongshinContext,
       currentAge,
       currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      todayDateText,
       lifeEventsText,
       concern: inputData.concern,
       interest: inputData.interest,
