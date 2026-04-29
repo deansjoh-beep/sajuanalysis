@@ -213,6 +213,11 @@ export default function ManseTab({
   const hasData = sajuResult.length > 0;
   // AI 호출 진행 중인지
   const aiPending = reportLoading && !reportContent;
+  // reportContent가 있는데 섹션이 없으면 에러 문자열로 취급
+  const reportError =
+    !reportLoading && !!reportContent && parsedReport.sections.length === 0
+      ? parsedReport.greeting || 'AI 해설 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+      : undefined;
 
   // 모드 토글 핸들러 — 변경 시 리포트 재생성을 위해 reportContent를 null로
   const handleModeChange = (m: 'basic' | 'advanced') => {
@@ -317,6 +322,7 @@ export default function ManseTab({
             <AIReportSection
               section={sec(1)}
               loading={aiPending}
+              errorMessage={reportError}
               loadingLabel="AI가 사주 전체를 분석하고 있습니다. 해설 생성에 1~2분 정도 소요되니 잠시만 기다려 주세요."
             />
 
@@ -389,6 +395,7 @@ export default function ManseTab({
             <AIReportSection
               section={sec(4)}
               loading={aiPending}
+              errorMessage={reportError}
               loadingLabel="오행 밸런스 해설 준비 중..."
             />
 
@@ -526,6 +533,7 @@ export default function ManseTab({
             <AIReportSection
               section={sec(3)}
               loading={aiPending}
+              errorMessage={reportError}
               loadingLabel="생애 주기 해설 준비 중..."
             />
 
@@ -543,6 +551,7 @@ export default function ManseTab({
             <AIReportSection
               section={sec(2)}
               loading={aiPending}
+              errorMessage={reportError}
               loadingLabel="대운·세운 해설 준비 중..."
             />
 
@@ -555,6 +564,7 @@ export default function ManseTab({
             <AIReportSection
               section={sec(5)}
               loading={aiPending}
+              errorMessage={reportError}
               loadingLabel="용신 해설 준비 중..."
             />
 
@@ -562,6 +572,7 @@ export default function ManseTab({
             <AIReportSection
               section={sec(6)}
               loading={aiPending}
+              errorMessage={reportError}
               loadingLabel="테마별 해설 준비 중..."
             />
 
