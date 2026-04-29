@@ -70,7 +70,8 @@ export const useReportGenerationAction = ({
     }
 
     setLoading(true);
-    setActiveTab('report');
+    // 만세력 페이지에 통합되어 표시되므로 자동 탭 전환 없음.
+    // 호출 측이 필요하면 별도로 setActiveTab 호출.
 
     try {
       const ai = getGeminiAI();

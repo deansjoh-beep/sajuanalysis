@@ -102,6 +102,18 @@ When adding a new API endpoint, apply the appropriate limiter in **both** `serve
 
 **Build** — `vite.config.ts` sets `build.sourcemap: false` explicitly. Do not enable source maps for production builds.
 
+## Design principles (못박힌 원칙 — 어기지 말 것)
+
+이 사이트는 **최대한 단순한 디자인**을 원칙으로 한다. 새 컴포넌트를 만들거나 기존 페이지를 고칠 때 반드시 다음을 지킬 것:
+
+- **텍스트 크기는 두 단계만 사용한다.** 본문(설명) `text-[14px]` (모바일 13px 허용) + 보조(라벨·캡션·배지·메타 정보) `text-[12px]`. 이 사이의 13.5px 같은 중간 단계, 11px 같은 더 작은 단계 신설 금지. 제목(`font-serif text-[18px]~text-[40px]`)과 버튼(`text-[13px]`/`text-[14px]`)은 별도 — 위 두 단계 규칙에서 제외.
+- **장식적 요소를 더하지 않는다.** 섹션 헤더에 아이콘 박스, "분석 결론" 같은 메타 라벨, 골드 영문 캡션("MANSERYEOK", "Manseryeok")을 새로 추가하지 말 것. 의미가 텍스트로 충분히 전달되면 시각 장식은 제거.
+- **일반 이론 vs 사용자 적용은 분리한다.** 한 카드/단락에 "이건 이런 개념입니다 + 당신의 경우 …"를 섞지 말고, 일반 설명 단락과 사용자 분석 단락을 별도 블록으로 둔다. "당신의 경우" 같은 라벨로 강조하지도 말 것 — 두 블록은 단순 단락 분리로 충분.
+- **컨트롤은 한 곳에 모은다.** 페이지 단위 토글(예: 초급자/고급자)은 페이지 헤더 우측 상단 한 곳. 가운데 정렬한 큰 토글, 카드 사이 곳곳에 흩어진 미니 토글 금지.
+- **단순화를 깨야 할 때는 명시적 사용자 요청이 있을 때만.** "더 풍부하게" 같은 자체 판단으로 장식을 다시 늘리지 말 것.
+
+이 원칙은 만세력(`ManseTab`)·랜딩(`WelcomeTab`)·리포트(`ReportTabContent`)에 적용되었으며, 다른 탭으로 한지 톤을 확장할 때도 동일하게 적용한다.
+
 ## Conventions worth knowing
 
 - **Language**: UI + content are Korean; commit messages use Korean Conventional Commits (e.g. `feat(yearly-fortune): ...`). Match this style.
