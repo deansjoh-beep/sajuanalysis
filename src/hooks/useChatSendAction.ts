@@ -253,7 +253,7 @@ export const useChatSendAction = ({
 
       const modelCandidates = preferredModels.length > 0
         ? preferredModels
-        : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+        : ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
 
       let activeModel = modelCandidates[0];
       const telemetryRequestId = `chat-${requestId}-${Date.now()}`;
@@ -264,8 +264,9 @@ export const useChatSendAction = ({
           const startedAt = Date.now();
           try {
             // 503(서버 과부하) 발생 시 즉시 다음 모델로 이동.
-            // gemini-1.5-flash는 자원이 풍부해 최후 보루로 최대 3회 재시도.
-            const maxAttempts = model === 'gemini-1.5-flash' ? 3 : 1;
+            // 마지막 모델은 최후 보루로 2회 재시도(이후 Claude 폴백).
+            const isLastModel = model === modelCandidates[modelCandidates.length - 1];
+            const maxAttempts = isLastModel ? 2 : 1;
             const result = await runWithModelRetry<any>(
               () => ai.models.generateContent({
                 model,

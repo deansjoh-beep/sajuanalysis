@@ -116,14 +116,14 @@ export const getGeminiAI = () => {
 
 export const DEFAULT_GEMINI_MODEL_PRIORITY = [
   'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
 ];
 
 export const DEPRECATED_GEMINI_MODEL_REPLACEMENTS: Record<string, string> = {
-  'gemini-2.0-flash': 'gemini-2.5-flash',
-  'models/gemini-2.0-flash': 'gemini-2.5-flash',
+  // gemini-1.5-flash는 v1beta에서 404 NOT_FOUND. 2.5-flash-lite로 대체.
+  'gemini-1.5-flash': 'gemini-2.5-flash-lite',
+  'models/gemini-1.5-flash': 'gemini-2.5-flash-lite',
 };
 
 export const normalizeModelName = (model: string) => {
@@ -154,8 +154,7 @@ export const getPreferredGeminiModels = (): string[] => {
   const parsed = raw
     .split(',')
     .map((m) => toSafeModelName(m))
-    .filter(Boolean)
-    .filter((m) => m !== 'gemini-2.0-flash');
+    .filter(Boolean);
 
   const baseCandidates = raw ? parsed : [];
   const deduped = Array.from(new Set([...baseCandidates, ...DEFAULT_GEMINI_MODEL_PRIORITY]));
