@@ -1,365 +1,275 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import ReactMarkdown from 'react-markdown';
-import { Briefcase, Calendar, ChevronDown, Compass, Download, FileText, Ticket } from 'lucide-react';
-import { useReportTabActions } from '../../hooks/useReportTabActions';
-import { ReportTab } from './ReportTab';
+import { motion } from 'motion/react';
+import { ArrowRight, Briefcase, Calendar, Sparkles } from 'lucide-react';
+import { TAB_TRANSITION } from '../../constants/styles';
+import { PaperBackground } from '../welcome/PaperBackground';
 
-interface ReportTabContentProps {
-  tabTransition: any;
-  glassTabBgClass: string;
-  glassPanelStrongClass: string;
-  loading: boolean;
-  sajuResultLength: number;
-  reportContent: string | null;
-  isPrinting: boolean;
-  userName: string;
-  consultationMode: 'basic' | 'advanced';
-  consultationModeRef: React.MutableRefObject<'basic' | 'advanced'>;
-  setIsPrinting: React.Dispatch<React.SetStateAction<boolean>>;
-  setConsultationMode: React.Dispatch<React.SetStateAction<'basic' | 'advanced'>>;
-  setReportContent: React.Dispatch<React.SetStateAction<string | null>>;
-  handleGenerateReport: () => void;
+/**
+ * 리포트 탭 — 프리미엄 3종 상품 진열 페이지.
+ *
+ * AI 리포트 생성 기능은 만세력(dashboard) 페이지로 이전되었으므로 이 페이지는
+ * 단순한 상품 쇼케이스 + 한지·먹 톤 적용으로 단순화.
+ *
+ * App.tsx의 기존 props 시그니처를 깨지 않기 위해 모든 props를 그대로 받지만
+ * 실제로는 onGoToOrder / onGoToYearlyOrder / onGoToJobCareer 만 사용.
+ */
+export interface ReportTabContentProps {
+  tabTransition?: any;
+  glassTabBgClass?: string;
+  glassPanelStrongClass?: string;
+  loading?: boolean;
+  sajuResultLength?: number;
+  reportContent?: string | null;
+  isPrinting?: boolean;
+  userName?: string;
+  consultationMode?: 'basic' | 'advanced';
+  consultationModeRef?: React.MutableRefObject<'basic' | 'advanced'>;
+  setIsPrinting?: React.Dispatch<React.SetStateAction<boolean>>;
+  setConsultationMode?: React.Dispatch<React.SetStateAction<'basic' | 'advanced'>>;
+  setReportContent?: React.Dispatch<React.SetStateAction<string | null>>;
+  handleGenerateReport?: () => void;
   onGoToOrder?: () => void;
   onGoToYearlyOrder?: () => void;
   onGoToJobCareer?: () => void;
 }
 
-interface ParsedReportSection {
+interface ProductCardData {
+  badge: string;
   title: string;
-  keyword: string;
-  body: string;
+  hanja: string;
+  tagline: string;
+  description: string;
+  bullets: string[];
+  price: string;
+  cta: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onClick?: () => void;
 }
 
-const extractReportSections = (content: string): ParsedReportSection[] => {
-  if (!content) return [];
-
-  const parts = content.split(/\[SECTION\]/).filter((part) => part.trim());
-  return parts.map((part) => {
-    const match = part.match(/^(.*?)\s*\[KEYWORD\]\s*(.*?)\s*\[CONTENT\]\s*([\s\S]*)$/);
-    if (!match) {
-      return {
-        title: '상세 분석',
-        keyword: '',
-        body: part.replace(/\[KEYWORD\]|\[CONTENT\]|\[END\]/g, '').trim()
-      };
-    }
-
-    return {
-      title: match[1].trim(),
-      keyword: match[2].trim(),
-      body: match[3].replace(/\[END\]/g, '').trim()
-    };
-  });
-};
-
-const ReportAccordion: React.FC<{ content: string; forceOpen?: boolean }> = ({ content, forceOpen }) => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const { greeting, sections } = useMemo(() => {
-    if (!content) return { greeting: '', sections: [] };
-
-    try {
-      const firstSectionIndex = content.indexOf('[SECTION]');
-      let greetingText = '';
-      let sectionsPart = content;
-
-      if (firstSectionIndex !== -1) {
-        greetingText = content.substring(0, firstSectionIndex).replace(/\[인사말\]/g, '').trim();
-        sectionsPart = content.substring(firstSectionIndex);
-      } else {
-        greetingText = content.replace(/\[인사말\]/g, '').trim();
-        sectionsPart = '';
-      }
-
-      const parsedSections = extractReportSections(sectionsPart).map((section) => ({
-        header: section.keyword ? `${section.title} : ${section.keyword}` : section.title,
-        body: section.body
-      }));
-
-      return { greeting: greetingText, sections: parsedSections };
-    } catch (err) {
-      console.error('[ERROR] Failed to parse report content:', err);
-      return { greeting: '', sections: [] };
-    }
-  }, [content]);
-
-  if (sections.length === 0) {
-    return (
-      <div className="markdown-body prose max-w-none text-[13px] p-4">
-        <ReactMarkdown>{content}</ReactMarkdown>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {greeting && (
-        <div className="p-6 md:p-8 rounded-[2.5rem] bg-indigo-50 text-indigo-950 border-indigo-100 font-report text-[13px] leading-relaxed mb-8 shadow-sm border">
-          <ReactMarkdown>{greeting}</ReactMarkdown>
-        </div>
-      )}
-      {sections.map((section, index) => {
-        const isOpen = forceOpen || openIndex === index;
-        return (
-          <div
-            key={index}
-            className="rounded-2xl border transition-all overflow-hidden bg-white border-black/5 shadow-sm"
-          >
-            <button
-              onClick={() => setOpenIndex(openIndex === index ? null : index)}
-              className="w-full px-5 py-4 flex items-center justify-between text-left group"
-            >
-              <div className="flex-1 pr-4">
-                <h3 className="text-[16px] font-report font-bold leading-tight transition-colors text-zinc-800 group-hover:text-indigo-600">
-                  {section.header}
-                </h3>
-              </div>
-              {!forceOpen && (
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                    isOpen ? 'bg-indigo-500 text-white rotate-180 shadow-lg shadow-indigo-500/20' : 'bg-zinc-100 text-zinc-500'
-                  }`}
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              )}
-            </button>
-
-            <AnimatePresence initial={!forceOpen}>
-              {isOpen && (
-                <motion.div
-                  initial={forceOpen ? { opacity: 1, height: 'auto' } : { height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: 'easeInOut' }}
-                >
-                  <div className="px-5 pb-5 pt-0 text-[13px] leading-relaxed text-zinc-700">
-                    <div className="w-full h-px bg-black/5 mb-4" />
-                    <div className="report-markdown markdown-body prose max-w-none">
-                      <ReactMarkdown>{section.body}</ReactMarkdown>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-export const ReportTabContent: React.FC<ReportTabContentProps> = ({
-  tabTransition,
-  glassTabBgClass,
-  glassPanelStrongClass,
-  loading,
-  sajuResultLength,
-  reportContent,
-  isPrinting,
-  userName,
-  consultationMode,
-  consultationModeRef,
-  setIsPrinting,
-  setConsultationMode,
-  setReportContent,
-  handleGenerateReport,
+export function ReportTabContent({
   onGoToOrder,
   onGoToYearlyOrder,
   onGoToJobCareer,
-}) => {
-  const reportRef = useRef<HTMLDivElement>(null);
-  const { switchReportMode, handleDownloadPDF } = useReportTabActions({
-    reportRef,
-    reportContent,
-    isPrinting,
-    userName,
-    consultationModeRef,
-    setIsPrinting,
-    setConsultationMode,
-    setReportContent
-  });
+}: ReportTabContentProps) {
+  const products: ProductCardData[] = [
+    {
+      badge: 'Lifetime Guide',
+      title: '인생가이드북',
+      hanja: '人生指南',
+      tagline: '평생을 곁에 두고 보는 한 권의 명리 지도',
+      description:
+        '사주 원국과 격국, 대운의 전체 흐름을 한 권으로 정리해 드립니다. 자기 이해의 출발점이 되는 가장 기본이자 가장 깊은 리포트입니다.',
+      bullets: [
+        '사주팔자 원국 정밀 해설 + 지장간 풀이',
+        '격국·용신 분석으로 자기 이해의 뼈대',
+        '인생 전반의 대운 흐름 — 펼칠 때와 다듬을 때',
+        '재물·연애·직업·건강 분야별 활용 가이드',
+      ],
+      price: '5,000원',
+      cta: '인생가이드북 주문하기',
+      icon: Sparkles,
+      onClick: onGoToOrder,
+    },
+    {
+      badge: 'Yearly 2026',
+      title: '프리미엄 일년운세 2026',
+      hanja: '丙午年運勢',
+      tagline: '2026년 한 해, 달마다 무엇을 펼치고 거둘 것인가',
+      description:
+        '2026년 세운(歲運)과 12개월 월운(月運)을 사용자 사주 원국과 결합해 풀어드립니다. 한 해의 호흡을 미리 가늠하고 실행 리듬을 잡는 데 쓰는 리포트입니다.',
+      bullets: [
+        '2026 세운 — 한 해의 큰 결',
+        '12개월 월별 흐름과 주의 시점',
+        '연간 체크리스트 — 무엇을 펼치고 무엇을 다듬을 것인가',
+        '대운과 세운이 만나는 핵심 길흉 포인트',
+      ],
+      price: '5,000원',
+      cta: '일년운세 2026 주문하기',
+      icon: Calendar,
+      onClick: onGoToYearlyOrder,
+    },
+    {
+      badge: 'Career & Job',
+      title: '직업운 리포트',
+      hanja: '職業運報告',
+      tagline: '나는 어떤 환경에서 가장 빛나는 사람인가',
+      description:
+        '사주 구조에서 본 적성·강점·환경 적합도를 분석합니다. 이직·창업·승진 타이밍을 실제 결정에 쓸 수 있는 형태로 정리합니다.',
+      bullets: [
+        '커리어 DNA — 본질적 적성과 강점',
+        '잘 맞는 환경 vs 소진되는 환경',
+        '이직·창업·승진 타이밍 가늠표',
+        '함께할 때 시너지 나는 동료/상사 유형',
+      ],
+      price: '5,000원',
+      cta: '직업운 리포트 주문하기',
+      icon: Briefcase,
+      onClick: onGoToJobCareer,
+    },
+  ];
 
   return (
-    <ReportTab tabTransition={tabTransition} glassTabBgClass={glassTabBgClass}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[320px] overflow-hidden">
-        <div className="absolute -left-10 top-8 h-56 w-56 rounded-full bg-cyan-300/30 blur-3xl" />
-        <div className="absolute right-0 top-16 h-64 w-64 rounded-full bg-indigo-300/25 blur-3xl" />
+    <motion.div
+      key="report"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={TAB_TRANSITION}
+      className="absolute inset-0 overflow-y-auto hide-scrollbar bg-paper-50"
+      data-theme="light"
+    >
+      {/* 한지 배경 — sticky로 스크롤 영역 고정 */}
+      <div className="sticky top-0 left-0 w-full h-screen pointer-events-none -mb-[100vh]">
+        <PaperBackground />
       </div>
-      <div className="relative z-10 max-w-4xl mx-auto pb-20">
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-white/60 backdrop-blur border border-white/65 shadow-lg shadow-indigo-200/20 w-fit">
-            <button
-              onClick={() => switchReportMode('basic')}
-              disabled={loading}
-              className={`px-5 py-2 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 ${
-                consultationMode === 'basic'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-700'
-              }`}
-            >
-              초급자
-            </button>
-            <button
-              onClick={() => switchReportMode('advanced')}
-              disabled={loading}
-              className={`px-5 py-2 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 ${
-                consultationMode === 'advanced'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-700'
-              }`}
-            >
-              고급자
-            </button>
+
+      <div className="relative px-4 py-12 md:py-20 md:px-10">
+        <div className="max-w-3xl mx-auto space-y-12 md:space-y-16">
+          {/* 페이지 헤더 */}
+          <header className="text-center space-y-4">
+            <p className="text-[10px] tracking-[0.3em] uppercase text-brush-gold font-bold">
+              Premium Reports
+            </p>
+            <h2 className="font-serif text-[28px] md:text-[40px] font-bold text-ink-900 leading-tight">
+              깊이 보고 싶은 분께
+            </h2>
+            <p className="text-[13px] md:text-[15px] text-ink-700 leading-[1.85] max-w-2xl mx-auto">
+              만세력의 즉시 해설로는 다 풀어내지 못하는 영역이 있습니다.
+              <br className="hidden md:block" />
+              세 가지 프리미엄 리포트는 각각 한 가지 주제를 깊이 다룹니다.
+              <br className="hidden md:block" />
+              필요한 시점에 필요한 한 권만 골라 보세요.
+            </p>
+          </header>
+
+          {/* 3종 세로 진열 */}
+          <div className="space-y-8 md:space-y-10">
+            {products.map((p, i) => (
+              <ProductCard key={p.title} product={p} index={i} />
+            ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/65 bg-white/60 backdrop-blur p-3 shadow-lg shadow-indigo-200/20">
-              <p className="text-[11px] font-bold text-zinc-500 mb-2">표준 리포트</p>
-              <button
-                onClick={handleGenerateReport}
-                disabled={loading || sajuResultLength === 0}
-                className="w-full px-4 py-2 min-h-[44px] rounded-xl text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/20"
-              >
-                리포트 생성하기
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-white/65 bg-white/60 backdrop-blur p-3 shadow-lg shadow-violet-200/20">
-              <p className="text-[11px] font-bold text-zinc-500 mb-2">전문가 제작 리포트</p>
-              <button
-                onClick={onGoToOrder}
-                disabled={!onGoToOrder}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl text-[11px] font-bold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-40"
-              >
-                <Ticket className="w-3.5 h-3.5" />
-                프리미엄 주문
-              </button>
-            </div>
+          {/* 풀이 노트 */}
+          <div
+            className="rounded-3xl border border-brush-gold/30 bg-gradient-to-br from-paper-50/75 to-paper-100/55 px-6 py-6 md:px-8 md:py-7"
+            style={{
+              boxShadow:
+                '0 1px 0 rgba(168, 138, 74, 0.1), 0 10px 28px -12px rgba(58, 53, 48, 0.12)',
+            }}
+          >
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brush-gold mb-3">
+              구매 전 안내
+            </p>
+            <ul className="space-y-2 text-[13px] md:text-[14px] text-ink-700 leading-[1.85]">
+              <li className="flex gap-2">
+                <span className="text-brush-gold shrink-0">·</span>
+                <span>주문 후 1~2일 내 PDF로 메일 발송됩니다.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-brush-gold shrink-0">·</span>
+                <span>전문 술사가 작성한 정밀 리포트로, 만세력의 즉시 해설보다 분량과 깊이가 큽니다.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-brush-gold shrink-0">·</span>
+                <span>한 번 받은 리포트는 평생 다시 읽으며 활용하실 수 있습니다.</span>
+              </li>
+            </ul>
           </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={loading || isPrinting || !reportContent}
-              className="flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl text-[11px] font-bold bg-white/65 backdrop-blur border border-white/60 text-zinc-600 hover:bg-indigo-100/50 hover:text-indigo-600 transition-all disabled:opacity-40"
-            >
-              <Download className={`w-4 h-4 ${isPrinting ? 'animate-bounce' : ''}`} />
-              PDF 저장
-            </button>
-          </div>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {loading ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-32 space-y-6 border border-white/60 bg-white/55 backdrop-blur-2xl rounded-[3rem] shadow-2xl shadow-indigo-200/20"
-            >
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
-                <Compass className="w-6 h-6 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-              </div>
-              <div className="text-center space-y-2">
-                <p className="text-[16px] font-bold animate-pulse">운명의 지도를 그리는 중...</p>
-                <p className="text-[11px] text-zinc-500">AI 디렉터가 당신의 사주 로그를 정밀 분석하고 있습니다.</p>
-              </div>
-            </motion.div>
-          ) : reportContent ? (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-              ref={reportRef}
-            >
-              <div className={`${glassPanelStrongClass} rounded-[3rem] p-8 md:p-12`}>
-                <ReportAccordion content={reportContent} forceOpen={isPrinting} />
-              </div>
-              <div className="mt-10 pt-6 border-t border-white/60">
-                <p className="text-[11px] text-zinc-500 leading-relaxed text-center">
-                  본 리포트는 인공지능의 명리학적 해석이며, 과학적 사실이 아닙니다. 참고 용도로만 사용해 주시기 바라며, 모든 최종 결정과 책임은 사용자 본인에게 있습니다.
-                </p>
-              </div>
-
-            </motion.div>
-          ) : (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-32 space-y-8 border border-white/60 bg-white/55 backdrop-blur-2xl rounded-[3rem] shadow-2xl shadow-indigo-200/20"
-            >
-              <div className="w-24 h-24 rounded-full bg-indigo-500/5 flex items-center justify-center mx-auto border border-indigo-500/10">
-                <FileText className="w-10 h-10 text-indigo-500/30" />
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-[16px] font-title font-bold">운세 리포트가 아직 없습니다.</h3>
-                <p className="text-[13px] text-zinc-500 max-w-sm mx-auto leading-relaxed">
-                  먼저 모드를 선택한 뒤
-                  <br />
-                  상단의 "리포트 생성하기" 버튼을 눌러 생성해 주세요.
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 프리미엄 리포트 주문 CTA — 항상 노출 */}
-        <div className="mt-8 space-y-3">
-          <p className="text-[11px] font-bold text-zinc-500 text-center tracking-wide uppercase">전문가 제작 프리미엄 리포트</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button
-              onClick={onGoToOrder}
-              disabled={!onGoToOrder}
-              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-violet-200/70 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50 hover:opacity-90 transition-all shadow-md shadow-violet-200/20 disabled:opacity-40 text-left"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
-                <Ticket className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[13px] font-bold text-zinc-900 leading-tight">인생가이드북</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">사주 원국·격국·대운·분야별 운세</p>
-              </div>
-              <span className="mt-auto text-[11px] font-bold text-indigo-600">5,000원 · 주문하기 →</span>
-            </button>
-
-            <button
-              onClick={onGoToYearlyOrder}
-              disabled={!onGoToYearlyOrder}
-              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-rose-50 to-indigo-50 hover:opacity-90 transition-all shadow-md shadow-rose-200/20 disabled:opacity-40 text-left"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center shadow-md">
-                <Calendar className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[13px] font-bold text-zinc-900 leading-tight">프리미엄 일년운세 2026</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">세운·월별 흐름·연간 체크리스트</p>
-              </div>
-              <span className="mt-auto text-[11px] font-bold text-rose-600">5,000원 · 주문하기 →</span>
-            </button>
-
-            <button
-              onClick={onGoToJobCareer}
-              disabled={!onGoToJobCareer}
-              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 hover:opacity-90 transition-all shadow-md shadow-emerald-200/20 disabled:opacity-40 text-left"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
-                <Briefcase className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[13px] font-bold text-zinc-900 leading-tight">직업운 리포트</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">이직·창업·승진 타이밍·커리어 DNA</p>
-              </div>
-              <span className="mt-auto text-[11px] font-bold text-emerald-600">5,000원 · 주문하기 →</span>
-            </button>
-          </div>
+          {/* Disclaimer */}
+          <p className="text-[11px] text-ink-500 leading-relaxed text-center pt-4">
+            본 리포트는 전통 명리학 해석에 기반한 참고용 자료입니다. 과학적 사실이 아니며, 모든
+            최종 결정과 책임은 사용자 본인에게 있습니다.
+          </p>
         </div>
       </div>
-    </ReportTab>
+    </motion.div>
   );
-};
+}
+
+// ──────────────────────────────────────────────────────────
+// 상품 카드 — 한지·먹 톤
+// ──────────────────────────────────────────────────────────
+function ProductCard({ product, index }: { product: ProductCardData; index: number }) {
+  const Icon = product.icon;
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
+      className="relative rounded-[2rem] border border-ink-300/30 bg-paper-50/70 backdrop-blur-sm overflow-hidden"
+      style={{
+        boxShadow:
+          '0 1px 0 rgba(168, 138, 74, 0.1), 0 14px 36px -16px rgba(58, 53, 48, 0.16)',
+      }}
+    >
+      {/* 카드 상단 골드 라인 */}
+      <div className="h-px bg-gradient-to-r from-transparent via-brush-gold/40 to-transparent" />
+
+      <div className="p-6 md:p-10 space-y-5 md:space-y-6">
+        {/* 헤더: 배지 + 아이콘 */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-brush-gold">
+              {product.badge}
+            </p>
+            <div className="flex items-baseline gap-3">
+              <h3 className="font-serif text-[22px] md:text-[28px] font-bold text-ink-900 leading-tight">
+                {product.title}
+              </h3>
+              <span className="font-serif text-[13px] md:text-[15px] text-brush-gold/70">
+                {product.hanja}
+              </span>
+            </div>
+          </div>
+          <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-ink-900 flex items-center justify-center shrink-0 shadow-md">
+            <Icon className="w-5 h-5 md:w-6 md:h-6 text-paper-50" />
+          </div>
+        </div>
+
+        {/* 태그라인 */}
+        <p className="font-serif text-[15px] md:text-[18px] text-ink-700 italic leading-snug">
+          "{product.tagline}"
+        </p>
+
+        {/* 설명 */}
+        <p className="text-[13px] md:text-[14px] text-ink-700 leading-[1.95]">
+          {product.description}
+        </p>
+
+        {/* 핵심 내용 */}
+        <ul className="space-y-2 pt-2 border-t border-ink-300/20">
+          {product.bullets.map((b, i) => (
+            <li
+              key={i}
+              className="flex gap-3 text-[13px] md:text-[14px] text-ink-700 leading-[1.85]"
+            >
+              <span className="text-brush-gold shrink-0 mt-1.5 w-1 h-1 rounded-full bg-brush-gold" />
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* 가격 + CTA */}
+        <div className="flex items-center justify-between gap-4 pt-4 border-t border-ink-300/20 flex-wrap">
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-ink-500">
+              가격
+            </p>
+            <p className="font-serif text-[20px] md:text-[24px] font-bold text-ink-900">
+              {product.price}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={product.onClick}
+            disabled={!product.onClick}
+            className="inline-flex items-center gap-2 px-5 py-3 md:px-6 md:py-3.5 rounded-full bg-ink-900 text-paper-50 text-[13px] md:text-[14px] font-bold hover:bg-ink-700 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {product.cta}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </motion.article>
+  );
+}

@@ -7,7 +7,29 @@
       "Bash(curl -s -w \"\\\\nHTTP_CODE:%{http_code}\" -X POST \"https://sajuanalysis.vercel.app/api/premium-order/create\" -H \"Content-Type: application/json\" -d '{\"name\":\"테스트\",\"email\":\"test@test.com\",\"birthDate\":\"1990-01-01\",\"birthTime\":\"12:00\",\"gender\":\"M\",\"isLunar\":false,\"tier\":\"premium\",\"price\":0}')",
       "mcp__751c695a-3b48-452b-8cd5-a633f917c2ea__get_runtime_logs",
       "Bash(curl -s \"https://sajuanalysis.vercel.app/api/debug-test\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(python scripts/_replace_welcome_block.py)",
+      "Bash(rm scripts/_replace_welcome_block.py)",
+      "Bash(npm run:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(grep -i \"^tsc$\\\\|^vite$\")",
+      "Bash(node ../../../node_modules/typescript/bin/tsc --noEmit -p .)",
+      "Bash(cmd //c \"mklink /J node_modules \\\\\"..\\\\\\\\..\\\\\\\\..\\\\\\\\node_modules\\\\\"\")",
+      "Bash(grep -E \"^\\(tsc|vite\\)$\")",
+      "Bash(rm node_modules)",
+      "Bash(cmd //c \"mklink /J node_modules C:\\\\\\\\Users\\\\\\\\admin\\\\\\\\Desktop\\\\\\\\작업\\\\\\\\test\\\\\\\\sajuanalysis\\\\\\\\node_modules\")",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit -p .)",
+      "Bash(npm install:*)",
+      "Bash(cmd //c \"rmdir node_modules\")",
+      "Bash(grep -i \"^@adobe$\\\\|^lucide-react$\\\\|^@google$\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(grep -n \"^\\\\s*\\\\}\\)\\\\s*$\" \"/c/Users/admin/Desktop/작업/test/sajuanalysis/.claude/worktrees/vigorous-hoover/src/App.tsx\")",
+      "Bash(xargs grep:*)",
+      "Bash(ls src/components/FiveElementsPieChart*)",
+      "Bash(python scripts/_replace_dashboard_block.py)",
+      "Bash(python \".claude/worktrees/vigorous-hoover/refactor_app.py\")",
+      "Bash(grep -oE \"[A-Z_]{3,}|<[A-Z][a-zA-Z]+\" tmp/taekil_block.txt)",
+      "Bash(git add:*)"
     ]
   }
 }
