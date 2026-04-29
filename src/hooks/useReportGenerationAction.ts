@@ -5,6 +5,7 @@ import { buildReportSystemInstruction } from '../lib/promptBuilders';
 import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
 import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, runWithModelRetry } from '../lib/modelUtils';
+import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
 
 interface UseReportGenerationActionParams {
@@ -217,6 +218,26 @@ export const useReportGenerationAction = ({
             console.warn(`[MODEL_COOLDOWN] report cooldown armed for ${cooldownMs}ms.`);
           }
           console.warn(`[MODEL_FALLBACK] report generateContent failed on ${model}, trying next model.`);
+        }
+      }
+
+      // Gemini 전체 실패 시 Claude 폴백
+      if (!result && getClaudeApiKey()) {
+        console.info('[MODEL_FALLBACK] All Gemini models failed, trying Claude fallback...');
+        for (const model of DEFAULT_CLAUDE_MODELS) {
+          try {
+            result = await claudeGenerateContent({
+              model,
+              systemInstruction: baseSystemInstruction,
+              userMessage: '나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해.',
+              maxTokens: 16384,
+              temperature: 0.8,
+            });
+            console.info(`[MODEL_FALLBACK] Claude fallback succeeded: ${model}`);
+            break;
+          } catch (claudeErr: any) {
+            console.warn(`[MODEL_FALLBACK] Claude ${model} failed:`, claudeErr?.message);
+          }
         }
       }
 

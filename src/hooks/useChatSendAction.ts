@@ -5,6 +5,7 @@ import { buildConsultingSystemInstruction } from '../lib/promptBuilders';
 import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
 import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, runWithModelRetry } from '../lib/modelUtils';
+import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
 import { ChatMessage } from './useChatTabState';
 
@@ -321,7 +322,36 @@ export const useChatSendAction = ({
         throw lastError;
       };
 
-      let response = await generateWithModelFallback();
+      let response: any;
+      try {
+        response = await generateWithModelFallback();
+      } catch (geminiErr: any) {
+        // Gemini 전체 실패 시 Claude 텍스트 폴백 (tool use 미지원)
+        if (!getClaudeApiKey()) throw geminiErr;
+        console.info('[MODEL_FALLBACK] All Gemini models failed for chat, trying Claude fallback...');
+        let claudeText = '';
+        for (const model of DEFAULT_CLAUDE_MODELS) {
+          try {
+            const userText = typeof contents[contents.length - 1]?.parts?.[0]?.text === 'string'
+              ? contents[contents.length - 1].parts[0].text
+              : '질문에 답변해 주세요.';
+            const claudeResult = await claudeGenerateContent({
+              model,
+              systemInstruction,
+              userMessage: userText,
+              maxTokens: 4096,
+              temperature: 0.7,
+            });
+            claudeText = claudeResult.text;
+            console.info(`[MODEL_FALLBACK] Claude chat fallback succeeded: ${model}`);
+            break;
+          } catch (claudeErr: any) {
+            console.warn(`[MODEL_FALLBACK] Claude chat ${model} failed:`, claudeErr?.message);
+          }
+        }
+        if (!claudeText) throw geminiErr;
+        response = { text: claudeText, functionCalls: undefined };
+      }
 
       let functionCalls = response.functionCalls;
       while (Array.isArray(functionCalls) && functionCalls.length > 0) {

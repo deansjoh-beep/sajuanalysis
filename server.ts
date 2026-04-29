@@ -117,7 +117,8 @@ async function startServer() {
 
   app.get("/api/runtime-config", (req, res) => {
     const geminiApiKey = String(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    res.json({ geminiApiKey });
+    const anthropicApiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
+    res.json({ geminiApiKey, anthropicApiKey });
   });
 
   app.post('/api/generate-pdf', expressRateLimit(pdfLimiter, (req) => {
@@ -701,7 +702,7 @@ async function startServer() {
       if (fs.existsSync(indexPath)) {
         let html = fs.readFileSync(indexPath, "utf-8");
         // Inject API Key into the HTML so the frontend can access it even if build-time injection failed
-        const apiKeyScript = `<script>window.GEMINI_API_KEY = "${process.env.GEMINI_API_KEY || ''}";</script>`;
+        const apiKeyScript = `<script>window.GEMINI_API_KEY = "${process.env.GEMINI_API_KEY || ''}"; window.ANTHROPIC_API_KEY = "${process.env.ANTHROPIC_API_KEY || ''}";</script>`;
         html = html.replace("<head>", `<head>${apiKeyScript}`);
         res.send(html);
       } else {
