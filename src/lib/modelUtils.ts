@@ -5,6 +5,26 @@ export interface ModelErrorPayload {
 }
 
 export const parseModelErrorPayload = (err: any): ModelErrorPayload => {
+  // 1순위: err.message 안의 JSON {"error":{...}} 파싱 (Gemini SDK는 err.status에
+  //        HTTP 숫자코드 "503"을 넣고 err.message에 실제 상세 JSON을 담음)
+  const rawMessage = String(err?.message || '');
+  const jsonStart = rawMessage.indexOf('{"error"');
+  if (jsonStart >= 0) {
+    try {
+      const parsed = JSON.parse(rawMessage.slice(jsonStart));
+      if (parsed?.error?.code || parsed?.error?.status) {
+        return {
+          code: Number(parsed?.error?.code) || null,
+          status: String(parsed?.error?.status || '').toUpperCase() || null,
+          message: String(parsed?.error?.message || rawMessage)
+        };
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // 2순위: err.error.* 또는 err.* 직접 접근
   const directCode = err?.error?.code ?? err?.code;
   const directStatus = err?.error?.status ?? err?.status;
 
@@ -12,23 +32,8 @@ export const parseModelErrorPayload = (err: any): ModelErrorPayload => {
     return {
       code: Number(directCode) || null,
       status: String(directStatus || '').toUpperCase() || null,
-      message: String(err?.error?.message || err?.message || '')
+      message: String(err?.error?.message || rawMessage)
     };
-  }
-
-  const rawMessage = String(err?.message || '');
-  const jsonStart = rawMessage.indexOf('{"error"');
-  if (jsonStart >= 0) {
-    try {
-      const parsed = JSON.parse(rawMessage.slice(jsonStart));
-      return {
-        code: Number(parsed?.error?.code) || null,
-        status: String(parsed?.error?.status || '').toUpperCase() || null,
-        message: String(parsed?.error?.message || rawMessage)
-      };
-    } catch {
-      // keep fallback below
-    }
   }
 
   return {
@@ -40,11 +45,15 @@ export const parseModelErrorPayload = (err: any): ModelErrorPayload => {
 
 export const isRetryableModelError = (err: any): boolean => {
   const payload = parseModelErrorPayload(err);
+  // SDK가 err.status에 HTTP 코드 문자열("503")을 담는 경우 대비해 숫자 변환도 체크
+  const numericStatus = Number(payload.status);
   return (
     payload.code === 429 ||
     payload.code === 503 ||
     payload.status === 'UNAVAILABLE' ||
-    payload.status === 'RESOURCE_EXHAUSTED'
+    payload.status === 'RESOURCE_EXHAUSTED' ||
+    numericStatus === 429 ||
+    numericStatus === 503
   );
 };
 

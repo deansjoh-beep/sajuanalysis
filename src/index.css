@@ -12,6 +12,18 @@
   --font-report: "MaruBuri", "Pretendard", sans-serif;
   --font-serif: "Nanum Myeongjo", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --color-cobalt: #0047AB;
+
+  /* 화선지·먹 팔레트 (랜딩페이지 전용) */
+  --color-paper-50: #fdfaf2;
+  --color-paper-100: #f5efe0;
+  --color-paper-200: #ebe1c8;
+  --color-paper-300: #d8c8a4;
+  --color-ink-300: #9c8e7e;
+  --color-ink-500: #6b5d4f;
+  --color-ink-700: #3a3530;
+  --color-ink-900: #1a1a1a;
+  --color-seal: #b8392e;
+  --color-brush-gold: #a88a4a;
 }
 
 @layer base {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { PaperBackground } from '../welcome/PaperBackground';
 
 interface ChatTabProps {
   tabTransition: any;
@@ -7,7 +8,7 @@ interface ChatTabProps {
   children: React.ReactNode;
 }
 
-export const ChatTab: React.FC<ChatTabProps> = ({ tabTransition, glassTabBgClass, children }) => {
+export const ChatTab: React.FC<ChatTabProps> = ({ tabTransition, children }) => {
   return (
     <motion.div
       key="chat"
@@ -15,9 +16,15 @@ export const ChatTab: React.FC<ChatTabProps> = ({ tabTransition, glassTabBgClass
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={tabTransition}
-      className={`absolute inset-0 flex flex-col overflow-hidden ${glassTabBgClass}`}
+      className="absolute inset-0 flex flex-col overflow-hidden bg-paper-50"
+      data-theme="light"
     >
-      {children}
+      <div className="absolute inset-0 pointer-events-none">
+        <PaperBackground />
+      </div>
+      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+        {children}
+      </div>
     </motion.div>
   );
 };

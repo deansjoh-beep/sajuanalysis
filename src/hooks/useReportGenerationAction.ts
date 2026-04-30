@@ -5,6 +5,7 @@ import { buildReportSystemInstruction } from '../lib/promptBuilders';
 import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
 import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, runWithModelRetry } from '../lib/modelUtils';
+import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
 
 interface UseReportGenerationActionParams {
@@ -70,7 +71,8 @@ export const useReportGenerationAction = ({
     }
 
     setLoading(true);
-    setActiveTab('report');
+    // 만세력 페이지에 통합되어 표시되므로 자동 탭 전환 없음.
+    // 호출 측이 필요하면 별도로 setActiveTab 호출.
 
     try {
       const ai = getGeminiAI();
@@ -153,7 +155,7 @@ export const useReportGenerationAction = ({
 
       const modelCandidates = preferredModels.length > 0
         ? preferredModels
-        : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+        : ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
       const telemetryRequestId = `report-${Date.now()}`;
 
       let result: any = null;
@@ -163,8 +165,9 @@ export const useReportGenerationAction = ({
         const startedAt = Date.now();
         try {
           // 503(서버 과부하) 발생 시 즉시 다음 모델로 이동.
-          // gemini-1.5-flash는 자원이 풍부해 최후 보루로 최대 3회 재시도.
-          const maxAttempts = model === 'gemini-1.5-flash' ? 3 : 1;
+          // 마지막 모델은 최후 보루로 2회 재시도(이후 Claude 폴백).
+          const isLastModel = model === modelCandidates[modelCandidates.length - 1];
+          const maxAttempts = isLastModel ? 2 : 1;
           result = await runWithModelRetry(
             () => ai.models.generateContent({
               model,
@@ -216,6 +219,26 @@ export const useReportGenerationAction = ({
             console.warn(`[MODEL_COOLDOWN] report cooldown armed for ${cooldownMs}ms.`);
           }
           console.warn(`[MODEL_FALLBACK] report generateContent failed on ${model}, trying next model.`);
+        }
+      }
+
+      // Gemini 전체 실패 시 Claude 폴백
+      if (!result && getClaudeApiKey()) {
+        console.info('[MODEL_FALLBACK] All Gemini models failed, trying Claude fallback...');
+        for (const model of DEFAULT_CLAUDE_MODELS) {
+          try {
+            result = await claudeGenerateContent({
+              model,
+              systemInstruction: baseSystemInstruction,
+              userMessage: '나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해.',
+              maxTokens: 16384,
+              temperature: 0.8,
+            });
+            console.info(`[MODEL_FALLBACK] Claude fallback succeeded: ${model}`);
+            break;
+          } catch (claudeErr: any) {
+            console.warn(`[MODEL_FALLBACK] Claude ${model} failed:`, claudeErr?.message);
+          }
         }
       }
 
