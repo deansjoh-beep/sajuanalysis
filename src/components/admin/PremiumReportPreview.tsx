@@ -255,6 +255,8 @@ const MARKER_PATTERNS: RegExp[] = [
   /\[\s*\/?\s*(?:SECTION|TITLE|SUMMARY|CONTENT|END)\s*\]/gi,
   // 대운 블록
   /\[\s*\/?\s*DAEUN_(?:START|CONTENT|END)\s*\]/gi,
+  // 대운 전환 알림 (직업운·연애결혼운 timing/marriage)
+  /\[\s*DAEUN_TRANSITION\s*\]/gi,
   // 분야 블록 (한글/영문 태그 모두)
   /\[\s*\/?\s*FIELD_[^\]]*\]/gi,
   // 실행 지침
@@ -263,6 +265,8 @@ const MARKER_PATTERNS: RegExp[] = [
   /\[\s*\/?\s*EASY_(?:START|END)\s*\]/gi,
   // 월별 블록 (일년운세)
   /\[\s*\/?\s*MONTH_(?:START|CONTENT|END)\s*\]/gi,
+  // 세운 연도별 블록 (직업운·연애결혼운)
+  /\[\s*SEUN_BLOCK\s*\]/gi,
   // 답변 하위 블록
   /\[\s*\/?\s*SUB(?:\s+[^\]]*)?\s*\]/gi,
 ];
