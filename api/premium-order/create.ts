@@ -100,7 +100,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? 'yearly2026'
       : rawProductType === 'jobCareer'
         ? 'jobCareer'
-        : 'premium';
+        : rawProductType === 'loveMarriage'
+          ? 'loveMarriage'
+          : 'premium';
 
     const docRef = await db.collection('premiumOrders').add({
       name: String(order.name),
@@ -116,6 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       productType,
       currentJob: String(order.currentJob || ''),
       workHistory: String(order.workHistory || ''),
+      relationshipStatus: String(order.relationshipStatus || ''),
       concern: String(order.concern || ''),
       interest: String(order.interest || ''),
       reportLevel: String(order.reportLevel || 'basic'),
