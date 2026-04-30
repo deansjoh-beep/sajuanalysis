@@ -444,7 +444,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       : isJobCareer
         ? 'https://smartstore.naver.com/ui-life-solution/products/13458866283'
         : isLoveMarriage
-          ? 'https://smartstore.naver.com/ui-life-solution/products/13388740581'
+          ? 'https://smartstore.naver.com/ui-life-solution/products/13471127330'
           : 'https://smartstore.naver.com/ui-life-solution/products/13388740581';
     const handleCopyOrderId = async () => {
       try {
