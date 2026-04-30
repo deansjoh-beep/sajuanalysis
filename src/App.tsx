@@ -37,7 +37,7 @@ import { SUGGESTED_QUESTIONS, CATEGORIES, BASIC_CHAT_CATEGORIES, BASIC_CATEGORY_
 import { TAEKIL_CATEGORIES, WEEKDAY_OPTIONS, TAEKIL_CATEGORY_CONTENT, TAEKIL_CATEGORY_FORM_FIELDS } from "./constants/taekil";
 import { TAEKIL_SECTION_CARD_CLASS, TAEKIL_Q_BADGE_CLASS, TAEKIL_LABEL_CLASS, TAEKIL_HELP_TEXT_CLASS, TAEKIL_FIELD_CLASS, TAEKIL_FIELD_PLACEHOLDER_CLASS, GLASS_TAB_BG_CLASS, GLASS_PANEL_CLASS, GLASS_PANEL_STRONG_CLASS, TAB_TRANSITION } from "./constants/styles";
 import { BlogPost } from "./constants/blog";
-import { Newspaper, ArrowLeft, Trash2, Briefcase } from "lucide-react";
+import { Newspaper, ArrowLeft, Trash2, Briefcase, Heart } from "lucide-react";
 import { BlogMediaAsset } from "./components/BlogMediaLibrary";
 import { ChatTab } from "./components/tabs/ChatTab";
 import { TaekilTab } from "./components/tabs/TaekilTab";
@@ -513,7 +513,7 @@ const App: React.FC = () => {
 
   // Navigation
   const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order">("welcome");
-  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer'>('premium');
+  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('premium');
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -1714,6 +1714,21 @@ const App: React.FC = () => {
                           </div>
                           <p className="text-[13px] text-zinc-600 leading-relaxed">
                             현재 대운·향후 3년 세운을 토대로 이직·창업·승진 최적 타이밍을 분석한 커리어 전문 리포트. 재성·관성·식상 삼각관계로 직업 DNA를 짚어드립니다.
+                          </p>
+                        </button>
+
+                        <button
+                          onClick={() => { setOrderProductType('loveMarriage'); setActiveTab("order"); }}
+                          className="group flex flex-col text-left rounded-[1.6rem] md:rounded-[2rem] border border-rose-200/60 bg-gradient-to-br from-rose-50/90 via-pink-50/60 to-fuchsia-50/70 backdrop-blur-xl p-5 md:p-6 shadow-xl shadow-rose-300/20 hover:-translate-y-1 transition-all"
+                        >
+                          <div className="flex items-center gap-3 mb-4 min-h-[52px]">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600 text-white flex items-center justify-center shadow-lg shadow-rose-400/30">
+                              <Heart className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-[16px] font-bold leading-tight text-zinc-900">연애·결혼운 가이드북(유료)</h3>
+                          </div>
+                          <p className="text-[13px] text-zinc-600 leading-relaxed">
+                            연애운(편재·편관·도화)과 결혼운(정재·정관·일지)을 별도 섹션으로 분석. 관계 시기·배우자상·향후 3년 로드맵까지 짚어드립니다.
                           </p>
                         </button>
 
@@ -3950,6 +3965,7 @@ const App: React.FC = () => {
                 onGoToOrder={() => { setOrderProductType('premium'); setActiveTab("order"); }}
                 onGoToYearlyOrder={() => { setOrderProductType('yearly2026'); setActiveTab("order"); }}
                 onGoToJobCareer={() => { setOrderProductType('jobCareer'); setActiveTab("order"); }}
+                onGoToLoveMarriage={() => { setOrderProductType('loveMarriage'); setActiveTab("order"); }}
               />
             </Suspense>
           )}

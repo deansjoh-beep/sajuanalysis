@@ -569,3 +569,95 @@ timing 섹션의 [SEUN_BLOCK] 3개(2026·2027·2028)를 반드시 [세운 데이
 
   return { system, user };
 };
+
+interface LoveMarriageReportParams {
+  userName: string;
+  gender: 'M' | 'F';
+  birthDate: string;
+  birthTime: string;
+  isLunar: boolean;
+  isLeap: boolean;
+  unknownTime: boolean;
+  sajuContext: string;
+  daeunContext: string;
+  yongshinContext: string;
+  currentAge: number;
+  currentYearText: string;
+  todayDateText: string;
+  seun3YText: string;
+  relationshipStatus: string;
+  loveConcern: string;
+  desiredDirection: string;
+  loveMarriageGuideline: string;
+}
+
+export const buildLoveMarriagePrompt = (
+  p: LoveMarriageReportParams
+): { system: string; user: string } => {
+  const system = `당신은 30년 경력의 최고 수준 사주명리학자이자 관계 상담가입니다.
+고객의 사주 원국, 대운, 세운, 용신을 바탕으로 「연애·결혼운 가이드북」을 작성합니다.
+
+[분석 원칙]
+- **연애운과 결혼운 분리(절대 준수):** love 섹션과 marriage 섹션을 절대 합치지 마세요.
+  · 연애운(love) = 편재(남)/편관(여) + 도화·홍염·목욕 / 시기 단위는 세운·월운
+  · 결혼운(marriage) = 정재(남)/정관(여) + 일지(배우자궁) + 용신 / 시기 단위는 대운
+- **원천 데이터 우선 규칙(최우선):** 모든 해석 근거는 제공된 사주·대운·용신·세운 데이터에만 기반합니다. 임의 재계산 및 값 치환 절대 금지.
+- **세운 간지 고정 규칙:** 2026·2027·2028년 세운은 반드시 [세운 데이터] 블록의 값만 사용합니다.
+- **loveConcern 우선:** answer 섹션에서 [연애·결혼 고민]에 반드시 직답합니다. 일반론·서론 금지.
+- **이혼·비혼 단정 금지:** "반드시 이혼한다", "결혼 못 한다" 같은 표현 금지. 관계의 질·패턴 중심 서술.
+- **배우자성 부재 처리:** 배우자성(정재/정관)이 사주에 드러나지 않으면 지장간/대운 투출 케이스 검토 후 결론.
+- **균형:** 인연이 깊어지는 시기와 위기·주의 시기를 함께 명시합니다.
+- **출생시간 미상:** 시주 기반 해석 생략, 1회만 한계 안내.
+
+[출력 형식]
+- HTML 태그 사용 금지. 마크다운 텍스트만 사용.
+- # ## ### 등 헤더 기호를 [CONTENT] 내부에서 사용 금지. 소제목은 **굵은 글씨**로.
+- 아래 [Output Format]의 섹션 마커를 정확히 준수. 파싱 로직이 의존합니다.
+
+${p.loveMarriageGuideline}
+`;
+
+  const user = `[기준 시점]
+오늘 날짜: ${p.todayDateText} (양력, 서울 기준)
+※ 이 리포트의 "올해/현재"는 ${p.currentYearText} 기준입니다. 시제 규칙을 엄격히 지키세요:
+  - 올해(${p.currentYearText}) 사건: 현재 시제로 서술 ("~이 일어나고 있다", "~하는 시기다", "~한다")
+  - 이전 연도(작년 이전): 과거 시제 ("~였다", "~했다", "~해왔다")
+  - 다음 연도 이후(내년·미래): 미래 시제 ("~될 것이다", "~예상된다")
+  - "곧 다가올 ${p.currentYearText}" 같은 미래 시제로 올해를 묘사하지 마세요. 올해는 이미 진행 중입니다.
+
+[분석 대상]
+이름: ${p.userName}
+성별: ${p.gender === 'M' ? '남성' : '여성'}
+생년월일: ${p.birthDate} ${p.unknownTime ? '(시간 미상)' : p.birthTime}
+음양력: ${p.isLunar ? '음력' : '양력'}${p.isLunar ? ` / 윤달: ${p.isLeap ? '예' : '아니오'}` : ''}
+현재 나이: ${p.currentAge}세
+올해 세운: ${p.currentYearText}
+
+[사주 원국]
+${p.sajuContext}
+
+[대운 흐름]
+${p.daeunContext}
+
+[용신 분석]
+${p.yongshinContext}
+
+[세운 데이터] (반드시 아래 값만 사용, 임의 계산 금지)
+${p.seun3YText}
+
+[현재 관계 상태]
+${p.relationshipStatus || '미입력'}
+
+[연애·결혼 고민]
+${p.loveConcern || '미입력'}
+
+[원하는 방향]
+${p.desiredDirection || '미입력'}
+
+위 정보를 바탕으로 ${p.userName}님의 「연애·결혼운 가이드북」을 지정된 섹션 형식으로 작성해주세요.
+특히 answer 섹션(핵심 질문 직답)을 가장 먼저, 가장 풍부한 분량으로 작성하고,
+love 섹션의 [SEUN_BLOCK] 3개(2026·2027·2028)는 반드시 [세운 데이터] 값을 그대로 사용하세요.
+love와 marriage 섹션은 절대 혼합하지 말고, 각각 다른 십성·시기 단위로 분리해서 작성하세요.`;
+
+  return { system, user };
+};

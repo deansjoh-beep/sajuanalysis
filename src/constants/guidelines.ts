@@ -9,6 +9,7 @@
  *   리포트지침(기본) → src/constants/guidelines/report-basic.ts
  *   리포트지침(고급) → src/constants/guidelines/report-advanced.ts
  *   직업운 리포트    → src/constants/guidelines/job-career.ts
+ *   연애결혼운 리포트 → src/constants/guidelines/love-marriage.ts
  */
 export {
   SAJU_GUIDELINE,
@@ -20,4 +21,5 @@ export {
   ADVANCED_REPORT_GUIDELINE,
   YEARLY_FORTUNE_2026_GUIDELINE,
   JOB_CAREER_GUIDELINE,
+  LOVE_MARRIAGE_GUIDELINE,
 } from './guidelines/index';

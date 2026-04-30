@@ -17,7 +17,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
   const [orders, setOrders] = useState<PremiumOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<PremiumOrder | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'premium' | 'yearly2026' | 'jobCareer'>('all');
+  const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('all');
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [generatingOrderId, setGeneratingOrderId] = useState<string | null>(null);
@@ -333,6 +333,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
               { v: 'premium', l: '프리미엄 리포트' },
               { v: 'yearly2026', l: '일년운세 2026' },
               { v: 'jobCareer', l: '직업운 리포트' },
+              { v: 'loveMarriage', l: '연애·결혼운 가이드북' },
             ] as const).map(opt => (
               <button
                 key={opt.v}
@@ -401,6 +402,8 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                     <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">일년운세</span>
                   ) : (order.productType || 'premium') === 'jobCareer' ? (
                     <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">직업운</span>
+                  ) : (order.productType || 'premium') === 'loveMarriage' ? (
+                    <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">연애결혼</span>
                   ) : (
                     <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">가이드북</span>
                   )}
@@ -416,7 +419,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                 </div>
               )}
               <div className={`text-[13px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
-                {order.birthDate} | {(order.productType || 'premium') === 'yearly2026' ? '일년운세 2026' : (order.productType || 'premium') === 'jobCareer' ? '직업운 리포트' : '인생가이드북'}
+                {order.birthDate} | {(order.productType || 'premium') === 'yearly2026' ? '일년운세 2026' : (order.productType || 'premium') === 'jobCareer' ? '직업운 리포트' : (order.productType || 'premium') === 'loveMarriage' ? '연애·결혼운 가이드북' : '인생가이드북'}
               </div>
               <div className={`flex items-center gap-2 text-[11px] ${isDarkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
                 <span>v{order.version}</span>
@@ -523,7 +526,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
             <div>
               <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>상품</p>
               <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                {(selectedOrder.productType || 'premium') === 'yearly2026' ? '프리미엄 일년운세 2026' : (selectedOrder.productType || 'premium') === 'jobCareer' ? '직업운 리포트' : '인생가이드북(프리미엄 리포트)'} (₩{selectedOrder.price})
+                {(selectedOrder.productType || 'premium') === 'yearly2026' ? '프리미엄 일년운세 2026' : (selectedOrder.productType || 'premium') === 'jobCareer' ? '직업운 리포트' : (selectedOrder.productType || 'premium') === 'loveMarriage' ? '연애·결혼운 가이드북' : '인생가이드북(프리미엄 리포트)'} (₩{selectedOrder.price})
               </p>
             </div>
             {selectedOrder.currentJob && (
@@ -538,10 +541,22 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                 <p className={`font-bold whitespace-pre-line ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.workHistory}</p>
               </div>
             )}
+            {selectedOrder.relationshipStatus && (
+              <div className="col-span-2">
+                <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>현재 관계 상태</p>
+                <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  {selectedOrder.relationshipStatus === 'single' ? '싱글'
+                    : selectedOrder.relationshipStatus === 'dating' ? '연애 중'
+                    : selectedOrder.relationshipStatus === 'engaged' ? '약혼·결혼 준비'
+                    : selectedOrder.relationshipStatus === 'married' ? '기혼'
+                    : selectedOrder.relationshipStatus}
+                </p>
+              </div>
+            )}
             {selectedOrder.concern && (
               <div className="col-span-2">
                 <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
-                  {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 큰 고민' : (selectedOrder.productType || 'premium') === 'jobCareer' ? '커리어 고민' : '특별한 고민'}
+                  {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 큰 고민' : (selectedOrder.productType || 'premium') === 'jobCareer' ? '커리어 고민' : (selectedOrder.productType || 'premium') === 'loveMarriage' ? '연애·결혼 고민' : '특별한 고민'}
                 </p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.concern}</p>
               </div>
@@ -549,7 +564,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
             {selectedOrder.interest && (
               <div className="col-span-2">
                 <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
-                  {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 알고 싶은 것' : (selectedOrder.productType || 'premium') === 'jobCareer' ? '원하는 방향' : '관심사'}
+                  {(selectedOrder.productType || 'premium') === 'yearly2026' ? '가장 알고 싶은 것' : (selectedOrder.productType || 'premium') === 'jobCareer' ? '원하는 방향' : (selectedOrder.productType || 'premium') === 'loveMarriage' ? '원하는 방향' : '관심사'}
                 </p>
                 <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedOrder.interest}</p>
               </div>

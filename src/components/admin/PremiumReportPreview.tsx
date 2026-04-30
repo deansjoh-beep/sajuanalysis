@@ -638,6 +638,23 @@ const JOB_CAREER_SECTION_NUMBERS: Record<string, string> = {
   ohaeng: '五', timing: '六', action: '七', glossary: '八',
 };
 
+// 연애·결혼운 가이드북용
+const LOVE_MARRIAGE_SECTION_NAV = [
+  { id: 'chart',      short: '원국' },
+  { id: 'answer',     short: '질문답변' },
+  { id: 'foundation', short: '관계기질' },
+  { id: 'love',       short: '연애운' },
+  { id: 'marriage',   short: '결혼운' },
+  { id: 'partner',    short: '배우자상' },
+  { id: 'action',     short: '관계로드맵' },
+  { id: 'glossary',   short: '용어' },
+];
+
+const LOVE_MARRIAGE_SECTION_NUMBERS: Record<string, string> = {
+  chart: '一', answer: '二', foundation: '三', love: '四',
+  marriage: '五', partner: '六', action: '七', glossary: '八',
+};
+
 // 하위호환: 기존 참조 유지용
 const SECTION_NAV = PREMIUM_SECTION_NAV;
 const SECTION_NUMBERS = PREMIUM_SECTION_NUMBERS;
@@ -660,7 +677,10 @@ const getYongshinCoverPalette = (yongshinText: string) => {
 const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinData: any }> = ({ inputData, saju, yongshinData }) => {
   const isYearly = inputData.productType === 'yearly2026';
   const isJobCareer = inputData.productType === 'jobCareer';
-  const levelLabel = isJobCareer
+  const isLoveMarriage = inputData.productType === 'loveMarriage';
+  const levelLabel = isLoveMarriage
+    ? '연애·결혼운 가이드북'
+    : isJobCareer
     ? '직업운 리포트'
     : isYearly
     ? '프리미엄 2026 운세'
@@ -675,13 +695,15 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     ? saju.map(p => `${p.stem?.hanja ?? ''}${p.branch?.hanja ?? ''}`).join(' ')
     : '';
 
-  const mainTitle = isJobCareer
-    ? '당신을 위한 JOB, 커리어 가이드'
-    : isYearly
-      ? '2026 연 운세'
-      : '당신을 위한 인생가이드북';
-  const subLineTop = isJobCareer ? 'JOB · CAREER GUIDE' : isYearly ? 'PREMIUM · 2026' : '운명의 로드맵';
-  const subLineChinese = isJobCareer ? '職業運 分析書' : isYearly ? '丙午年 年運 分析書' : '四柱命理 分析書';
+  const mainTitle = isLoveMarriage
+    ? '당신을 위한 연애·결혼 가이드'
+    : isJobCareer
+      ? '당신을 위한 JOB, 커리어 가이드'
+      : isYearly
+        ? '2026 연 운세'
+        : '당신을 위한 인생가이드북';
+  const subLineTop = isLoveMarriage ? 'LOVE · MARRIAGE GUIDE' : isJobCareer ? 'JOB · CAREER GUIDE' : isYearly ? 'PREMIUM · 2026' : '운명의 로드맵';
+  const subLineChinese = isLoveMarriage ? '戀愛·結婚運 分析書' : isJobCareer ? '職業運 分析書' : isYearly ? '丙午年 年運 分析書' : '四柱命理 分析書';
 
   return (
     <div
@@ -806,16 +828,21 @@ export const PremiumReportPreview: React.FC<PremiumReportPreviewProps> = ({
 
   const isYearlyProduct = inputData.productType === 'yearly2026';
   const isJobCareerProduct = inputData.productType === 'jobCareer';
-  const activeSectionNav = isJobCareerProduct
-    ? JOB_CAREER_SECTION_NAV
-    : isYearlyProduct
-      ? YEARLY_SECTION_NAV
-      : PREMIUM_SECTION_NAV;
-  const activeSectionNumbers = isJobCareerProduct
-    ? JOB_CAREER_SECTION_NUMBERS
-    : isYearlyProduct
-      ? YEARLY_SECTION_NUMBERS
-      : PREMIUM_SECTION_NUMBERS;
+  const isLoveMarriageProduct = inputData.productType === 'loveMarriage';
+  const activeSectionNav = isLoveMarriageProduct
+    ? LOVE_MARRIAGE_SECTION_NAV
+    : isJobCareerProduct
+      ? JOB_CAREER_SECTION_NAV
+      : isYearlyProduct
+        ? YEARLY_SECTION_NAV
+        : PREMIUM_SECTION_NAV;
+  const activeSectionNumbers = isLoveMarriageProduct
+    ? LOVE_MARRIAGE_SECTION_NUMBERS
+    : isJobCareerProduct
+      ? JOB_CAREER_SECTION_NUMBERS
+      : isYearlyProduct
+        ? YEARLY_SECTION_NUMBERS
+        : PREMIUM_SECTION_NUMBERS;
 
   const getSectionComponent = (section: ReportSection) => {
     switch (section.id) {
@@ -882,11 +909,13 @@ ${printRef.current.outerHTML}
       // ────────────────────────────────────────────────────────────────
 
       const safeName = inputData.name.replace(/[^\w가-힣]/g, '_');
-      const fileName = isJobCareerProduct
-        ? `직업운_리포트_${safeName}_${inputData.birthDate}`
-        : isYearlyProduct
-          ? `프리미엄_2026_운세_${safeName}_${inputData.birthDate}`
-          : `인생네비게이션_${safeName}_${inputData.birthDate}`;
+      const fileName = isLoveMarriageProduct
+        ? `연애결혼운_가이드북_${safeName}_${inputData.birthDate}`
+        : isJobCareerProduct
+          ? `직업운_리포트_${safeName}_${inputData.birthDate}`
+          : isYearlyProduct
+            ? `프리미엄_2026_운세_${safeName}_${inputData.birthDate}`
+            : `인생네비게이션_${safeName}_${inputData.birthDate}`;
 
       const pdfToken = import.meta.env.VITE_PDF_API_TOKEN ?? '';
       const response = await fetch('/api/generate-pdf', {
@@ -1094,7 +1123,7 @@ ${printRef.current.outerHTML}
             {/* 하단 저작권 */}
             <div data-pdf-block="footer" className="text-center py-6 border-t border-amber-300/40 space-y-1">
               <p className="text-[11px] font-serif text-amber-800/50">
-                {isJobCareerProduct ? '직업운 리포트' : isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
+                {isLoveMarriageProduct ? '연애·결혼운 가이드북' : isJobCareerProduct ? '직업운 리포트' : isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
               </p>
               <p className="text-[11px] text-amber-700/40">본 분석서는 AI 기반 사주명리 시스템으로 제작되었습니다. 참고용으로만 활용하세요.</p>
               <p className="text-[11px] text-amber-700/30">© {new Date().getFullYear()} UI Saju · {user.email}</p>

@@ -4,12 +4,12 @@ import {
   getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation,
   getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary, hanjaToHangul,
 } from "../utils/saju";
-import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE, JOB_CAREER_GUIDELINE } from "../constants/guidelines";
+import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE, JOB_CAREER_GUIDELINE, LOVE_MARRIAGE_GUIDELINE } from "../constants/guidelines";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PremiumOrder, ReportInputData, ReportSection, DaeunBlock } from "./premiumOrderStore";
 import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
-import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt, buildJobCareerPrompt } from './promptBuilders';
+import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt, buildJobCareerPrompt, buildLoveMarriagePrompt } from './promptBuilders';
 
 let runtimeGeminiApiKeyCache: string | undefined;
 
@@ -46,6 +46,18 @@ const JOB_CAREER_REQUIRED_SECTION_IDS = [
   'sipseng',
   'ohaeng',
   'timing',
+  'action',
+  'glossary',
+] as const;
+
+const LOVE_MARRIAGE_REQUIRED_SECTION_IDS = [
+  'cover',
+  'chart',
+  'answer',
+  'foundation',
+  'love',
+  'marriage',
+  'partner',
   'action',
   'glossary',
 ] as const;
@@ -558,6 +570,47 @@ const evaluateJobCareerQuality = (
   return { score, issues, normalizedText, sections };
 };
 
+const evaluateLoveMarriageQuality = (
+  rawText: string
+): {
+  score: number;
+  issues: string[];
+  normalizedText: string;
+  sections: ReportSection[];
+} => {
+  const normalizedText = stripCodeFence(rawText);
+  const sections = parseLifeNavSections(normalizedText, []);
+  const issues: string[] = [];
+
+  if (sections.length === 0) issues.push('섹션 마커 파싱 실패');
+
+  const ids = new Set(sections.map((s) => s.id));
+  LOVE_MARRIAGE_REQUIRED_SECTION_IDS.forEach((id) => {
+    if (!ids.has(id)) issues.push(`필수 섹션 누락: ${id}`);
+  });
+
+  sections.forEach((section) => {
+    if (section.id === 'cover') return;
+    const contentLen = section.content.replace(/\s+/g, '').length;
+    if (section.id === 'answer' && contentLen < 800) {
+      issues.push(`answer 섹션 분량 부족: ${contentLen}자 (1,200자 권장)`);
+    } else if (section.id === 'love') {
+      const seunBlockCount = (section.content.match(/\[SEUN_BLOCK\]/g) || []).length;
+      if (seunBlockCount < 3) issues.push(`love SEUN_BLOCK 부족: ${seunBlockCount}/3`);
+      if (contentLen < 700) issues.push(`love 섹션 분량 부족: ${contentLen}자`);
+    } else if (section.id === 'marriage') {
+      if (contentLen < 700) issues.push(`marriage 섹션 분량 부족: ${contentLen}자`);
+    } else if (section.id === 'action') {
+      if (!section.content.includes('[ACTION_PLAN]')) issues.push('ACTION_PLAN 마커 누락');
+    } else if (contentLen < 120) {
+      issues.push(`본문이 너무 짧음: ${section.id}`);
+    }
+  });
+
+  const score = Math.max(0, 100 - issues.length * 12);
+  return { score, issues, normalizedText, sections };
+};
+
 export const generateLifeNavReport = async (
   inputData: ReportInputData,
   signal?: AbortSignal
@@ -625,11 +678,42 @@ export const generateLifeNavReport = async (
 
   const isYearlyFortune = inputData.productType === 'yearly2026';
   const isJobCareer = inputData.productType === 'jobCareer';
+  const isLoveMarriage = inputData.productType === 'loveMarriage';
 
   let system: string;
   let user: string;
 
-  if (isJobCareer) {
+  if (isLoveMarriage) {
+    // 연애·결혼운 가이드북: 2026~2028 세운 고정 블록 주입
+    const seun3YText = [
+      '2026년: 병오(丙午) — 천간 丙(양화), 지지 午(화)',
+      '2027년: 정미(丁未) — 천간 丁(음화), 지지 未(토)',
+      '2028년: 무신(戊申) — 천간 戊(양토), 지지 申(금)',
+    ].join('\n');
+
+    const built = buildLoveMarriagePrompt({
+      userName: inputData.name,
+      gender: inputData.gender,
+      birthDate: inputData.birthDate,
+      birthTime: inputData.birthTime,
+      isLunar: inputData.isLunar,
+      isLeap: inputData.isLeap,
+      unknownTime: inputData.unknownTime,
+      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
+      daeunContext,
+      yongshinContext,
+      currentAge,
+      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
+      todayDateText,
+      seun3YText,
+      relationshipStatus: inputData.relationshipStatus || '',
+      loveConcern: inputData.concern || '',
+      desiredDirection: inputData.interest || '',
+      loveMarriageGuideline: LOVE_MARRIAGE_GUIDELINE,
+    });
+    system = built.system;
+    user = built.user;
+  } else if (isJobCareer) {
     // 직업운 리포트: 2026~2028 세운 고정 블록 주입
     const seun3YText = [
       '2026년: 병오(丙午) — 천간 丙(양화), 지지 午(화)',
@@ -814,11 +898,13 @@ export const generateLifeNavReport = async (
     { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 }
   );
 
-  let quality = isJobCareer
-    ? evaluateJobCareerQuality(rawText)
-    : isYearlyFortune
-      ? evaluateYearlyFortuneQuality(rawText)
-      : evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
+  let quality = isLoveMarriage
+    ? evaluateLoveMarriageQuality(rawText)
+    : isJobCareer
+      ? evaluateJobCareerQuality(rawText)
+      : isYearlyFortune
+        ? evaluateYearlyFortuneQuality(rawText)
+        : evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
 
   // 품질 점수가 낮으면 1회 보정 생성 시도
   if (quality.score < 80) {
@@ -838,11 +924,13 @@ export const generateLifeNavReport = async (
         user,
         { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 }
       );
-      const repairedQuality = isJobCareer
-        ? evaluateJobCareerQuality(repairedRawText)
-        : isYearlyFortune
-          ? evaluateYearlyFortuneQuality(repairedRawText)
-          : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
+      const repairedQuality = isLoveMarriage
+        ? evaluateLoveMarriageQuality(repairedRawText)
+        : isJobCareer
+          ? evaluateJobCareerQuality(repairedRawText)
+          : isYearlyFortune
+            ? evaluateYearlyFortuneQuality(repairedRawText)
+            : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
       if (repairedQuality.score >= quality.score) {
         quality = repairedQuality;
       }

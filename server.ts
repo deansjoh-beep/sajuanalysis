@@ -509,7 +509,9 @@ async function startServer() {
         ? 'yearly2026'
         : rawProductType === 'jobCareer'
           ? 'jobCareer'
-          : 'premium';
+          : rawProductType === 'loveMarriage'
+            ? 'loveMarriage'
+            : 'premium';
 
       // Write directly to Firestore via Admin SDK (bypasses all security rules)
       const docRef = await adminDb.collection('premiumOrders').add({
@@ -526,6 +528,7 @@ async function startServer() {
         productType,
         currentJob: String(order.currentJob || ''),
         workHistory: String(order.workHistory || ''),
+        relationshipStatus: String(order.relationshipStatus || ''),
         concern: String(order.concern || ''),
         interest: String(order.interest || ''),
         reportLevel: String(order.reportLevel || 'basic'),

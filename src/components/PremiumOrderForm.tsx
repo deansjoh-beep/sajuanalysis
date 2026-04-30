@@ -66,7 +66,7 @@ export interface PrefillUserData {
   unknownTime: boolean;
 }
 
-export type OrderProductType = 'premium' | 'yearly2026' | 'jobCareer';
+export type OrderProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 
 // ─────────────────────────────── 폼 초기값 ───────────────────────────────
 interface OrderFormState {
@@ -84,6 +84,7 @@ interface OrderFormState {
   lifeEvents: LifeEvent[];
   currentJob: string;
   workHistory: string;
+  relationshipStatus: string;
 }
 
 const emptyForm: OrderFormState = {
@@ -101,6 +102,7 @@ const emptyForm: OrderFormState = {
   lifeEvents: [],
   currentJob: '',
   workHistory: '',
+  relationshipStatus: '',
 };
 
 const buildInitialForm = (userData?: PrefillUserData): OrderFormState => {
@@ -144,6 +146,15 @@ function validate(form: OrderFormState, productType: OrderProductType): Record<s
   if (productType === 'jobCareer' && !form.interest.trim()) {
     errs.interest = '원하는 방향을 입력해주세요.';
   }
+  if (productType === 'loveMarriage' && !form.relationshipStatus.trim()) {
+    errs.relationshipStatus = '현재 관계 상태를 선택해주세요.';
+  }
+  if (productType === 'loveMarriage' && !form.concern.trim()) {
+    errs.concern = '연애·결혼 고민을 입력해주세요.';
+  }
+  if (productType === 'loveMarriage' && !form.interest.trim()) {
+    errs.interest = '원하는 방향을 입력해주세요.';
+  }
   return errs;
 }
 
@@ -174,6 +185,12 @@ const PRODUCT_META: Record<OrderProductType, { title: string; price: number; pri
     priceLabel: '5,000원',
     description: '직업운 리포트 주문 안내',
   },
+  loveMarriage: {
+    title: '연애·결혼운 가이드북 신청',
+    price: 5000,
+    priceLabel: '5,000원',
+    description: '연애·결혼운 가이드북 주문 안내',
+  },
 };
 
 export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
@@ -184,6 +201,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
   const meta = PRODUCT_META[productType];
   const isYearly = productType === 'yearly2026';
   const isJobCareer = productType === 'jobCareer';
+  const isLoveMarriage = productType === 'loveMarriage';
   const today = new Date();
   const currentYear = today.getFullYear();
   const birthYearOptions = Array.from({ length: currentYear - BIRTH_YEAR_MIN + 1 }, (_, i) => String(currentYear - i));
@@ -337,8 +355,9 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
         concern: form.concern.trim(),
         interest: form.interest.trim(),
         workHistory: isJobCareer ? form.workHistory.trim() : undefined,
-        reportLevel: (isYearly || isJobCareer) ? 'advanced' : ((form.reportLevel || 'both') as 'basic' | 'advanced' | 'both'),
-        lifeEvents: (isYearly || isJobCareer) ? [] : form.lifeEvents.filter(e => e.description.trim()),
+        relationshipStatus: isLoveMarriage ? form.relationshipStatus.trim() : undefined,
+        reportLevel: (isYearly || isJobCareer || isLoveMarriage) ? 'advanced' : ((form.reportLevel || 'both') as 'basic' | 'advanced' | 'both'),
+        lifeEvents: (isYearly || isJobCareer || isLoveMarriage) ? [] : form.lifeEvents.filter(e => e.description.trim()),
         status: 'submitted',
         version: 1,
       };
@@ -424,7 +443,9 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
       ? 'https://smartstore.naver.com/ui-life-solution/products/13397045090'
       : isJobCareer
         ? 'https://smartstore.naver.com/ui-life-solution/products/13458866283'
-        : 'https://smartstore.naver.com/ui-life-solution/products/13388740581';
+        : isLoveMarriage
+          ? 'https://smartstore.naver.com/ui-life-solution/products/13388740581'
+          : 'https://smartstore.naver.com/ui-life-solution/products/13388740581';
     const handleCopyOrderId = async () => {
       try {
         await navigator.clipboard.writeText(createdOrderId);
@@ -778,6 +799,11 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
             격국 · 용신 · 십성 삼각 · 오행 직군 · 2026~2028 세운 타이밍을 종합한 직업운 분석 리포트
           </p>
         )}
+        {isLoveMarriage && (
+          <p className="text-[11px] text-indigo-600">
+            일지(배우자궁) · 도화·홍염 · 정재·정관 · 대운 결혼시기를 종합한 연애·결혼운 가이드북
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 p-5 text-[13px] text-zinc-800 space-y-4">
@@ -956,8 +982,28 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                 {errors.currentJob && <p className={errorCls}>{errors.currentJob}</p>}
               </div>
             )}
+            {isLoveMarriage && (
+              <div>
+                <Label required>현재 관계 상태</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { v: 'single', l: '싱글' },
+                    { v: 'dating', l: '연애 중' },
+                    { v: 'engaged', l: '약혼·결혼 준비' },
+                    { v: 'married', l: '기혼' },
+                  ].map(opt => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setField('relationshipStatus', opt.v)}
+                      className={`py-2 rounded-xl text-[13px] font-bold border transition ${form.relationshipStatus === opt.v ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-zinc-600 border-zinc-200 hover:border-rose-300'}`}
+                    >{opt.l}</button>
+                  ))}
+                </div>
+                {errors.relationshipStatus && <p className={errorCls}>{errors.relationshipStatus}</p>}
+              </div>
+            )}
             <div>
-              <Label required={isJobCareer}>{isYearly ? '가장 큰 고민' : isJobCareer ? '커리어 고민' : '고민 또는 궁금한 점'}</Label>
+              <Label required={isJobCareer || isLoveMarriage}>{isYearly ? '가장 큰 고민' : isJobCareer ? '커리어 고민' : isLoveMarriage ? '연애·결혼 고민' : '고민 또는 궁금한 점'}</Label>
               <div className="relative">
                 <textarea
                   className={`${inputCls} min-h-[110px] resize-none`}
@@ -976,6 +1022,11 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                         가장 고민되는 커리어 문제를 적어 주세요.<br />
                         예) 이직을 해야 할지, 언제 창업이 좋을지, 지금 직장을 계속 다닐지
                       </>
+                    ) : isLoveMarriage ? (
+                      <>
+                        가장 고민되는 연애·결혼 문제를 적어 주세요.<br />
+                        예) 지금 만나는 사람과 결혼해도 될지, 언제쯤 좋은 인연을 만날지, 부부 갈등이 풀릴지
+                      </>
                     ) : (
                       <>
                         책자에서 꼭 다뤄주었으면 하는, 가장 고민이 되는 것을 자유롭게 적어 주세요.<br />
@@ -988,7 +1039,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
               {errors.concern && <p className={errorCls}>{errors.concern}</p>}
             </div>
             <div>
-              <Label required={isJobCareer}>{isYearly ? '가장 알고 싶은 것' : isJobCareer ? '원하는 방향' : '특히 더 알고 싶은 분야'}</Label>
+              <Label required={isJobCareer || isLoveMarriage}>{isYearly ? '가장 알고 싶은 것' : isJobCareer ? '원하는 방향' : isLoveMarriage ? '원하는 방향' : '특히 더 알고 싶은 분야'}</Label>
               <div className="relative">
                 <textarea
                   className={`${inputCls} min-h-[90px] resize-none`}
@@ -1006,6 +1057,11 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                       <>
                         5년 후 어떤 모습을 원하시나요?<br />
                         예) 현 직장에서 임원 / 5년 내 독립 창업 / 전직(업종 변경) / 안정적인 직장 유지
+                      </>
+                    ) : isLoveMarriage ? (
+                      <>
+                        어떤 관계·결혼을 원하시나요?<br />
+                        예) 5년 내 안정적 결혼 / 좋은 인연 만남 시기 / 현재 관계의 미래 / 어울리는 배우자상
                       </>
                     ) : (
                       <>
@@ -1037,7 +1093,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
                 </div>
               </div>
             )}
-            {!isYearly && !isJobCareer && (
+            {!isYearly && !isJobCareer && !isLoveMarriage && (
               <div>
                 <Label required>리포트 구성 선택</Label>
                 <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-3 mb-2 text-[11px] text-zinc-600 space-y-1">
@@ -1117,7 +1173,7 @@ export const PremiumOrderForm: React.FC<PremiumOrderFormProps> = ({
             className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {submitting ? '접수 중입니다...' : (isYearly ? '일년운세 주문하기' : isJobCareer ? '직업운 리포트 주문하기' : '리포트 주문하기')}
+            {submitting ? '접수 중입니다...' : (isYearly ? '일년운세 주문하기' : isJobCareer ? '직업운 리포트 주문하기' : isLoveMarriage ? '연애·결혼운 가이드북 주문하기' : '리포트 주문하기')}
           </button>
         </div>
       </div>

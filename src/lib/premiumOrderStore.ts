@@ -17,7 +17,7 @@ export interface LifeEvent {
   description: string;
 }
 
-export type ProductType = 'premium' | 'yearly2026' | 'jobCareer';
+export type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 
 export interface ReportInputData {
   name: string;
@@ -35,6 +35,7 @@ export interface ReportInputData {
   productType?: ProductType;
   currentJob?: string;
   workHistory?: string;
+  relationshipStatus?: string;
 }
 
 export interface ReportSection {
@@ -79,6 +80,7 @@ export interface PremiumOrder {
   productType?: ProductType;
   currentJob?: string;
   workHistory?: string;
+  relationshipStatus?: string;
   naverOrderNumber?: string;
   emailMessageId?: string;
   emailStatus?: 'sent' | 'delivered' | 'bounced' | 'complained' | 'unknown';

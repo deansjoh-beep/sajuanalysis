@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { Briefcase, Calendar, ChevronDown, Compass, Download, FileText, Ticket } from 'lucide-react';
+import { Briefcase, Calendar, ChevronDown, Compass, Download, FileText, Heart, Ticket } from 'lucide-react';
 import { useReportTabActions } from '../../hooks/useReportTabActions';
 import { ReportTab } from './ReportTab';
 
@@ -23,6 +23,7 @@ interface ReportTabContentProps {
   onGoToOrder?: () => void;
   onGoToYearlyOrder?: () => void;
   onGoToJobCareer?: () => void;
+  onGoToLoveMarriage?: () => void;
 }
 
 interface ParsedReportSection {
@@ -168,6 +169,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
   onGoToOrder,
   onGoToYearlyOrder,
   onGoToJobCareer,
+  onGoToLoveMarriage,
 }) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const { switchReportMode, handleDownloadPDF } = useReportTabActions({
@@ -312,7 +314,7 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
         {/* 프리미엄 리포트 주문 CTA — 항상 노출 */}
         <div className="mt-8 space-y-3">
           <p className="text-[11px] font-bold text-zinc-500 text-center tracking-wide uppercase">전문가 제작 프리미엄 리포트</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
             <button
               onClick={onGoToOrder}
               disabled={!onGoToOrder}
@@ -356,6 +358,21 @@ export const ReportTabContent: React.FC<ReportTabContentProps> = ({
                 <p className="text-[11px] text-zinc-500 mt-0.5">이직·창업·승진 타이밍·커리어 DNA</p>
               </div>
               <span className="mt-auto text-[11px] font-bold text-emerald-600">5,000원 · 주문하기 →</span>
+            </button>
+
+            <button
+              onClick={onGoToLoveMarriage}
+              disabled={!onGoToLoveMarriage}
+              className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-rose-200/70 bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 hover:opacity-90 transition-all shadow-md shadow-rose-200/20 disabled:opacity-40 text-left"
+            >
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600 flex items-center justify-center shadow-md">
+                <Heart className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-zinc-900 leading-tight">연애·결혼운 가이드북</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">연애운·결혼운 분리·배우자상·관계 로드맵</p>
+              </div>
+              <span className="mt-auto text-[11px] font-bold text-rose-600">5,000원 · 주문하기 →</span>
             </button>
           </div>
         </div>
