@@ -53,7 +53,7 @@ const STATUS_LABEL: Record<ReviewDoc['status'], string> = {
 export const ReviewsPanel: React.FC = () => {
   const [reviews, setReviews] = useState<ReviewDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterTab, setFilterTab] = useState<FilterTab>('pending');
+  const [filterTab, setFilterTab] = useState<FilterTab>('approved');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);

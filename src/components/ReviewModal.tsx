@@ -66,11 +66,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourc
         rating,
         imageUrls: uploadedUrls,
         sourcePage,
-        status: 'pending',
+        status: 'approved',
         adminReply: '',
         adminRepliedAt: null,
         createdAt: serverTimestamp(),
-        approvedAt: null,
+        approvedAt: serverTimestamp(),
       });
 
       setSubmitted(true);
@@ -100,7 +100,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourc
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
-      onClick={e => { if (e.target === e.currentTarget) handleClose(); }}
+      onClick={e => { if (e.target === e.currentTarget && !submitted) handleClose(); }}
     >
       <div className="w-full sm:max-w-lg rounded-t-[2rem] sm:rounded-[2rem] border border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-indigo-300/30 overflow-hidden">
         {/* 헤더 */}
@@ -129,9 +129,9 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourc
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-emerald-600" />
             </div>
-            <h3 className="text-[16px] font-bold text-zinc-900">후기가 접수되었습니다!</h3>
+            <h3 className="text-[16px] font-bold text-zinc-900">후기가 게시되었습니다!</h3>
             <p className="text-[13px] text-zinc-600 leading-relaxed">
-              검토 후 게시됩니다. 소중한 후기 감사합니다 🙏
+              소중한 후기 감사합니다. 홈 화면에서 바로 확인하실 수 있습니다.
             </p>
             <button
               onClick={handleClose}
@@ -259,7 +259,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourc
                   <><Star className="w-4 h-4 fill-white" /> 후기 제출하기</>
                 )}
               </button>
-              <p className="text-center text-[11px] text-zinc-400 mt-2">검토 후 게시됩니다</p>
+              <p className="text-center text-[11px] text-zinc-400 mt-2">후기는 즉시 게시됩니다</p>
             </div>
           </div>
         )}

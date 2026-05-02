@@ -204,16 +204,15 @@ service cloud.firestore {
     }
 
     // Customer reviews
-    // - 누구나 승인된 후기 읽기 가능
-    // - 누구나 status='pending'으로 후기 생성 가능
-    // - 관리자만 상태 변경(승인/거절) 및 답글 작성 가능
+    // - 누구나 후기 읽기/작성 가능 (즉시 게시)
+    // - 관리자만 삭제·답글 작성 가능 (사후 삭제 방식으로 운영)
     match /reviews/{reviewId} {
-      // 후기는 민감정보 없음 — 공개 읽기 허용 (클라이언트에서 status 필터)
+      // 후기는 민감정보 없음 — 공개 읽기 허용
       allow read: if true;
 
-      // 누구나 후기 생성 (status는 반드시 'pending'으로 시작)
+      // 누구나 후기 생성 (status는 'approved' 또는 'pending')
       allow create: if request.resource.data.keys().hasAll(['authorName', 'content', 'rating', 'createdAt', 'status']) &&
-                    request.resource.data.status == 'pending' &&
+                    request.resource.data.status in ['approved', 'pending'] &&
                     request.resource.data.content is string &&
                     request.resource.data.content.size() >= 10 &&
                     request.resource.data.content.size() <= 500 &&
