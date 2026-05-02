@@ -20,17 +20,21 @@ export const HanjaBox: React.FC<{
     : '';
 
   // 만세력 디자인 원칙: 한자 박스 1.5배 (40→60, 24→36, 48→72).
-  // deity·라벨 텍스트는 본문/캡션 두 단계 중 캡션(text-[12px])으로 통일.
+  // sm은 모바일에서 w-6(24px)로 축소해 지장간 3개가 좁은 컬럼 안에 들어오도록 함.
   const sizeClasses = {
-    sm: 'w-9 h-9 text-[14px] rounded-md',
+    sm: 'w-6 h-6 text-[11px] rounded-md md:w-9 md:h-9 md:text-[14px]',
     md: 'w-[60px] h-[60px] text-[24px] rounded-xl',
     lg: 'w-[72px] h-[72px] text-[24px] rounded-2xl',
   };
 
+  const deityFontClass = size === 'sm' ? 'text-[9px] md:text-[12px]' : 'text-[12px]';
+  const deityTopClass = size === 'sm' ? '-top-3 md:-top-4' : '-top-4';
+  const deityBottomClass = size === 'sm' ? '-bottom-3 md:-bottom-4' : '-bottom-4';
+
   const deityEl = deity ? (
     <span
-      className={`text-[12px] font-title font-bold text-[#3a3530] absolute ${
-        deityPosition === 'top' ? '-top-4' : '-bottom-4'
+      className={`${deityFontClass} font-title font-bold text-[#3a3530] absolute ${
+        deityPosition === 'top' ? deityTopClass : deityBottomClass
       } left-1/2 -translate-x-1/2 whitespace-nowrap`}
     >
       {deity}

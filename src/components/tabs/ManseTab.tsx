@@ -274,16 +274,16 @@ export default function ManseTab({
                 general={SAJU_GENERAL}
                 personal={dayStem ? sajuPersonalInsight(userData.name, dayStem) : undefined}
               />
-              <div className="grid grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-4 gap-1 md:gap-4">
                 {sajuResult.map((p, i) => {
                   if (userData.unknownTime && p.title === '시주') return null;
                   return (
                     <div
                       key={i}
-                      className={`p-3 md:p-5 ${PAPER_CARD} flex flex-col items-center gap-2`}
+                      className={`p-2 md:p-5 ${PAPER_CARD} flex flex-col items-center gap-2`}
                       style={PAPER_CARD_SHADOW}
                     >
-                      <span className="text-[12px] font-bold text-ink-500">{p.title}</span>
+                      <span className="text-[11px] md:text-[12px] font-bold text-ink-500">{p.title}</span>
                       <div className="flex flex-col gap-4 py-2">
                         {[p.stem, p.branch].map((item, j) => (
                           <HanjaBox
@@ -406,16 +406,16 @@ export default function ManseTab({
                 general={JIJANGGAN_GENERAL}
                 personal={hiddenStemExposureText || undefined}
               />
-              <div className="grid grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-4 gap-1 md:gap-4">
                 {sajuResult.map((p, i) => {
                   if (userData.unknownTime && p.title === '시주') return null;
                   return (
                     <div
                       key={i}
-                      className={`p-3 md:p-5 ${PAPER_CARD} flex flex-col items-center gap-2`}
+                      className={`p-1.5 md:p-5 ${PAPER_CARD} flex flex-col items-center gap-2`}
                       style={PAPER_CARD_SHADOW}
                     >
-                      <div className="py-2">
+                      <div className="py-1 md:py-2">
                         <HanjaBox
                           hanja={p.branch.hanja}
                           deity={p.branch.deity}
@@ -423,10 +423,10 @@ export default function ManseTab({
                           size="md"
                         />
                       </div>
-                      <span className="text-[12px] font-bold mt-2 text-ink-700">
+                      <span className="text-[10px] md:text-[12px] font-bold mt-1 md:mt-2 text-ink-700 text-center leading-tight">
                         {p.branch.hangul}({p.branch.hanja})
                       </span>
-                      <div className="flex gap-2 mt-4 pb-2">
+                      <div className="flex justify-evenly w-full mt-2 md:mt-4 pb-4 md:pb-2">
                         {(p.branch.hidden ? p.branch.hidden.split(', ') : []).map(
                           (h, k, hiddenArray) => {
                             const hanja =
@@ -449,8 +449,8 @@ export default function ManseTab({
                                 ? 'text-brush-gold'
                                 : 'text-ink-500';
                             return (
-                              <div key={k} className="flex flex-col items-center gap-1">
-                                <span className={`text-[12px] font-bold ${labelColor}`}>{label}</span>
+                              <div key={k} className="flex flex-col items-center gap-0.5 md:gap-1">
+                                <span className={`text-[9px] md:text-[12px] font-bold ${labelColor}`}>{label}</span>
                                 <HanjaBox
                                   hanja={hanja}
                                   size="sm"
@@ -473,7 +473,7 @@ export default function ManseTab({
             <section className="space-y-5">
               <SectionHeader title="12운성" hanja="十二運星" />
               <InsightPanel general={SIBIUNSEONG_GENERAL} />
-              <div className="grid grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-4 gap-1 md:gap-4">
                 {sajuResult.map((p, i) => {
                   if (userData.unknownTime && p.title === '시주') return null;
                   const unseong = getSipseung(dayStem, p.branch.hanja);
@@ -482,15 +482,15 @@ export default function ManseTab({
                   return (
                     <div
                       key={i}
-                      className={`p-3 md:p-4 ${PAPER_CARD} flex flex-col items-center gap-2`}
+                      className={`p-2 md:p-4 ${PAPER_CARD} flex flex-col items-center gap-1.5 md:gap-2`}
                       style={PAPER_CARD_SHADOW}
                     >
-                      <span className="text-[12px] font-bold text-ink-500">{p.title}</span>
-                      <span className="text-[14px] font-bold text-ink-700">
+                      <span className="text-[10px] md:text-[12px] font-bold text-ink-500">{p.title}</span>
+                      <span className="text-[11px] md:text-[14px] font-bold text-ink-700 text-center leading-tight">
                         {p.branch.hangul}({p.branch.hanja})
                       </span>
                       <span
-                        className={`text-[12px] font-bold px-3 py-1 rounded-full ${
+                        className={`text-[10px] md:text-[12px] font-bold px-1.5 md:px-3 py-0.5 md:py-1 rounded-full ${
                           isStrong
                             ? 'bg-emerald-700/15 text-emerald-800'
                             : isMid
