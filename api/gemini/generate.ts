@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkVercelRateLimit, generalLimiter } from '../lib/rate-limit';
+import { checkVercelRateLimit, generalLimiter } from '../lib/rate-limit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (await checkVercelRateLimit(req, res, generalLimiter)) return;
+  if (!checkVercelRateLimit(req, res, generalLimiter)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -21,12 +21,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const safeModel = model.replace(/[^a-zA-Z0-9._-]/g, '');
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${apiKey}`;
 
-  const geminiRes = await fetch(geminiUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  try {
+    const geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
-  const data = await geminiRes.json();
-  return res.status(geminiRes.status).json(data);
+    const data = await geminiRes.json();
+    return res.status(geminiRes.status).json(data);
+  } catch (err: any) {
+    return res.status(502).json({ error: { message: `Proxy fetch failed: ${err?.message || 'unknown'}`, code: 502 } });
+  }
 }
