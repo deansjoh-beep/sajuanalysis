@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import {
   getSajuData,
   getDaeunData,
@@ -96,22 +96,68 @@ export const sajuToolDeclaration = {
   },
 };
 
-// Helper to get Gemini AI instance
-export const getGeminiAI = () => {
-  const windowKey = (window as any).GEMINI_API_KEY;
-  const viteKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
-  const processKey =
-    typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY;
+export interface ProxyGenerateContentParams {
+  model: string;
+  contents: any[];
+  config?: {
+    systemInstruction?: string;
+    tools?: any[];
+    temperature?: number;
+    maxOutputTokens?: number;
+    [key: string]: any;
+  };
+}
 
-  const apiKey = windowKey || viteKey || processKey;
+export interface ProxyGenerateContentResponse {
+  text: string;
+  functionCalls: any[] | undefined;
+  candidates: any[];
+}
 
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    console.error('[ERROR] Gemini API Key is missing.');
-    throw new Error(
-      'API 키가 설정되지 않았습니다. 프로젝트 루트의 .env.local 파일에 GEMINI_API_KEY 또는 VITE_GEMINI_API_KEY를 설정한 뒤 개발 서버를 재시작해 주세요.',
-    );
+export const proxyGenerateContent = async ({
+  model,
+  contents,
+  config,
+}: ProxyGenerateContentParams): Promise<ProxyGenerateContentResponse> => {
+  const body: any = { model, contents };
+
+  if (config?.systemInstruction) {
+    body.systemInstruction = { parts: [{ text: config.systemInstruction }] };
   }
-  return new GoogleGenAI({ apiKey });
+  if (config?.tools) {
+    body.tools = config.tools;
+  }
+  const generationConfig: any = {};
+  if (config?.temperature !== undefined) generationConfig.temperature = config.temperature;
+  if (config?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = config.maxOutputTokens;
+  if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
+
+  const res = await fetch('/api/gemini/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData?.error?.message || `Gemini API error ${res.status}`;
+    const err = Object.assign(new Error(JSON.stringify({ error: errData?.error || { message: errMsg, code: res.status } })), {
+      status: res.status,
+      error: errData?.error,
+    });
+    throw err;
+  }
+
+  const data = await res.json();
+  const parts: any[] = data.candidates?.[0]?.content?.parts ?? [];
+  const textPart = parts.find((p: any) => typeof p.text === 'string');
+  const fcParts = parts.filter((p: any) => p.functionCall);
+
+  return {
+    text: textPart?.text ?? '',
+    functionCalls: fcParts.length > 0 ? fcParts.map((p: any) => p.functionCall) : undefined,
+    candidates: data.candidates ?? [],
+  };
 };
 
 export const DEFAULT_GEMINI_MODEL_PRIORITY = [

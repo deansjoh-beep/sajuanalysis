@@ -6,6 +6,7 @@ import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
 import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, runWithModelRetry } from '../lib/modelUtils';
 import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
+import { proxyGenerateContent } from '../lib/geminiClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
 import { ChatMessage } from './useChatTabState';
 
@@ -31,7 +32,6 @@ interface UseChatSendActionParams {
   consultationModeRef: React.MutableRefObject<'basic' | 'advanced'>;
   preservedChatContextRef: React.MutableRefObject<ChatMessage[]>;
   isAdmin: boolean;
-  getGeminiAI: () => any;
   preferredModels: string[];
   sajuToolDeclaration: any;
   calculateSajuForPerson: (args: any) => any;
@@ -59,7 +59,6 @@ export const useChatSendAction = ({
   consultationModeRef,
   preservedChatContextRef,
   isAdmin,
-  getGeminiAI,
   preferredModels,
   sajuToolDeclaration,
   calculateSajuForPerson
@@ -147,7 +146,6 @@ export const useChatSendAction = ({
     setLoading(true);
 
     try {
-      const ai = getGeminiAI();
       const waitedMs = await waitForModelCooldownIfNeeded('chat');
       if (waitedMs > 0) {
         console.warn(`[MODEL_COOLDOWN] chat request delayed ${waitedMs}ms due to recent retryable errors.`);
@@ -268,7 +266,7 @@ export const useChatSendAction = ({
             const isLastModel = model === modelCandidates[modelCandidates.length - 1];
             const maxAttempts = isLastModel ? 2 : 1;
             const result = await runWithModelRetry<any>(
-              () => ai.models.generateContent({
+              () => proxyGenerateContent({
                 model,
                 contents,
                 config: {
@@ -389,7 +387,7 @@ export const useChatSendAction = ({
 
         try {
           const startedAt = Date.now();
-          response = await ai.models.generateContent({
+          response = await proxyGenerateContent({
             model: activeModel,
             contents,
             config: {
@@ -500,7 +498,6 @@ export const useChatSendAction = ({
     consultationModeRef,
     preservedChatContextRef,
     isAdmin,
-    getGeminiAI,
     preferredModels,
     sajuToolDeclaration,
     calculateSajuForPerson

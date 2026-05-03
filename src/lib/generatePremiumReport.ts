@@ -11,8 +11,6 @@ import { PremiumOrder, ReportInputData, ReportSection, DaeunBlock } from "./prem
 import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
 import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt, buildJobCareerPrompt, buildLoveMarriagePrompt } from './promptBuilders';
 
-let runtimeGeminiApiKeyCache: string | undefined;
-
 const LIFE_NAV_REQUIRED_SECTION_IDS = [
   'cover',
   'fourpillars',
@@ -68,32 +66,6 @@ const stripCodeFence = (text: string): string => {
   return trimmed.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
 };
 
-const resolveGeminiApiKey = async (): Promise<string> => {
-  const viteKey = String((import.meta as any).env?.VITE_GEMINI_API_KEY || '').trim();
-  if (viteKey) return viteKey;
-
-  const windowKey = String((window as any)?.GEMINI_API_KEY || '').trim();
-  if (windowKey) return windowKey;
-
-  if (runtimeGeminiApiKeyCache !== undefined) {
-    return runtimeGeminiApiKeyCache;
-  }
-
-  try {
-    const res = await fetch('/api/runtime-config');
-    if (!res.ok) {
-      runtimeGeminiApiKeyCache = '';
-      return '';
-    }
-    const data = await res.json();
-    runtimeGeminiApiKeyCache = String(data?.geminiApiKey || '').trim();
-    return runtimeGeminiApiKeyCache;
-  } catch {
-    runtimeGeminiApiKeyCache = '';
-    return '';
-  }
-};
-
 export const generatePremiumReport = async (order: PremiumOrder): Promise<{ reportText: string; pdfUrl: string }> => {
   try {
     // 1. 사주 계산
@@ -135,9 +107,6 @@ export const generatePremiumReport = async (order: PremiumOrder): Promise<{ repo
     }).join(', ');
 
     // 3. Gemini AI 호출 (REST API)
-    const apiKey = await resolveGeminiApiKey();
-    if (!apiKey) throw new Error('Gemini API key is not configured (.env에 GEMINI_API_KEY 설정 필요)');
-    
     const prompt = `[서울 기준 기준값]
   현재 날짜: ${todayDayPillar.dateText}
   올해 세운(연도 간지): ${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})
@@ -176,10 +145,11 @@ ${daeunText}
 - 다른 간지로 추정하거나 바꿔 쓰는 행위를 금지한다.
 `;
 
-    const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+    const geminiResponse = await fetch('/api/gemini/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        model: 'gemini-2.5-flash',
         systemInstruction: {
           parts: [{ text: `${SAJU_GUIDELINE}\n\n${REPORT_GUIDELINE}\n\n${fixedGanjiInstruction}` }]
         },
@@ -822,11 +792,7 @@ export const generateLifeNavReport = async (
     user = built.user;
   }
 
-  // 3. Gemini AI 호출 (폴백 체인: 2.5-flash → 2.0-flash → 2.0-flash-lite → 1.5-flash)
-  const apiKey = await resolveGeminiApiKey();
-  if (!apiKey) throw new Error('Gemini API key is not configured (.env에 GEMINI_API_KEY 설정 필요)');
-
-  // 유료 리포트 전용 모델 체인 — 최고급(2.5-pro) 우선, 503 등 장애 시 flash 계열로 폴백
+  // 3. Gemini AI 호출 (폴백 체인: 2.5-pro → 2.5-flash → 2.0-flash → 1.5-flash)
   const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
   const callGeminiWithFallback = async (
@@ -837,19 +803,17 @@ export const generateLifeNavReport = async (
     let lastError: any = null;
     for (const model of FALLBACK_MODELS) {
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
+        const response = await fetch('/api/gemini/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal,
             body: JSON.stringify({
+              model,
               systemInstruction: { parts: [{ text: systemText }] },
               contents: [{ role: 'user', parts: [{ text: userText }] }],
               generationConfig,
             }),
-          }
-        );
+          });
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));

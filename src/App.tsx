@@ -81,7 +81,7 @@ import { isAdminRoute, isReportMakerRoute, isPremiumE2EMode } from "./lib/routes
 import {
   calculateSajuForPerson,
   sajuToolDeclaration,
-  getGeminiAI,
+  proxyGenerateContent,
   getPreferredGeminiModels,
 } from "./lib/geminiClient";
 import {
@@ -577,7 +577,6 @@ const App: React.FC = () => {
       : pickRandomQuestions(getProfileCategoryQuestions(), 3);
 
     try {
-      const ai = getGeminiAI();
       const models = getPreferredGeminiModels();
       const prompt = [
         '당신은 한국 사용자에게 사주 상담 시작 질문을 추천하는 도우미다.',
@@ -599,7 +598,7 @@ const App: React.FC = () => {
       for (const model of models) {
         try {
           const result = await runWithModelRetry(
-            () => ai.models.generateContent({
+            () => proxyGenerateContent({
               model,
               contents: [{ role: 'user', parts: [{ text: prompt }] }],
               config: {
@@ -610,7 +609,7 @@ const App: React.FC = () => {
             2
           );
 
-          generated = extractQuestionsFromModelText((result as any)?.text || '', alreadyAsked);
+          generated = extractQuestionsFromModelText(result?.text || '', alreadyAsked);
           if (generated.length >= 3) {
             break;
           }
@@ -762,7 +761,6 @@ const App: React.FC = () => {
     consultationModeRef,
     preservedChatContextRef,
     isAdmin,
-    getGeminiAI,
     preferredModels: getPreferredGeminiModels(),
     sajuToolDeclaration,
     calculateSajuForPerson
@@ -783,7 +781,6 @@ const App: React.FC = () => {
     setActiveTab,
     setLoading,
     setReportContent,
-    getGeminiAI,
     preferredModels: getPreferredGeminiModels(),
   });
 

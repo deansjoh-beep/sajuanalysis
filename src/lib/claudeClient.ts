@@ -1,18 +1,7 @@
-/**
- * Claude (Anthropic) API 폴백 클라이언트
- *
- * Gemini 모델이 모두 503/429로 실패할 때 자동으로 호출됩니다.
- * @anthropic-ai/sdk 대신 fetch를 직접 사용해 번들 크기를 최소화합니다.
- * 브라우저에서 직접 호출 시 anthropic-dangerous-direct-browser-access 헤더가 필요합니다.
- */
-
 export const getClaudeApiKey = (): string | null => {
-  const windowKey = (window as any).ANTHROPIC_API_KEY;
-  const viteKey = (import.meta as any).env.VITE_ANTHROPIC_API_KEY;
-  const processKey =
-    typeof process !== 'undefined' && process.env?.ANTHROPIC_API_KEY;
-  const key = windowKey || viteKey || processKey;
-  return key && key !== 'undefined' && key !== '' ? String(key) : null;
+  // 프록시(/api/claude/generate)를 사용하므로 키 자체는 불필요하지만
+  // 프록시 가용 여부 확인용으로 true를 반환해 폴백 흐름을 유지
+  return 'proxy';
 };
 
 export const DEFAULT_CLAUDE_MODELS = [
@@ -39,19 +28,9 @@ export const claudeGenerateContent = async ({
   maxTokens = 8192,
   temperature = 0.8,
 }: ClaudeGenerateParams): Promise<{ text: string }> => {
-  const apiKey = getClaudeApiKey();
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/claude/generate', {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-      'content-type': 'application/json',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,

@@ -1,11 +1,9 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {loadEnv} from 'vite';
 import {defineConfig} from 'vitest/config';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
 
   const getManualChunk = (id: string): string | undefined => {
     if (!id.includes('node_modules')) {
@@ -51,10 +49,6 @@ export default defineConfig(({mode}) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY),
-    },
     build: {
       sourcemap: false,
       chunkSizeWarningLimit: 1500,

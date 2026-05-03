@@ -6,6 +6,7 @@ import { recordModelTelemetry } from '../lib/modelTelemetry';
 import { waitForModelCooldownIfNeeded, recordRetryableModelFailure, recordModelRequestSuccess } from '../lib/modelCooldown';
 import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, runWithModelRetry } from '../lib/modelUtils';
 import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
+import { proxyGenerateContent } from '../lib/geminiClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
 
 interface UseReportGenerationActionParams {
@@ -23,7 +24,6 @@ interface UseReportGenerationActionParams {
   setActiveTab: React.Dispatch<React.SetStateAction<any>>;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setReportContent: React.Dispatch<React.SetStateAction<string | null>>;
-  getGeminiAI: () => any;
   preferredModels: string[];
 }
 
@@ -42,7 +42,6 @@ export const useReportGenerationAction = ({
   setActiveTab,
   setLoading,
   setReportContent,
-  getGeminiAI,
   preferredModels,
 }: UseReportGenerationActionParams) => {
   const appendRawError = (baseMessage: string, parsed: { code?: number | null; status?: string | null; message?: string }) => {
@@ -75,7 +74,6 @@ export const useReportGenerationAction = ({
     // 호출 측이 필요하면 별도로 setActiveTab 호출.
 
     try {
-      const ai = getGeminiAI();
       const waitedMs = await waitForModelCooldownIfNeeded('report');
       if (waitedMs > 0) {
         console.warn(`[MODEL_COOLDOWN] report request delayed ${waitedMs}ms due to recent retryable errors.`);
@@ -169,9 +167,9 @@ export const useReportGenerationAction = ({
           const isLastModel = model === modelCandidates[modelCandidates.length - 1];
           const maxAttempts = isLastModel ? 2 : 1;
           result = await runWithModelRetry(
-            () => ai.models.generateContent({
+            () => proxyGenerateContent({
               model,
-              contents: [{ parts: [{ text: '나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해.' }] }],
+              contents: [{ role: 'user', parts: [{ text: '나의 사주 정보와 대운 흐름을 바탕으로 종합 운세 리포트를 작성해줘. 반드시 정해진 [SECTION] 형식을 지켜야 해.' }] }],
               config: {
                 systemInstruction: baseSystemInstruction,
                 maxOutputTokens: 16384,
@@ -287,7 +285,6 @@ export const useReportGenerationAction = ({
     setActiveTab,
     setLoading,
     setReportContent,
-    getGeminiAI,
     preferredModels,
 
   ]);

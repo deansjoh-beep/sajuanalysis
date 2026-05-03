@@ -115,10 +115,41 @@ async function startServer() {
     });
   });
 
-  app.get("/api/runtime-config", (req, res) => {
-    const geminiApiKey = String(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    const anthropicApiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
-    res.json({ geminiApiKey, anthropicApiKey });
+  app.get("/api/runtime-config", (_req, res) => {
+    // API 키는 클라이언트에 노출하지 않음 — /api/gemini/generate, /api/claude/generate 프록시 사용
+    res.json({});
+  });
+
+  app.post("/api/gemini/generate", expressRateLimit(generalLimiter), async (req, res) => {
+    const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
+
+    const { model, ...body } = req.body || {};
+    if (!model || typeof model !== 'string') return res.status(400).json({ error: 'model field required' });
+
+    const safeModel = model.replace(/[^a-zA-Z0-9._-]/g, '');
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+    const data = await geminiRes.json();
+    return res.status(geminiRes.status).json(data);
+  });
+
+  app.post("/api/claude/generate", expressRateLimit(generalLimiter), async (req, res) => {
+    const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
+    if (!apiKey) return res.status(500).json({ error: 'Anthropic API key not configured' });
+
+    const { model, system, messages, max_tokens = 8192, temperature = 0.8 } = req.body || {};
+    if (!model || !messages) return res.status(400).json({ error: 'model and messages fields required' });
+
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model, system, messages, max_tokens, temperature }),
+    });
+    const data = await claudeRes.json();
+    return res.status(claudeRes.status).json(data);
   });
 
   app.post('/api/generate-pdf', expressRateLimit(pdfLimiter, (req) => {
@@ -703,10 +734,7 @@ async function startServer() {
     app.get("*", (req, res) => {
       const indexPath = path.join(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
-        let html = fs.readFileSync(indexPath, "utf-8");
-        // Inject API Key into the HTML so the frontend can access it even if build-time injection failed
-        const apiKeyScript = `<script>window.GEMINI_API_KEY = "${process.env.GEMINI_API_KEY || ''}"; window.ANTHROPIC_API_KEY = "${process.env.ANTHROPIC_API_KEY || ''}";</script>`;
-        html = html.replace("<head>", `<head>${apiKeyScript}`);
+        const html = fs.readFileSync(indexPath, "utf-8");
         res.send(html);
       } else {
         res.status(404).send("Not Found");
