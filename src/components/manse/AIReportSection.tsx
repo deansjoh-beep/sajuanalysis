@@ -88,11 +88,11 @@ export function AIReportSection({
         </p>
       )}
 
-      <div className="prose-sm md:prose-base max-w-none text-ink-700 leading-[1.9] text-[14px] space-y-3">
+      <div className="prose-sm md:prose-base max-w-none text-ink-900 leading-[1.9] text-[14px] space-y-3">
         <ReactMarkdown
           components={{
             p: ({ children }) => (
-              <p className="text-ink-700 leading-[1.9]">{children}</p>
+              <p className="text-ink-900 leading-[1.9]">{children}</p>
             ),
             strong: ({ children }) => (
               <strong className="text-ink-900 font-bold">{children}</strong>
@@ -122,10 +122,10 @@ export function AIReportSection({
               <ol className="list-decimal pl-5 space-y-1.5">{children}</ol>
             ),
             li: ({ children }) => (
-              <li className="text-ink-700 leading-[1.85]">{children}</li>
+              <li className="text-ink-900 leading-[1.85]">{children}</li>
             ),
             blockquote: ({ children }) => (
-              <blockquote className="border-l-2 border-brush-gold/50 pl-4 my-3 text-ink-700 italic">
+              <blockquote className="border-l-2 border-brush-gold/50 pl-4 my-3 text-ink-900 italic">
                 {children}
               </blockquote>
             ),

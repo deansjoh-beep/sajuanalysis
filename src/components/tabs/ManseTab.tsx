@@ -338,7 +338,7 @@ export default function ManseTab({
                   className={`p-6 ${PAPER_CARD} flex flex-col justify-center gap-4`}
                   style={PAPER_CARD_SHADOW}
                 >
-                  <p className="text-[14px] leading-[1.85] text-ink-700 font-medium">
+                  <p className="text-[14px] leading-[1.85] text-ink-900 font-medium">
                     {userData.name}님의 오행 분포는{' '}
                     <br className="hidden md:block" />
                     {chartData.map((d) => `${d.name} ${d.value}개`).join(', ')}으로
@@ -423,7 +423,7 @@ export default function ManseTab({
                           size="md"
                         />
                       </div>
-                      <span className="text-[10px] md:text-[12px] font-bold mt-1 md:mt-2 text-ink-700 text-center leading-tight">
+                      <span className="text-[10px] md:text-[12px] font-bold mt-1 md:mt-2 text-ink-900 text-center leading-tight">
                         {p.branch.hangul}({p.branch.hanja})
                       </span>
                       <div className="flex justify-evenly w-full mt-2 md:mt-4 pb-4 md:pb-2">
@@ -486,7 +486,7 @@ export default function ManseTab({
                       style={PAPER_CARD_SHADOW}
                     >
                       <span className="text-[10px] md:text-[12px] font-bold text-ink-500">{p.title}</span>
-                      <span className="text-[11px] md:text-[14px] font-bold text-ink-700 text-center leading-tight">
+                      <span className="text-[11px] md:text-[14px] font-bold text-ink-900 text-center leading-tight">
                         {p.branch.hangul}({p.branch.hanja})
                       </span>
                       <span
@@ -769,13 +769,13 @@ function HyungChungSection({
       <InsightPanel general={HYUNGCHUNG_GENERAL} />
       <div className={`p-5 md:p-6 ${PAPER_CARD}`} style={PAPER_CARD_SHADOW}>
         {isEmpty ? (
-          <p className="text-[14px] text-ink-700 leading-relaxed">
+          <p className="text-[14px] text-ink-900 leading-relaxed">
             원국 지지 사이에 특별한 형·충·회·합 관계가 감지되지 않습니다. 큰 변동 신호가 약하고, 전반적으로 안정적인 구조입니다.
           </p>
         ) : (
           <ul className="space-y-3 list-disc pl-5">
             {relations.map((r, i) => (
-              <li key={`r-${i}`} className="text-[14px] leading-[1.85] text-ink-700">
+              <li key={`r-${i}`} className="text-[14px] leading-[1.85] text-ink-900">
                 <span className="font-bold text-ink-900">
                   {r.p1}의 {hanjaToHangul[r.b1]}({r.b1})
                 </span>
@@ -787,12 +787,12 @@ function HyungChungSection({
               </li>
             ))}
             {samhapSentences.map((s, i) => (
-              <li key={`sh-${i}`} className="text-[14px] leading-[1.85] text-ink-700">
+              <li key={`sh-${i}`} className="text-[14px] leading-[1.85] text-ink-900">
                 {s}
               </li>
             ))}
             {banghapSentences.map((s, i) => (
-              <li key={`bh-${i}`} className="text-[14px] leading-[1.85] text-ink-700">
+              <li key={`bh-${i}`} className="text-[14px] leading-[1.85] text-ink-900">
                 {s}
               </li>
             ))}
@@ -847,7 +847,7 @@ function GongmangSection({
       .map((p) => ({ pos: pillarLabel(p.title), branch: p.branch.hanja }));
     const gmKor = gm.map((b) => `${hanjaToHangul[b]}(${b})`).join('·');
     return (
-      <li key={key} className="text-[14px] leading-[1.85] text-ink-700">
+      <li key={key} className="text-[14px] leading-[1.85] text-ink-900">
         <span className="font-bold text-ink-900">
           {label} 공망은 {gmKor}
         </span>
@@ -950,13 +950,13 @@ function SibisinsalSection({
       <InsightPanel general={SIBISINSAL_GENERAL} />
       <div className={`p-5 md:p-6 ${PAPER_CARD}`} style={PAPER_CARD_SHADOW}>
         {entries.length === 0 ? (
-          <p className="text-[14px] text-ink-700 leading-relaxed">
+          <p className="text-[14px] text-ink-900 leading-relaxed">
             원국에서 특별히 두드러지는 신살이 발견되지 않습니다.
           </p>
         ) : (
           <ul className="space-y-3 list-disc pl-5">
             {entries.map((e, i) => (
-              <li key={i} className="text-[14px] leading-[1.85] text-ink-700">
+              <li key={i} className="text-[14px] leading-[1.85] text-ink-900">
                 <span className="font-bold text-ink-900">
                   {e.pos}의 {e.branchHangul}({e.branchHanja})
                 </span>
@@ -1084,7 +1084,7 @@ function ShinsalOtherSection({
       <div className={`p-5 md:p-6 ${PAPER_CARD}`} style={PAPER_CARD_SHADOW}>
         <ul className="space-y-3 list-disc pl-5">
           {items.map((item, i) => (
-            <li key={i} className="text-[14px] leading-[1.85] text-ink-700">
+            <li key={i} className="text-[14px] leading-[1.85] text-ink-900">
               <span className="font-bold text-ink-900">{item.position}</span>에{' '}
               <span className="font-bold text-ink-900">{item.name}</span>이 있습니다.{' '}
               {item.desc}{' '}
@@ -1260,12 +1260,12 @@ function DaeunSection({
               {hanjaToHangul[currentDaeun.stem]}
               {hanjaToHangul[currentDaeun.branch]}대운
             </h4>
-            <p className="text-[14px] leading-[1.85] text-ink-700 italic font-medium">
+            <p className="text-[14px] leading-[1.85] text-ink-900 italic font-medium">
               "{currentDaeun.description}"
             </p>
             {isTransitioning && (
               <div className="p-4 rounded-2xl border border-seal/30 bg-seal/5">
-                <p className="text-[14px] text-ink-700 leading-relaxed">
+                <p className="text-[14px] text-ink-900 leading-relaxed">
                   현재 <strong className="text-seal">교운기(인생의 변동기)</strong>에 진입해 있습니다. 환경의 변화나 심리적 변동이 클 수 있으니 신중한 판단이 필요합니다.
                 </p>
               </div>
@@ -1441,7 +1441,7 @@ function YongshinSection({ name, yongshin }: { name: string; yongshin: YongshinR
           </div>
         </div>
 
-        <p className="text-[14px] text-ink-700 leading-[1.85] font-medium">
+        <p className="text-[14px] text-ink-900 leading-[1.85] font-medium">
           {yongshin.logicBasis}
         </p>
 
