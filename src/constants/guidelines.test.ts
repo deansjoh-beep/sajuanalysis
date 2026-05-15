@@ -34,6 +34,21 @@ const DUMMY_YEAR_PILLAR = {
   yearPillarHanja: '丙午',
   yearPillarHangul: '병오',
 };
+const DUMMY_NEARBY_DAY_PILLARS = {
+  yesterday:        { dateText: '2026-04-04', dayPillarHanja: '癸亥', dayPillarHangul: '계해' },
+  today:            { dateText: '2026-04-05', dayPillarHanja: '甲子', dayPillarHangul: '갑자' },
+  tomorrow:         { dateText: '2026-04-06', dayPillarHanja: '乙丑', dayPillarHangul: '을축' },
+  dayAfterTomorrow: { dateText: '2026-04-07', dayPillarHanja: '丙寅', dayPillarHangul: '병인' },
+};
+const DUMMY_NEARBY_YEAR_PILLARS = [
+  { year: 2025, yearPillarHanja: '乙巳', yearPillarHangul: '을사' },
+  { year: 2026, yearPillarHanja: '丙午', yearPillarHangul: '병오' },
+  { year: 2027, yearPillarHanja: '丁未', yearPillarHangul: '정미' },
+  { year: 2028, yearPillarHanja: '戊申', yearPillarHangul: '무신' },
+  { year: 2029, yearPillarHanja: '己酉', yearPillarHangul: '기유' },
+  { year: 2030, yearPillarHanja: '庚戌', yearPillarHangul: '경술' },
+  { year: 2031, yearPillarHanja: '辛亥', yearPillarHangul: '신해' },
+];
 
 // ─── 1. Barrel Export 검증 ────────────────────────────────────────────────────
 describe('guidelines barrel export', () => {
@@ -94,8 +109,8 @@ describe('지침 핵심 규칙 내용 검증', () => {
     expect(BASIC_CONSULTING_GUIDELINE).toContain('마크다운');
   });
 
-  test('BASIC_CONSULTING_GUIDELINE: 3~5문장 응답 길이 규칙 포함', () => {
-    expect(BASIC_CONSULTING_GUIDELINE).toContain('3~5문장');
+  test('BASIC_CONSULTING_GUIDELINE: 응답 포인트 제한 규칙 포함', () => {
+    expect(BASIC_CONSULTING_GUIDELINE).toContain('1~2개로 제한');
   });
 
   // ADVANCED_CONSULTING_GUIDELINE
@@ -121,7 +136,7 @@ describe('지침 핵심 규칙 내용 검증', () => {
   });
 
   test('REPORT_GUIDELINE: 클로징 문구 포함', () => {
-    expect(REPORT_GUIDELINE).toContain('일대일상담');
+    expect(REPORT_GUIDELINE).toContain('관통하는 가장 중요한 조언');
   });
 
   test('REPORT_GUIDELINE: Role 정의 포함', () => {
@@ -129,12 +144,12 @@ describe('지침 핵심 규칙 내용 검증', () => {
   });
 
   // BASIC_REPORT_GUIDELINE — 초급자 전용 규칙
-  test('BASIC_REPORT_GUIDELINE: 초급자 작성 대상 포함', () => {
-    expect(BASIC_REPORT_GUIDELINE).toContain('초급자');
+  test('BASIC_REPORT_GUIDELINE: 초급 모드 작성 대상 포함', () => {
+    expect(BASIC_REPORT_GUIDELINE).toContain('초급 모드');
   });
 
-  test('BASIC_REPORT_GUIDELINE: 괄호 해설 규칙 포함', () => {
-    expect(BASIC_REPORT_GUIDELINE).toContain('괄호');
+  test('BASIC_REPORT_GUIDELINE: 비유 사용 규칙 포함', () => {
+    expect(BASIC_REPORT_GUIDELINE).toContain('비유 사용');
   });
 
   // ADVANCED_REPORT_GUIDELINE — 고급자 전용 규칙
@@ -190,6 +205,8 @@ describe('buildConsultingSystemInstruction 프롬프트 조립', () => {
     daeunContext: DUMMY_DAEUN_CONTEXT,
     todayDayPillar: DUMMY_DAY_PILLAR,
     currentYearPillar: DUMMY_YEAR_PILLAR,
+    nearbyDayPillars: DUMMY_NEARBY_DAY_PILLARS,
+    nearbyYearPillars: DUMMY_NEARBY_YEAR_PILLARS,
   };
 
   test('basic 모드: 프롬프트에 CONSULTING_GUIDELINE 내용이 포함됨', () => {
@@ -211,7 +228,7 @@ describe('buildConsultingSystemInstruction 프롬프트 조립', () => {
       modeSpecificGuideline,
     });
     // BASIC_CONSULTING_GUIDELINE 핵심 구문
-    expect(prompt).toContain('3~5문장');
+    expect(prompt).toContain('1~2개로 제한');
   });
 
   test('advanced 모드: 프롬프트에 ADVANCED_CONSULTING_GUIDELINE 내용이 포함됨', () => {
@@ -267,14 +284,14 @@ describe('buildReportSystemInstruction 프롬프트 조립', () => {
     const prompt = buildReportSystemInstruction({ ...baseReportParams, reportGuideline });
     expect(prompt).toContain('SECTION 1');
     expect(prompt).toContain('SECTION 6');
-    expect(prompt).toContain('일대일상담');
+    expect(prompt).toContain('관통하는 가장 중요한 조언');
   });
 
   test('basic 모드: 프롬프트에 BASIC_REPORT_GUIDELINE 내용이 포함됨', () => {
     const reportGuideline = `${REPORT_GUIDELINE}\n\n${BASIC_REPORT_GUIDELINE}`;
     const prompt = buildReportSystemInstruction({ ...baseReportParams, reportGuideline });
-    expect(prompt).toContain('초급자');
-    expect(prompt).toContain('괄호');
+    expect(prompt).toContain('초급 모드');
+    expect(prompt).toContain('비유 사용');
   });
 
   test('advanced 모드: 프롬프트에 REPORT_GUIDELINE(공통) 내용이 포함됨', () => {
@@ -299,17 +316,17 @@ describe('buildReportSystemInstruction 프롬프트 조립', () => {
     expect(prompt).toContain(DUMMY_DAEUN_CONTEXT);
   });
 
-  test('SECTION 섹션 정의(The Blueprint of Life)는 REPORT_GUIDELINE에만 존재 — 기본 모드', () => {
-    // "The Blueprint of Life"는 SECTION 1 정의에만 포함된 고유 문구이므로
+  test('Role 정의(30년 경력 명리학 대가)는 REPORT_GUIDELINE에만 존재 — 기본 모드', () => {
+    // '30년 경력 명리학 대가'는 report-common의 Role 정의에만 있으므로
     // 조합된 지침 문자열에서 정확히 한 번만 등장해야 함 (BASIC_REPORT_GUIDELINE에 없음)
     const combined = `${REPORT_GUIDELINE}\n\n${BASIC_REPORT_GUIDELINE}`;
-    const count = (combined.match(/The Blueprint of Life/g) || []).length;
+    const count = (combined.match(/30년 경력 명리학 대가/g) || []).length;
     expect(count).toBe(1);
   });
 
-  test('SECTION 섹션 정의(The Blueprint of Life)는 REPORT_GUIDELINE에만 존재 — 고급 모드', () => {
+  test('Role 정의(30년 경력 명리학 대가)는 REPORT_GUIDELINE에만 존재 — 고급 모드', () => {
     const combined = `${REPORT_GUIDELINE}\n\n${ADVANCED_REPORT_GUIDELINE}`;
-    const count = (combined.match(/The Blueprint of Life/g) || []).length;
+    const count = (combined.match(/30년 경력 명리학 대가/g) || []).length;
     expect(count).toBe(1);
   });
 
@@ -343,7 +360,7 @@ describe('모드 분기: 올바른 지침 선택 여부', () => {
   test('상담 basic 모드 → BASIC_CONSULTING_GUIDELINE 포함, ADVANCED 미포함', () => {
     const result = selectConsultingGuideline('basic');
     // BASIC 전용 구문 존재
-    expect(result).toContain('3~5문장');
+    expect(result).toContain('1~2개로 제한');
     // ADVANCED 전용 구문 미포함
     expect(result).not.toContain('원국 분석 → 운의 흐름');
   });
@@ -358,7 +375,7 @@ describe('모드 분기: 올바른 지침 선택 여부', () => {
 
   test('리포트 basic 모드 → BASIC_REPORT_GUIDELINE 포함, ADVANCED 미포함', () => {
     const result = selectReportGuideline('basic');
-    expect(result).toContain('고등학교 학생');
+    expect(result).toContain('비유 사용');
     expect(result).not.toContain('간명(看命)');
   });
 
