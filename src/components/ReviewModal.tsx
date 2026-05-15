@@ -8,12 +8,14 @@ interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   sourcePage?: string;
+  /** 후기 저장에 성공한 직후 호출 — 부모가 후기 목록을 다시 불러오는 데 사용 */
+  onSubmitted?: () => void;
 }
 
 const MAX_IMAGES = 3;
 const MAX_CONTENT = 500;
 
-export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourcePage = 'general' }) => {
+export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourcePage = 'general', onSubmitted }) => {
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [authorName, setAuthorName] = useState('');
@@ -74,6 +76,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, sourc
       });
 
       setSubmitted(true);
+      onSubmitted?.();
     } catch (err: any) {
       console.error('[ReviewModal] submit error:', err);
       setError('제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');

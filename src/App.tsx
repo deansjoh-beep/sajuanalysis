@@ -118,6 +118,7 @@ const App: React.FC = () => {
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
   // State
   const [userData, setUserData] = useState<UserData>({
     name: "사용자",
@@ -1128,6 +1129,7 @@ const App: React.FC = () => {
               setActiveTab={setActiveTab}
               setOrderProductType={setOrderProductType}
               setReviewModalOpen={setReviewModalOpen}
+              reviewsRefreshKey={reviewsRefreshKey}
               recommendedPosts={recommendedPosts}
               onPostClick={blogTab.handlePostClick}
               currentSeoulYear={currentSeoulYear}
@@ -1599,6 +1601,7 @@ const App: React.FC = () => {
         isOpen={reviewModalOpen}
         onClose={() => setReviewModalOpen(false)}
         sourcePage={activeTab}
+        onSubmitted={() => setReviewsRefreshKey(k => k + 1)}
       />
       </div>
     </div>

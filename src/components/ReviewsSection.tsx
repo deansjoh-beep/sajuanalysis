@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { collection, query, where, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Star, Quote, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 
@@ -17,6 +17,8 @@ export interface ReviewDoc {
 
 interface ReviewsSectionProps {
   onWriteReview: () => void;
+  /** 후기 작성 완료 시 부모가 증가시키는 카운터 — 변경되면 후기 목록을 다시 불러옴 */
+  refreshKey?: number;
 }
 
 const StarRow: React.FC<{ rating: number; size?: string }> = ({ rating, size = 'w-4 h-4' }) => (
@@ -32,7 +34,7 @@ const StarRow: React.FC<{ rating: number; size?: string }> = ({ rating, size = '
 
 const PAGE_SIZE = 8;
 
-export const ReviewsSection: React.FC<ReviewsSectionProps> = ({ onWriteReview }) => {
+export const ReviewsSection: React.FC<ReviewsSectionProps> = ({ onWriteReview, refreshKey = 0 }) => {
   const [reviews, setReviews] = useState<ReviewDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -40,34 +42,57 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({ onWriteReview })
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+
+    const tsMillis = (r: any): number => {
+      // approvedAt이 null/pending이면 createdAt으로 fallback해서 신규 후기가 누락되지 않게
+      const ap = r?.approvedAt?.toMillis?.();
+      if (typeof ap === 'number') return ap;
+      const cr = r?.createdAt?.toMillis?.();
+      return typeof cr === 'number' ? cr : 0;
+    };
+
+    const sortAndSet = (docs: ReviewDoc[]) => {
+      const sorted = docs
+        .slice()
+        .sort((a, b) => tsMillis(b) - tsMillis(a))
+        .slice(0, PAGE_SIZE);
+      if (!cancelled) setReviews(sorted);
+    };
+
     (async () => {
       try {
-        // composite index 없이 단일 where 필터로 조회 후 클라이언트 정렬
+        // 1차: 서버 정렬 (status + approvedAt) — 인덱스 있으면 신규 후기까지 정확히 가져옴
         const q = query(
           collection(db, 'reviews'),
           where('status', '==', 'approved'),
-          limit(PAGE_SIZE * 3), // 여유 있게 fetch 후 client-side 정렬
+          orderBy('approvedAt', 'desc'),
+          limit(PAGE_SIZE),
         );
         const snap = await getDocs(q);
-        if (!cancelled) {
-          const docs = snap.docs
-            .map(d => ({ id: d.id, ...d.data() } as ReviewDoc & { approvedAt?: Timestamp }))
-            .sort((a, b) => {
-              const aTs = (a as any).approvedAt?.toMillis?.() ?? 0;
-              const bTs = (b as any).approvedAt?.toMillis?.() ?? 0;
-              return bTs - aTs;
-            })
-            .slice(0, PAGE_SIZE);
-          setReviews(docs);
-        }
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ReviewDoc));
+        sortAndSet(docs);
       } catch (err) {
-        console.warn('[ReviewsSection] failed to load reviews:', err);
+        // 인덱스가 아직 없거나 approvedAt 누락 문서가 섞여 있으면 단일 where로 fallback
+        console.warn('[ReviewsSection] orderBy 쿼리 실패 — fallback 모드:', err);
+        try {
+          const fallback = query(
+            collection(db, 'reviews'),
+            where('status', '==', 'approved'),
+            limit(PAGE_SIZE * 6), // 클라이언트 정렬용으로 충분히 fetch
+          );
+          const snap = await getDocs(fallback);
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ReviewDoc));
+          sortAndSet(docs);
+        } catch (err2) {
+          console.warn('[ReviewsSection] fallback도 실패:', err2);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshKey]);
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return;

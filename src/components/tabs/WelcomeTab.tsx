@@ -56,6 +56,8 @@ interface WelcomeTabProps {
   setActiveTab: (t: ActiveTab) => void;
   setOrderProductType: (t: ProductType) => void;
   setReviewModalOpen: (v: boolean) => void;
+  /** 후기 작성 완료 후 ReviewsSection 재로드용 카운터 */
+  reviewsRefreshKey?: number;
   recommendedPosts: BlogPostLite[];
   onPostClick: (post: BlogPostLite) => void;
   currentSeoulYear: number;
@@ -72,6 +74,7 @@ export default function WelcomeTab({
   setActiveTab,
   setOrderProductType,
   setReviewModalOpen,
+  reviewsRefreshKey,
   recommendedPosts,
   onPostClick,
   currentSeoulYear,
@@ -138,7 +141,10 @@ export default function WelcomeTab({
             {/* 후기 — 화선지 톤에 맞춰 컨테이너만 살짝 조정 */}
             <section className="relative px-4 py-16 md:py-20 bg-paper-100/30">
               <div className="max-w-6xl mx-auto">
-                <ReviewsSection onWriteReview={() => setReviewModalOpen(true)} />
+                <ReviewsSection
+                  onWriteReview={() => setReviewModalOpen(true)}
+                  refreshKey={reviewsRefreshKey}
+                />
               </div>
             </section>
 
