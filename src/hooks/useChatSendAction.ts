@@ -20,6 +20,7 @@ interface UseChatSendActionParams {
   yongshinResult: any | null;
   gyeokResult: any | null;
   birthYear: string;
+  userName: string;
   messages: ChatMessage[];
   basicSelectedCategory: string;
   setActiveTab: React.Dispatch<React.SetStateAction<any>>;
@@ -47,6 +48,7 @@ export const useChatSendAction = ({
   yongshinResult,
   gyeokResult,
   birthYear,
+  userName,
   messages,
   basicSelectedCategory,
   setActiveTab,
@@ -229,6 +231,7 @@ export const useChatSendAction = ({
         mode: modeAtRequest,
         isFirstMessage,
         latestUserMessage: userMessage,
+        userName,
         sajuContext,
         daeunContext,
         modeSpecificGuideline,

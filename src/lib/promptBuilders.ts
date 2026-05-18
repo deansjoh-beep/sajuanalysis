@@ -21,6 +21,7 @@ interface ConsultingPromptParams {
   mode: 'basic' | 'advanced';
   isFirstMessage: boolean;
   latestUserMessage: string;
+  userName: string;
   sajuContext: string;
   daeunContext: string;
   modeSpecificGuideline: string;
@@ -47,6 +48,7 @@ export const buildConsultingSystemInstruction = ({
   mode,
   isFirstMessage,
   latestUserMessage,
+  userName,
   sajuContext,
   daeunContext,
   modeSpecificGuideline,
@@ -55,6 +57,11 @@ export const buildConsultingSystemInstruction = ({
   nearbyDayPillars,
   nearbyYearPillars,
 }: ConsultingPromptParams) => {
+  const trimmedName = (userName ?? '').trim();
+  const hasName = trimmedName.length > 0 && trimmedName !== '사용자';
+  const nameInstruction = hasName
+    ? `[상담 대상자]\n이름: ${trimmedName}\n- 본인 상담 시 호칭은 반드시 "${trimmedName}님" 형태로 통일하세요. "고객님"·"사용자님"·"손님"·"귀하"는 어떤 경우에도 쓰지 마세요.\n`
+    : `[상담 대상자]\n이름: (미입력)\n- 이름을 모르므로 호칭은 "○○님"으로 표기하세요. "고객님"·"사용자님"은 어떤 경우에도 쓰지 마세요.\n`;
   const seunRangeText = (nearbyYearPillars ?? [])
     .map((p) => {
       const rel =
@@ -126,6 +133,7 @@ ${isFirstMessage
 - 읽기 쉽게 2~4개의 짧은 문단으로 나누어 작성하세요.
 - 불필요한 장식 없이 핵심 결론과 이유, 실천 포인트를 간결하게 제시하세요.
 
+${nameInstruction}
 [사용자 사주 정보]
 ${sajuContext}
 [대운 정보]

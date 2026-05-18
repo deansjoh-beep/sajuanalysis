@@ -201,6 +201,7 @@ describe('buildConsultingSystemInstruction 프롬프트 조립', () => {
   const baseParams = {
     isFirstMessage: false,
     latestUserMessage: '재물운을 알고 싶어요.',
+    userName: '테스트',
     sajuContext: DUMMY_SAJU_CONTEXT,
     daeunContext: DUMMY_DAEUN_CONTEXT,
     todayDayPillar: DUMMY_DAY_PILLAR,

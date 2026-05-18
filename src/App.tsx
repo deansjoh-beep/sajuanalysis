@@ -750,6 +750,7 @@ const App: React.FC = () => {
     yongshinResult,
     gyeokResult,
     birthYear: userData.birthYear,
+    userName: userData.name,
     messages,
     basicSelectedCategory,
     setActiveTab,
