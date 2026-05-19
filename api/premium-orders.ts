@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { serializeTimestamps } from './lib/serialize.js';
 
 // --- Firebase Admin Utils (inlined) ---
 const DEFAULT_FIRESTORE_DB = 'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9';
@@ -101,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    return res.json({ success: true, orders });
+    return res.json({ success: true, orders: serializeTimestamps(orders) });
   } catch (error: any) {
     console.error('[api/premium-orders] error:', error);
     return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || 'Failed to retrieve orders' });

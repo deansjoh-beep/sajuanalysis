@@ -14,6 +14,7 @@ import {
   taekilLimiter,
   generalLimiter,
 } from "./api/lib/rate-limit.ts";
+import { serializeTimestamps } from "./api/lib/serialize.ts";
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getStorage as getAdminStorage, Storage } from 'firebase-admin/storage';
 import { 
@@ -627,7 +628,7 @@ async function startServer() {
       console.log(`Retrieved ${orders.length} premium orders (status=${status}, productType=${productType})`);
       return res.json({
         success: true,
-        orders
+        orders: serializeTimestamps(orders)
       });
 
     } catch (error: any) {
