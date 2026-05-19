@@ -470,36 +470,39 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
           icon={<StickyNote className="w-4 h-4 text-amber-600" />}
           title="관리자 설정"
         >
-          {/* 분석 레벨 */}
-          <div>
-            <label className={LABEL_CLASS}>분석 레벨</label>
-            <div className="flex gap-2">
-              {([
-                { v: 'basic', l: '초급', desc: '쉬운 언어, 풀이 중심' },
-                { v: 'advanced', l: '고급', desc: '한자 병기, 전문 용어' },
-                { v: 'both', l: '초급+고급', desc: '고급 분석 + 쉬운 설명' },
-              ] as const).map(item => (
-                <button
-                  key={item.v}
-                  onClick={() => set('reportLevel', item.v)}
-                  className={`flex-1 py-3 px-3 rounded-2xl text-[13px] font-bold border transition-all text-left ${
-                    form.reportLevel === item.v
-                      ? 'bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20'
-                      : 'bg-white/70 text-zinc-600 border-white/65 hover:border-amber-300'
-                  }`}
-                >
-                  <div>{item.l}</div>
-                  <div
-                    className={`text-[11px] font-normal mt-0.5 ${
-                      form.reportLevel === item.v ? 'text-amber-100' : 'text-zinc-400'
+          {/* 분석 레벨 — premium(인생 네비게이션)만 적용. 그 외 상품은
+              단일 고정 가이드라인을 쓰므로 무효 UI 노출 방지를 위해 숨김 */}
+          {(form.productType || 'premium') === 'premium' && (
+            <div>
+              <label className={LABEL_CLASS}>분석 레벨</label>
+              <div className="flex gap-2">
+                {([
+                  { v: 'basic', l: '초급', desc: '쉬운 언어, 풀이 중심' },
+                  { v: 'advanced', l: '고급', desc: '한자 병기, 전문 용어' },
+                  { v: 'both', l: '초급+고급', desc: '고급 분석 + 쉬운 설명' },
+                ] as const).map(item => (
+                  <button
+                    key={item.v}
+                    onClick={() => set('reportLevel', item.v)}
+                    className={`flex-1 py-3 px-3 rounded-2xl text-[13px] font-bold border transition-all text-left ${
+                      form.reportLevel === item.v
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20'
+                        : 'bg-white/70 text-zinc-600 border-white/65 hover:border-amber-300'
                     }`}
                   >
-                    {item.desc}
-                  </div>
-                </button>
-              ))}
+                    <div>{item.l}</div>
+                    <div
+                      className={`text-[11px] font-normal mt-0.5 ${
+                        form.reportLevel === item.v ? 'text-amber-100' : 'text-zinc-400'
+                      }`}
+                    >
+                      {item.desc}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 관리자 추가 분석 요청 */}
           <div>
