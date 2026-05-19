@@ -58,10 +58,13 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
     }
   };
 
-  const handleGenerateReport = (orderId: string) => {
+  const handleGenerateReport = (
+    orderId: string,
+    forceReportLevel?: 'basic' | 'advanced' | 'both'
+  ) => {
     const order = orders.find(o => o.orderId === orderId);
     if (!order) throw new Error('Order not found');
-    
+
     // 주문 정보로 리포트 입력 초기화
     setReportInputData({
       name: order.name,
@@ -73,7 +76,7 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
       unknownTime: order.unknownTime ?? false,
       concern: order.concern || '',
       interest: order.interest || '',
-      reportLevel: (order.reportLevel || 'both') as 'basic' | 'advanced' | 'both',
+      reportLevel: (forceReportLevel || order.reportLevel || 'both') as 'basic' | 'advanced' | 'both',
       lifeEvents: Array.isArray(order.lifeEvents) ? order.lifeEvents : [],
       adminNotes: '',
       productType: order.productType || 'premium',
@@ -701,6 +704,36 @@ export const PremiumOrdersPanel: React.FC<PremiumOrdersPanelProps> = ({ isDarkMo
                   </p>
                 )}
               </div>
+
+              {/* 재생성 버튼 (고객 요청 시 초급+고급 통합본 재생성 후 재발송) */}
+              {(() => {
+                const isPremium = (selectedOrder.productType || 'premium') === 'premium';
+                const label = isPremium ? '초급+고급 통합본으로 재생성' : '리포트 재생성';
+                const confirmMsg = isPremium
+                  ? '고객 요청에 따라 초급+고급 통합본으로 리포트를 다시 생성합니다.\n\n입력값 확인 → 생성 → 미리보기 검토 → 재발송 단계를 거치게 됩니다. 진행할까요?'
+                  : '리포트를 다시 생성합니다.\n\n입력값 확인 → 생성 → 미리보기 검토 → 재발송 단계를 거치게 됩니다. 진행할까요?';
+                return (
+                  <button
+                    onClick={() => {
+                      if (confirm(confirmMsg)) {
+                        handleGenerateReport(
+                          selectedOrder.orderId!,
+                          isPremium ? 'both' : undefined
+                        );
+                      }
+                    }}
+                    disabled={loading || generatingOrderId === selectedOrder.orderId}
+                    className={`w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition ${
+                      loading || generatingOrderId === selectedOrder.orderId
+                        ? isDarkMode ? 'bg-zinc-600 text-zinc-400' : 'bg-gray-300 text-gray-500'
+                        : isDarkMode ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    }`}
+                  >
+                    <Zap className="w-5 h-5" />
+                    {label}
+                  </button>
+                );
+              })()}
 
               {/* 재발송 버튼 */}
               {selectedOrder.pdfUrl && (
