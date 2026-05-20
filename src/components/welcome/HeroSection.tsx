@@ -16,12 +16,12 @@ export function HeroSection({ onStartClick, onScrollClick }: HeroSectionProps) {
         <div className="flex flex-col items-center gap-2 md:gap-3">
           <div className="w-full max-w-[680px]">
             <BrushText fontSize={72} delay={0.3} duration={2.2} fillColor="#1a1a1a" strokeColor="#1a1a1a">
-              운명을 맞히지 않습니다.
+              만세력은 AI가 읽고,
             </BrushText>
           </div>
           <div className="w-full max-w-[680px]">
             <BrushText fontSize={72} delay={2.0} duration={2.4} fillColor="#3a3530" strokeColor="#1a1a1a">
-              당신을 이해하도록 돕습니다.
+              풀이는 정통 명리로 씁니다.
             </BrushText>
           </div>
         </div>
