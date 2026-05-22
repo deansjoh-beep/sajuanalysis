@@ -245,7 +245,7 @@ export default function ManseTab({
         {!hasData ? (
           <EmptyState onGoToWelcome={() => setActiveTab('welcome')} />
         ) : (
-          <div className="max-w-3xl mx-auto space-y-12 md:space-y-16">
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-sm px-5 py-8 md:px-10 md:py-12 space-y-12 md:space-y-16">
             {/* ─────────── 페이지 헤더 ─────────── */}
             <header className="relative pt-2 pb-2">
               {/* 모드 토글: 우측 상단 한 곳에만 */}
