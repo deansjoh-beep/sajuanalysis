@@ -28,7 +28,7 @@ export function AIReportSection({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative rounded-3xl border border-seal/30 bg-paper-50/55 px-6 py-5 md:px-8 md:py-6"
+        className="relative rounded-3xl border border-seal/30 bg-white px-6 py-5 md:px-8 md:py-6"
         style={{
           boxShadow:
             '0 1px 0 rgba(184, 57, 46, 0.06), 0 8px 22px -10px rgba(58, 53, 48, 0.08)',
@@ -48,7 +48,7 @@ export function AIReportSection({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative rounded-3xl border border-brush-gold/25 bg-gradient-to-br from-paper-50/70 to-paper-100/50 px-6 py-6 md:px-8 md:py-7"
+        className="relative rounded-3xl border border-brush-gold/25 bg-white px-6 py-6 md:px-8 md:py-7"
         style={{
           boxShadow:
             '0 1px 0 rgba(168, 138, 74, 0.08), 0 8px 22px -10px rgba(58, 53, 48, 0.1)',
@@ -76,7 +76,7 @@ export function AIReportSection({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative rounded-3xl border border-brush-gold/30 bg-gradient-to-br from-paper-50/75 to-paper-100/55 px-6 py-6 md:px-8 md:py-7 space-y-4"
+      className="relative rounded-3xl border border-brush-gold/30 bg-white px-6 py-6 md:px-8 md:py-7 space-y-4"
       style={{
         boxShadow:
           '0 1px 0 rgba(168, 138, 74, 0.1), 0 10px 28px -12px rgba(58, 53, 48, 0.12)',
