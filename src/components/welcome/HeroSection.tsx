@@ -35,7 +35,7 @@ export function HeroSection({ onStartClick, onScrollClick }: HeroSectionProps) {
             staggerDelay={0.025}
             triggerOnView={false}
           >
-            1,000년의 명리학과 AI가 만나, 당신만의 인생 지도를 만듭니다.
+            천년을 내려온 명리학과 AI가 만나, 당신만의 인생 지도를 만듭니다.
           </InkRevealText>
         </div>
 
