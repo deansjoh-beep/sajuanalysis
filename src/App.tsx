@@ -1202,6 +1202,7 @@ const App: React.FC = () => {
                 user={user}
                 onLoginClick={() => setLoginModalOpen(true)}
                 setActiveTab={setActiveTab}
+                setOrderProductType={setOrderProductType}
               />
             </Suspense>
           )}

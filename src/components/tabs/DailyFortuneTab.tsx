@@ -8,12 +8,47 @@ import type { User as FirebaseUser } from 'firebase/auth';
 
 type ActiveTab =
   | 'welcome' | 'dashboard' | 'taekil' | 'chat' | 'report' | 'guide' | 'blog' | 'premium' | 'order';
+type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 
 interface DailyFortuneTabProps {
   user: FirebaseUser | null;
   onLoginClick: () => void;
   setActiveTab: (t: ActiveTab) => void;
+  setOrderProductType: (t: ProductType) => void;
 }
+
+/** 운세 주제 태그 → 추천 유료 제품 매핑 */
+const TAG_TO_PRODUCT: Record<string, ProductType> = {
+  재물: 'jobCareer',
+  직업: 'jobCareer',
+  연애: 'loveMarriage',
+  인간관계: 'loveMarriage',
+  건강: 'premium',
+  변화: 'yearly2026',
+};
+
+const PRODUCT_CTA: Record<ProductType, { title: string; desc: string; cta: string }> = {
+  jobCareer: {
+    title: '직업·재물의 흐름이 두드러지는 날',
+    desc: '오늘의 기운을 넘어, 직업운 리포트로 다가올 1년의 커리어·재물 흐름을 짚어보세요.',
+    cta: '직업운 리포트 보기',
+  },
+  loveMarriage: {
+    title: '인연과 관계의 기운이 움직이는 날',
+    desc: '연애·결혼운 리포트로 당신의 인연 흐름과 만남의 시기를 깊이 있게 분석해 드립니다.',
+    cta: '연애·결혼운 리포트 보기',
+  },
+  yearly2026: {
+    title: '큰 흐름의 전환이 느껴지는 날',
+    desc: '2026 일년운세 리포트로 올 한 해 전체의 운세 지도를 미리 받아보세요.',
+    cta: '일년운세 리포트 보기',
+  },
+  premium: {
+    title: '더 깊은 이야기가 궁금하다면',
+    desc: '평생 사주 프리미엄 리포트로 당신의 인생 전체 지도를 정통 명리로 풀어드립니다.',
+    cta: '프리미엄 리포트 보기',
+  },
+};
 
 const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
 const SECTION_META: { key: keyof DailyFortuneResponse['fortune']['sections']; label: string }[] = [
@@ -24,7 +59,11 @@ const SECTION_META: { key: keyof DailyFortuneResponse['fortune']['sections']; la
   { key: 'health', label: '건강·컨디션' },
 ];
 
-export default function DailyFortuneTab({ user, onLoginClick, setActiveTab }: DailyFortuneTabProps) {
+export default function DailyFortuneTab({ user, onLoginClick, setActiveTab, setOrderProductType }: DailyFortuneTabProps) {
+  const goToProduct = (type: ProductType) => {
+    setOrderProductType(type);
+    setActiveTab('order');
+  };
   const [data, setData] = useState<DailyFortuneResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
@@ -111,7 +150,7 @@ export default function DailyFortuneTab({ user, onLoginClick, setActiveTab }: Da
 
           {/* 운세 표시 */}
           {user && !loading && !error && data && (
-            <FortuneView data={data} onRefresh={() => load(true)} />
+            <FortuneView data={data} onRefresh={() => load(true)} onProductClick={goToProduct} />
           )}
         </div>
       </div>
@@ -183,8 +222,20 @@ function FortuneSkeleton() {
   );
 }
 
-function FortuneView({ data, onRefresh }: { data: DailyFortuneResponse; onRefresh: () => void }) {
+function FortuneView({
+  data,
+  onRefresh,
+  onProductClick,
+}: {
+  data: DailyFortuneResponse;
+  onRefresh: () => void;
+  onProductClick: (t: ProductType) => void;
+}) {
   const { fortune } = data;
+  // 태그 → 제품. 매칭되는 첫 태그 사용, 없으면 종합 프리미엄으로 폴백
+  const matchedTag = (fortune.tags || []).find((t) => TAG_TO_PRODUCT[t]);
+  const product: ProductType = matchedTag ? TAG_TO_PRODUCT[matchedTag] : 'premium';
+  const cta = PRODUCT_CTA[product];
   return (
     <div className="space-y-5">
       {/* 요약 + 점수 카드 */}
@@ -235,6 +286,22 @@ function FortuneView({ data, onRefresh }: { data: DailyFortuneResponse; onRefres
           ))}
         </div>
       </div>
+
+      {/* 유료 전환 CTA — 오늘 운세 주제에 맞춘 추천 */}
+      <button
+        onClick={() => onProductClick(product)}
+        className="w-full text-left rounded-3xl border border-seal/30 bg-seal/5 p-6 md:p-7 hover:bg-seal/10 active:scale-[0.99] transition-all group"
+      >
+        <p className="text-[12px] font-bold text-seal mb-1.5">오늘의 추천</p>
+        <h4 className="font-serif text-[17px] md:text-[19px] font-bold text-ink-900 leading-snug mb-2">
+          {cta.title}
+        </h4>
+        <p className="text-[14px] leading-[1.8] text-ink-700 mb-4">{cta.desc}</p>
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-seal">
+          {cta.cta}
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </span>
+      </button>
 
       {/* 재생성 + 안내 */}
       <div className="flex items-center justify-between px-1">
