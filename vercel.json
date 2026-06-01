@@ -12,8 +12,18 @@
     "api/premium-report/upload-url.ts": {
       "memory": 512,
       "maxDuration": 30
+    },
+    "api/cron/daily-fortune.ts": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/daily-fortune",
+      "schedule": "0 21 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

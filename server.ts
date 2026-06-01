@@ -235,6 +235,53 @@ async function startServer() {
     }
   });
 
+  // 오늘의 운세 배치 생성 (dev) — Vercel cron 의 로컬 테스트용
+  app.get('/api/cron/daily-fortune', async (req, res) => {
+    const cronSecret = String(process.env.CRON_SECRET || '').trim();
+    if (cronSecret) {
+      const auth = String(req.headers.authorization || '');
+      if (auth !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    if (!adminDb) return res.status(500).json({ error: 'ADMIN_SDK_UNAVAILABLE' });
+    const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) return res.status(500).json({ error: 'GEMINI_UNAVAILABLE' });
+
+    const started = Date.now();
+    const dateYmd = getSeoulTodayYmd();
+    try {
+      const membersSnap = await adminDb.collection('members').get();
+      const targets: { uid: string; saju: any }[] = [];
+      membersSnap.forEach((doc: any) => {
+        const saju = doc.data()?.saju;
+        if (saju && saju.birthYear) targets.push({ uid: doc.id, saju });
+      });
+
+      let generated = 0, skipped = 0, failed = 0;
+      for (const { uid, saju } of targets) {
+        const cacheRef = adminDb.collection('dailyFortunes').doc(`${uid}_${dateYmd}`);
+        try {
+          const existing = await cacheRef.get();
+          if (existing.exists) { skipped++; continue; }
+          const result = await generateDailyFortuneForSaju(saju, apiKey);
+          await cacheRef.set({
+            uid, date: result.dateYmd,
+            dayPillarHanja: result.dayPillarHanja, dayPillarHangul: result.dayPillarHangul,
+            fortune: result.fortune, model: result.model, source: 'cron',
+            createdAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+          generated++;
+        } catch (err: any) {
+          failed++;
+          console.error(`[dev cron/daily-fortune] ${uid} failed:`, err?.message);
+        }
+      }
+      return res.json({ success: true, date: dateYmd, targets: targets.length, generated, skipped, failed, elapsedMs: Date.now() - started });
+    } catch (error: any) {
+      console.error('[dev cron/daily-fortune] fatal:', error);
+      return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message });
+    }
+  });
+
   app.post("/api/claude/generate", expressRateLimit(generalLimiter), async (req, res) => {
     const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
     if (!apiKey) return res.status(500).json({ error: 'Anthropic API key not configured' });
