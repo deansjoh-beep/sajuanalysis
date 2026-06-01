@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../lib/admin.js';
-import { generateDailyFortuneForSaju, type MemberSajuInput } from '../lib/dailyFortune.js';
+import { getAdminDb, getAdminMessaging } from '../lib/admin.js';
+import { generateDailyFortuneForSaju, type MemberSajuInput, type DailyFortune } from '../lib/dailyFortune.js';
 import { getSeoulTodayYmd } from '../../src/lib/seoulDateGanji.js';
 
 /**
@@ -57,47 +57,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 사주 프로필이 있는 회원만 대상 (Firestore는 "필드 존재" 쿼리가 제한적이라 전체 조회 후 필터)
     const membersSnap = await db.collection('members').get();
-    const targets: { uid: string; saju: MemberSajuInput }[] = [];
+    type Target = { uid: string; saju: MemberSajuInput; pushEnabled: boolean; fcmTokens: string[] };
+    const targets: Target[] = [];
     membersSnap.forEach((doc: any) => {
-      const saju = doc.data()?.saju;
-      if (saju && saju.birthYear) targets.push({ uid: doc.id, saju });
+      const d = doc.data() || {};
+      const saju = d.saju;
+      if (saju && saju.birthYear) {
+        targets.push({
+          uid: doc.id,
+          saju,
+          pushEnabled: !!d.pushEnabled,
+          fcmTokens: Array.isArray(d.fcmTokens) ? d.fcmTokens : [],
+        });
+      }
     });
+
+    const messaging = await getAdminMessaging();
 
     let generated = 0;
     let skipped = 0;
     let failed = 0;
+    let pushed = 0;
     let budgetHit = false;
 
-    await runPool(targets, CONCURRENCY, async ({ uid, saju }) => {
+    // 푸시 발송 + 만료 토큰 정리
+    const sendPush = async (t: Target, fortune: DailyFortune) => {
+      if (!messaging || !t.pushEnabled || t.fcmTokens.length === 0) return;
+      try {
+        const resp = await messaging.sendEachForMulticast({
+          tokens: t.fcmTokens,
+          notification: {
+            title: '오늘의 운세가 도착했어요',
+            body: fortune.summary || '오늘 하루의 기운을 확인해 보세요.',
+          },
+          data: { url: '/?tab=daily' },
+          webpush: { fcmOptions: { link: '/?tab=daily' } },
+        });
+        pushed += resp.successCount;
+        // 무효 토큰 제거
+        const invalid: string[] = [];
+        resp.responses.forEach((r: any, i: number) => {
+          const code = r.error?.code || '';
+          if (!r.success && (code.includes('registration-token-not-registered') || code.includes('invalid-argument'))) {
+            invalid.push(t.fcmTokens[i]);
+          }
+        });
+        if (invalid.length > 0) {
+          await db.collection('members').doc(t.uid).update({ fcmTokens: FieldValue.arrayRemove(...invalid) });
+        }
+      } catch (err: any) {
+        console.error(`[cron/daily-fortune] push ${t.uid} failed:`, err?.message);
+      }
+    };
+
+    await runPool(targets, CONCURRENCY, async (t) => {
       if (Date.now() - started > TIME_BUDGET_MS) {
         budgetHit = true;
         return;
       }
-      const cacheRef = db.collection('dailyFortunes').doc(`${uid}_${dateYmd}`);
+      const cacheRef = db.collection('dailyFortunes').doc(`${t.uid}_${dateYmd}`);
       try {
         const existing = await cacheRef.get();
+        let fortune: DailyFortune;
         if (existing.exists) {
           skipped++;
-          return;
+          fortune = existing.data()?.fortune;
+        } else {
+          const result = await generateDailyFortuneForSaju(t.saju, apiKey);
+          await cacheRef.set(
+            {
+              uid: t.uid,
+              date: result.dateYmd,
+              dayPillarHanja: result.dayPillarHanja,
+              dayPillarHangul: result.dayPillarHangul,
+              fortune: result.fortune,
+              model: result.model,
+              source: 'cron',
+              createdAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+          fortune = result.fortune;
+          generated++;
         }
-        const result = await generateDailyFortuneForSaju(saju, apiKey);
-        await cacheRef.set(
-          {
-            uid,
-            date: result.dateYmd,
-            dayPillarHanja: result.dayPillarHanja,
-            dayPillarHangul: result.dayPillarHangul,
-            fortune: result.fortune,
-            model: result.model,
-            source: 'cron',
-            createdAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true },
-        );
-        generated++;
+        if (fortune) await sendPush(t, fortune);
       } catch (err: any) {
         failed++;
-        console.error(`[cron/daily-fortune] ${uid} failed:`, err?.message);
+        console.error(`[cron/daily-fortune] ${t.uid} failed:`, err?.message);
       }
     });
 
@@ -109,6 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generated,
       skipped,
       failed,
+      pushed,
       budgetHit,
       elapsedMs: Date.now() - started,
     };

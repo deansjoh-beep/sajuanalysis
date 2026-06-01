@@ -266,6 +266,20 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // 푸시 알림 등 외부 진입의 딥링크 처리 (?tab=daily)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      const allowed = ['welcome', 'dashboard', 'daily', 'chat', 'report', 'guide', 'blog'];
+      if (tab && allowed.includes(tab)) {
+        setActiveTab(tab as any);
+      }
+    } catch {
+      // 무시
+    }
+  }, []);
+
   // Firebase Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {

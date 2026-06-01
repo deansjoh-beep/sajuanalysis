@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { LogIn, Sparkles, RefreshCw, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { LogIn, Sparkles, RefreshCw, AlertCircle, Loader2, ArrowRight, Bell, BellOff } from 'lucide-react';
 import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
 import { fetchDailyFortune, DailyFortuneError, type DailyFortuneResponse } from '../../lib/dailyFortuneClient';
+import {
+  enablePushNotifications,
+  disablePushNotifications,
+  isPushConfigured,
+  isPushSupported,
+  PushError,
+} from '../../lib/pushNotifications';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 type ActiveTab =
@@ -147,6 +154,9 @@ export default function DailyFortuneTab({ user, onLoginClick, setActiveTab, setO
               </div>
             </div>
           )}
+
+          {/* 푸시 알림 토글 (로그인 + 운세 보유 시) */}
+          {user && !loading && !error && data && <PushToggle uid={user.uid} />}
 
           {/* 운세 표시 */}
           {user && !loading && !error && data && (
@@ -317,6 +327,73 @@ function FortuneView({
       <p className="text-[12px] text-ink-500/70 leading-relaxed text-center pt-2">
         본 운세는 전통 명리학 해석과 AI 보조를 결합한 참고용 자료입니다.
       </p>
+    </div>
+  );
+}
+
+function PushToggle({ uid }: { uid: string }) {
+  const [available, setAvailable] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const ok = isPushConfigured() && (await isPushSupported());
+      if (!alive) return;
+      setAvailable(ok);
+      if (ok && typeof Notification !== 'undefined') {
+        setEnabled(Notification.permission === 'granted');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!available) return null;
+
+  const toggle = async () => {
+    setBusy(true);
+    setMsg('');
+    try {
+      if (enabled) {
+        await disablePushNotifications(uid);
+        setEnabled(false);
+        setMsg('알림을 껐습니다.');
+      } else {
+        await enablePushNotifications(uid);
+        setEnabled(true);
+        setMsg('매일 아침 오늘의 운세를 알림으로 보내드려요.');
+      }
+    } catch (err) {
+      setMsg(err instanceof PushError ? err.message : '알림 설정 중 오류가 발생했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-ink-300/30 bg-white shadow-sm p-4 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <span className="w-9 h-9 rounded-xl bg-paper-100 flex items-center justify-center text-ink-700">
+          {enabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+        </span>
+        <div>
+          <p className="text-[14px] font-bold text-ink-900">매일 아침 운세 알림</p>
+          <p className="text-[12px] text-ink-500">{msg || '오전 6시, 오늘의 운세를 알림으로 받아보세요.'}</p>
+        </div>
+      </div>
+      <button
+        onClick={toggle}
+        disabled={busy}
+        className={`shrink-0 min-h-[40px] px-4 py-2 rounded-full text-[13px] font-bold transition-all disabled:opacity-50 ${
+          enabled ? 'bg-paper-100 text-ink-700 hover:bg-paper-200' : 'bg-ink-900 text-paper-50 hover:bg-ink-700'
+        }`}
+      >
+        {busy ? '처리 중...' : enabled ? '끄기' : '알림 켜기'}
+      </button>
     </div>
   );
 }

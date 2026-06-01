@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { db } from '../firebase';
 
@@ -35,6 +35,8 @@ export interface MemberProfile {
   saju?: MemberSajuProfile;
   /** 오늘의 운세 푸시 알림 동의 (Step 5) */
   pushEnabled?: boolean;
+  /** FCM 디바이스 토큰 목록 */
+  fcmTokens?: string[];
   createdAt?: any;
   updatedAt?: any;
   lastLoginAt?: any;
@@ -99,4 +101,16 @@ export const saveMemberSaju = async (uid: string, saju: MemberSajuProfile): Prom
 export const setMemberPushEnabled = async (uid: string, enabled: boolean): Promise<void> => {
   const ref = doc(db, COLLECTION, uid);
   await setDoc(ref, { pushEnabled: enabled, updatedAt: serverTimestamp() }, { merge: true });
+};
+
+/** FCM 토큰 추가 (중복은 arrayUnion 이 자동 제거) */
+export const addFcmToken = async (uid: string, token: string): Promise<void> => {
+  const ref = doc(db, COLLECTION, uid);
+  await updateDoc(ref, { fcmTokens: arrayUnion(token), updatedAt: serverTimestamp() });
+};
+
+/** FCM 토큰 제거 (만료/거부 시) */
+export const removeFcmToken = async (uid: string, token: string): Promise<void> => {
+  const ref = doc(db, COLLECTION, uid);
+  await updateDoc(ref, { fcmTokens: arrayRemove(token), updatedAt: serverTimestamp() });
 };

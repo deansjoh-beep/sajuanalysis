@@ -55,3 +55,17 @@ export const getAdminAuth = async (): Promise<any | null> => {
   cachedAuth = getAuth(app);
   return cachedAuth;
 };
+
+let cachedMessaging: any | null | undefined;
+
+export const getAdminMessaging = async (): Promise<any | null> => {
+  if (cachedMessaging !== undefined) return cachedMessaging;
+  const app = await getApp();
+  if (!app) {
+    cachedMessaging = null;
+    return null;
+  }
+  const { getMessaging } = await import('firebase-admin/messaging');
+  cachedMessaging = getMessaging(app);
+  return cachedMessaging;
+};
