@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 
@@ -8,6 +8,7 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
+export const firebaseApp = app;
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
@@ -16,4 +17,4 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-export { signInWithPopup, signOut, signInAnonymously, ref, uploadBytes, getDownloadURL, listAll };
+export { signInWithPopup, signOut, signInAnonymously, signInWithCustomToken, ref, uploadBytes, getDownloadURL, listAll };

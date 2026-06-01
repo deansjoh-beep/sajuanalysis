@@ -227,6 +227,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // 회원 프로필
+    // - 본인(uid 일치)만 자신의 문서 읽기/쓰기 가능
+    // - 관리자는 전체 읽기 가능(운영용); 배치 생성은 Admin SDK가 규칙을 우회
+    match /members/{uid} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == uid);
+      allow create, update: if isAuthenticated() &&
+                            request.auth.uid == uid &&
+                            request.resource.data.uid == uid;
+      allow delete: if isAdmin();
+    }
+
+    // 오늘의 운세 캐시 (Step 2/3에서 사용)
+    // - 본인 운세만 읽기 가능. 쓰기는 서버(Admin SDK)만 — 클라이언트 직접 쓰기 차단
+    match /dailyFortunes/{docId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
     // Default deny for all other collections
     match /{document=**} {
       allow read, write: if false;

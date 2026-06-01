@@ -17,6 +17,7 @@ import {
 import { serializeTimestamps } from "./api/lib/serialize.ts";
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getStorage as getAdminStorage, Storage } from 'firebase-admin/storage';
+import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { 
   getFirestore, 
   FieldValue, 
@@ -135,6 +136,48 @@ async function startServer() {
     );
     const data = await geminiRes.json();
     return res.status(geminiRes.status).json(data);
+  });
+
+  // 카카오 로그인 → Firebase 커스텀 토큰 (dev)
+  app.post('/api/auth/kakao', expressRateLimit(generalLimiter), async (req, res) => {
+    const accessToken = String(req.body?.accessToken || '').trim();
+    if (!accessToken) {
+      return res.status(400).json({ error: 'MISSING_TOKEN', message: 'accessToken is required' });
+    }
+    if (!adminApp) {
+      return res.status(500).json({ error: 'ADMIN_SDK_UNAVAILABLE', message: 'service-account.json 이 필요합니다.' });
+    }
+    try {
+      const kakaoRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!kakaoRes.ok) {
+        return res.status(401).json({ error: 'KAKAO_VERIFY_FAILED', message: '카카오 토큰 검증에 실패했습니다.' });
+      }
+      const kakaoUser: any = await kakaoRes.json();
+      if (!kakaoUser?.id) {
+        return res.status(401).json({ error: 'KAKAO_NO_ID', message: '카카오 사용자 정보를 가져오지 못했습니다.' });
+      }
+
+      const uid = `kakao:${kakaoUser.id}`;
+      const email = kakaoUser.kakao_account?.email || undefined;
+      const displayName =
+        kakaoUser.kakao_account?.profile?.nickname || kakaoUser.properties?.nickname || '카카오 사용자';
+      const photoURL =
+        kakaoUser.kakao_account?.profile?.profile_image_url || kakaoUser.properties?.profile_image || undefined;
+
+      const adminAuth = getAdminAuth(adminApp);
+      try {
+        await adminAuth.updateUser(uid, { email, displayName, photoURL });
+      } catch {
+        await adminAuth.createUser({ uid, email, displayName, photoURL }).catch(() => undefined);
+      }
+      const token = await adminAuth.createCustomToken(uid, { provider: 'kakao' });
+      return res.json({ token, profile: { uid, email: email ?? null, displayName, photoURL: photoURL ?? null } });
+    } catch (error: any) {
+      console.error('[dev /api/auth/kakao] error:', error);
+      return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || 'Kakao auth failed' });
+    }
   });
 
   app.post("/api/claude/generate", expressRateLimit(generalLimiter), async (req, res) => {

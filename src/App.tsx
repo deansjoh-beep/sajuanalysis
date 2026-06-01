@@ -105,6 +105,10 @@ const LazyGuideTabContent = React.lazy(() => import("./components/tabs/GuideTabC
 const LazyPremiumOrderForm = React.lazy(() => import("./components/PremiumOrderForm").then((mod) => ({ default: mod.PremiumOrderForm })));
 import { ReviewModal } from "./components/ReviewModal";
 import { ReviewsSection } from "./components/ReviewsSection";
+import { LoginModal } from "./components/auth/LoginModal";
+import { MemberButton } from "./components/auth/MemberButton";
+import { upsertMemberProfile } from "./lib/memberStore";
+import { logoutMember } from "./lib/memberAuth";
 
 const App: React.FC = () => {
   // 관리자 라우트 감지 (마운트 시 1회)
@@ -119,6 +123,7 @@ const App: React.FC = () => {
   const isDarkMode = false;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   // State
   const [userData, setUserData] = useState<UserData>({
     name: "사용자",
@@ -270,6 +275,13 @@ const App: React.FC = () => {
 
       setUser(firebaseUser);
       setIsAdmin(adminMatched);
+
+      // 로그인 상태가 복원되면 회원 프로필을 동기화 (최초 로그인 시 생성, 재방문 시 lastLoginAt 갱신)
+      if (firebaseUser) {
+        upsertMemberProfile(firebaseUser).catch((err) =>
+          console.warn('[member] profile upsert skipped:', err?.message || err),
+        );
+      }
 
       console.info('[AUTH_DEBUG]', {
         email: firebaseUser?.email || null,
@@ -1091,6 +1103,13 @@ const App: React.FC = () => {
               <Star className="w-4 h-4" />
               <span className="hidden md:block text-[13px] font-bold">후기 남기기</span>
             </button>
+            {/* 회원 로그인/프로필 */}
+            <MemberButton
+              user={user}
+              isAdmin={isAdmin}
+              onLoginClick={() => setLoginModalOpen(true)}
+              onLogout={logoutMember}
+            />
             <button
               onClick={handleReset}
               className="p-2 md:px-3 md:py-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-red-400 transition-all flex items-center gap-2"
@@ -1603,6 +1622,10 @@ const App: React.FC = () => {
         onClose={() => setReviewModalOpen(false)}
         sourcePage={activeTab}
         onSubmitted={() => setReviewsRefreshKey(k => k + 1)}
+      />
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
       />
       </div>
     </div>
