@@ -98,7 +98,7 @@ export const loginWithKakao = async (): Promise<void> => {
 
   const accessToken = await getKakaoAccessToken(Kakao);
 
-  const res = await fetch('/api/auth/kakao', {
+  const res = await fetch('/api/member', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accessToken }),

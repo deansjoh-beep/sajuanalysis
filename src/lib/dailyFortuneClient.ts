@@ -43,7 +43,7 @@ export const fetchDailyFortune = async (opts?: { refresh?: boolean }): Promise<D
   if (!user) throw new DailyFortuneError('로그인이 필요합니다.', 'UNAUTHENTICATED');
 
   const idToken = await user.getIdToken();
-  const url = `/api/daily-fortune${opts?.refresh ? '?refresh=1' : ''}`;
+  const url = `/api/member${opts?.refresh ? '?refresh=1' : ''}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
 
   const data = await res.json().catch(() => ({}));

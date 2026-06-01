@@ -140,8 +140,10 @@ async function startServer() {
     return res.status(geminiRes.status).json(data);
   });
 
-  // 카카오 로그인 → Firebase 커스텀 토큰 (dev)
-  app.post('/api/auth/kakao', expressRateLimit(generalLimiter), async (req, res) => {
+  // 회원 통합 엔드포인트 (dev) — prod api/member.ts 와 동일 동작
+  //  POST /api/member  → 카카오 로그인
+  //  GET  /api/member  → 오늘의 운세 온디맨드 (ID 토큰) / 배치 (CRON_SECRET 일치 시)
+  app.post('/api/member', expressRateLimit(generalLimiter), async (req, res) => {
     const accessToken = String(req.body?.accessToken || '').trim();
     if (!accessToken) {
       return res.status(400).json({ error: 'MISSING_TOKEN', message: 'accessToken is required' });
@@ -160,14 +162,12 @@ async function startServer() {
       if (!kakaoUser?.id) {
         return res.status(401).json({ error: 'KAKAO_NO_ID', message: '카카오 사용자 정보를 가져오지 못했습니다.' });
       }
-
       const uid = `kakao:${kakaoUser.id}`;
       const email = kakaoUser.kakao_account?.email || undefined;
       const displayName =
         kakaoUser.kakao_account?.profile?.nickname || kakaoUser.properties?.nickname || '카카오 사용자';
       const photoURL =
         kakaoUser.kakao_account?.profile?.profile_image_url || kakaoUser.properties?.profile_image || undefined;
-
       const adminAuth = getAdminAuth(adminApp);
       try {
         await adminAuth.updateUser(uid, { email, displayName, photoURL });
@@ -177,108 +177,91 @@ async function startServer() {
       const token = await adminAuth.createCustomToken(uid, { provider: 'kakao' });
       return res.json({ token, profile: { uid, email: email ?? null, displayName, photoURL: photoURL ?? null } });
     } catch (error: any) {
-      console.error('[dev /api/auth/kakao] error:', error);
+      console.error('[dev /api/member kakao] error:', error);
       return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || 'Kakao auth failed' });
     }
   });
 
-  // 오늘의 운세 (dev) — 회원 전용, ID 토큰 검증 후 생성/캐시
-  app.get('/api/daily-fortune', expressRateLimit(generalLimiter), async (req, res) => {
+  app.get('/api/member', expressRateLimit(generalLimiter), async (req, res) => {
     const authHeader = String(req.headers.authorization || '');
-    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    if (!idToken) return res.status(401).json({ error: 'UNAUTHENTICATED', message: '로그인이 필요합니다.' });
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const cronSecret = String(process.env.CRON_SECRET || '').trim();
     if (!adminApp || !adminDb) {
       return res.status(500).json({ error: 'ADMIN_SDK_UNAVAILABLE', message: 'service-account.json 이 필요합니다.' });
     }
+    const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) return res.status(500).json({ error: 'GEMINI_UNAVAILABLE', message: 'Gemini API 키 미설정' });
+    const dateYmd = getSeoulTodayYmd();
+
+    // 배치(cron) 모드
+    if (cronSecret && bearer === cronSecret) {
+      const started = Date.now();
+      try {
+        const membersSnap = await adminDb.collection('members').get();
+        const targets: { uid: string; saju: any }[] = [];
+        membersSnap.forEach((doc: any) => {
+          const saju = doc.data()?.saju;
+          if (saju && saju.birthYear) targets.push({ uid: doc.id, saju });
+        });
+        let generated = 0, skipped = 0, failed = 0;
+        for (const { uid, saju } of targets) {
+          const cacheRef = adminDb.collection('dailyFortunes').doc(`${uid}_${dateYmd}`);
+          try {
+            const existing = await cacheRef.get();
+            if (existing.exists) { skipped++; continue; }
+            const result = await generateDailyFortuneForSaju(saju, apiKey);
+            await cacheRef.set({
+              uid, date: result.dateYmd,
+              dayPillarHanja: result.dayPillarHanja, dayPillarHangul: result.dayPillarHangul,
+              fortune: result.fortune, model: result.model, source: 'cron',
+              createdAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+            generated++;
+          } catch (err: any) {
+            failed++;
+            console.error(`[dev /api/member cron] ${uid} failed:`, err?.message);
+          }
+        }
+        return res.json({ success: true, date: dateYmd, targets: targets.length, generated, skipped, failed, elapsedMs: Date.now() - started });
+      } catch (error: any) {
+        console.error('[dev /api/member cron] fatal:', error);
+        return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message });
+      }
+    }
+
+    // 온디맨드 모드 (Firebase ID 토큰)
+    if (!bearer) return res.status(401).json({ error: 'UNAUTHENTICATED', message: '로그인이 필요합니다.' });
     try {
       let uid: string;
       try {
-        const decoded = await getAdminAuth(adminApp).verifyIdToken(idToken);
+        const decoded = await getAdminAuth(adminApp).verifyIdToken(bearer);
         uid = decoded.uid;
       } catch {
         return res.status(401).json({ error: 'INVALID_TOKEN', message: '유효하지 않은 인증입니다.' });
       }
-
       const memberSnap = await adminDb.collection('members').doc(uid).get();
       const saju = memberSnap.exists ? (memberSnap.data()?.saju as any) : undefined;
       if (!saju || !saju.birthYear) {
         return res.status(409).json({ error: 'NO_SAJU_PROFILE', message: '사주 정보가 없습니다. 먼저 만세력 분석을 진행해 주세요.' });
       }
-
-      const dateYmd = getSeoulTodayYmd();
       const cacheRef = adminDb.collection('dailyFortunes').doc(`${uid}_${dateYmd}`);
       const forceRegen = req.query.refresh === '1';
       if (!forceRegen) {
         const cached = await cacheRef.get();
         if (cached.exists) return res.json({ success: true, cached: true, ...serializeTimestamps(cached.data()) });
       }
-
-      const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
-      if (!apiKey) return res.status(500).json({ error: 'GEMINI_UNAVAILABLE', message: 'Gemini API 키 미설정' });
-
       const result = await generateDailyFortuneForSaju(saju, apiKey);
       const payload = {
-        uid,
-        date: result.dateYmd,
-        dayPillarHanja: result.dayPillarHanja,
-        dayPillarHangul: result.dayPillarHangul,
-        fortune: result.fortune,
-        model: result.model,
-        source: 'on-demand',
+        uid, date: result.dateYmd,
+        dayPillarHanja: result.dayPillarHanja, dayPillarHangul: result.dayPillarHangul,
+        fortune: result.fortune, model: result.model, source: 'on-demand',
         createdAt: FieldValue.serverTimestamp(),
       };
       await cacheRef.set(payload, { merge: true });
       return res.json({ success: true, cached: false, ...serializeTimestamps({ ...payload, createdAt: new Date() }) });
     } catch (error: any) {
-      console.error('[dev /api/daily-fortune] error:', error);
+      console.error('[dev /api/member daily] error:', error);
       return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || '운세 생성 실패' });
-    }
-  });
-
-  // 오늘의 운세 배치 생성 (dev) — Vercel cron 의 로컬 테스트용
-  app.get('/api/cron/daily-fortune', async (req, res) => {
-    const cronSecret = String(process.env.CRON_SECRET || '').trim();
-    if (cronSecret) {
-      const auth = String(req.headers.authorization || '');
-      if (auth !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'UNAUTHORIZED' });
-    }
-    if (!adminDb) return res.status(500).json({ error: 'ADMIN_SDK_UNAVAILABLE' });
-    const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
-    if (!apiKey) return res.status(500).json({ error: 'GEMINI_UNAVAILABLE' });
-
-    const started = Date.now();
-    const dateYmd = getSeoulTodayYmd();
-    try {
-      const membersSnap = await adminDb.collection('members').get();
-      const targets: { uid: string; saju: any }[] = [];
-      membersSnap.forEach((doc: any) => {
-        const saju = doc.data()?.saju;
-        if (saju && saju.birthYear) targets.push({ uid: doc.id, saju });
-      });
-
-      let generated = 0, skipped = 0, failed = 0;
-      for (const { uid, saju } of targets) {
-        const cacheRef = adminDb.collection('dailyFortunes').doc(`${uid}_${dateYmd}`);
-        try {
-          const existing = await cacheRef.get();
-          if (existing.exists) { skipped++; continue; }
-          const result = await generateDailyFortuneForSaju(saju, apiKey);
-          await cacheRef.set({
-            uid, date: result.dateYmd,
-            dayPillarHanja: result.dayPillarHanja, dayPillarHangul: result.dayPillarHangul,
-            fortune: result.fortune, model: result.model, source: 'cron',
-            createdAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-          generated++;
-        } catch (err: any) {
-          failed++;
-          console.error(`[dev cron/daily-fortune] ${uid} failed:`, err?.message);
-        }
-      }
-      return res.json({ success: true, date: dateYmd, targets: targets.length, generated, skipped, failed, elapsedMs: Date.now() - started });
-    } catch (error: any) {
-      console.error('[dev cron/daily-fortune] fatal:', error);
-      return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message });
     }
   });
 

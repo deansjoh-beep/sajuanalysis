@@ -13,14 +13,14 @@
       "memory": 512,
       "maxDuration": 30
     },
-    "api/cron/daily-fortune.ts": {
+    "api/member.ts": {
       "memory": 1024,
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/cron/daily-fortune",
+      "path": "/api/member",
       "schedule": "0 21 * * *"
     }
   ],
