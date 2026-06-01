@@ -72,17 +72,15 @@ const loadKakaoSdk = (): Promise<any> =>
     document.head.appendChild(script);
   });
 
-/** Kakao 액세스 토큰을 받아온다 (로그인 팝업). */
-const getKakaoAccessToken = (Kakao: any): Promise<string> =>
-  new Promise((resolve, reject) => {
-    Kakao.Auth.login({
-      scope: 'account_email,profile_nickname,profile_image',
-      success: (authObj: any) => resolve(authObj.access_token),
-      fail: (err: any) =>
-        reject(new MemberAuthError(err?.error_description || '카카오 로그인이 취소되었습니다.', 'kakao/login-failed')),
-    });
-  });
+/** 카카오 OAuth redirect_uri — authorize 와 토큰 교환에서 동일하게 사용해야 한다. */
+const kakaoRedirectUri = (): string => `${window.location.origin}/`;
 
+/**
+ * 카카오 로그인 시작 — JS SDK v2 의 authorize(리다이렉트+code) 방식.
+ * Kakao.Auth.login(팝업·콜백)은 SDK 2.x 에서 제거되어 사용할 수 없다.
+ * authorize 는 페이지를 카카오 인증 페이지로 이동시키고, 동의 후
+ * redirectUri 로 ?code=... 를 붙여 되돌아온다. (App.tsx 에서 완료 처리)
+ */
 export const loginWithKakao = async (): Promise<void> => {
   if (!isKakaoConfigured()) {
     throw new MemberAuthError(
@@ -96,12 +94,25 @@ export const loginWithKakao = async (): Promise<void> => {
     Kakao.init(KAKAO_JS_KEY);
   }
 
-  const accessToken = await getKakaoAccessToken(Kakao);
+  Kakao.Auth.authorize({
+    redirectUri: kakaoRedirectUri(),
+    scope: 'profile_nickname,profile_image,account_email',
+    state: 'kakao',
+  });
 
+  // authorize 는 즉시 페이지를 리다이렉트하므로 이 함수는 사실상 반환되지 않는다.
+  await new Promise<void>(() => undefined);
+};
+
+/**
+ * 카카오 인증 후 돌아온 code 를 서버에서 토큰으로 교환하고 Firebase 로그인까지 완료한다.
+ * App.tsx 마운트 시 URL 의 ?code= 를 감지해 호출한다.
+ */
+export const completeKakaoLogin = async (code: string): Promise<void> => {
   const res = await fetch('/api/member', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken }),
+    body: JSON.stringify({ code, redirectUri: kakaoRedirectUri() }),
   });
 
   if (!res.ok) {

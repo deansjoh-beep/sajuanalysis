@@ -144,14 +144,39 @@ async function startServer() {
   //  POST /api/member  → 카카오 로그인
   //  GET  /api/member  → 오늘의 운세 온디맨드 (ID 토큰) / 배치 (CRON_SECRET 일치 시)
   app.post('/api/member', expressRateLimit(generalLimiter), async (req, res) => {
-    const accessToken = String(req.body?.accessToken || '').trim();
-    if (!accessToken) {
-      return res.status(400).json({ error: 'MISSING_TOKEN', message: 'accessToken is required' });
+    const code = String(req.body?.code || '').trim();
+    const redirectUri = String(req.body?.redirectUri || '').trim();
+    if (!code || !redirectUri) {
+      return res.status(400).json({ error: 'MISSING_PARAMS', message: 'code 와 redirectUri 가 필요합니다.' });
     }
     if (!adminApp) {
       return res.status(500).json({ error: 'ADMIN_SDK_UNAVAILABLE', message: 'service-account.json 이 필요합니다.' });
     }
+    const restKey = String(process.env.KAKAO_REST_API_KEY || '').trim();
+    if (!restKey) {
+      return res.status(500).json({ error: 'KAKAO_NOT_CONFIGURED', message: 'KAKAO_REST_API_KEY 미설정' });
+    }
     try {
+      const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: restKey,
+          redirect_uri: redirectUri,
+          code,
+        }).toString(),
+      });
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text().catch(() => '');
+        console.error('[dev /api/member kakao] token exchange failed:', errText.slice(0, 200));
+        return res.status(401).json({ error: 'KAKAO_TOKEN_FAILED', message: '카카오 토큰 교환에 실패했습니다.' });
+      }
+      const tokenData: any = await tokenRes.json();
+      const accessToken = tokenData.access_token;
+      if (!accessToken) {
+        return res.status(401).json({ error: 'KAKAO_NO_ACCESS_TOKEN', message: '카카오 액세스 토큰을 받지 못했습니다.' });
+      }
       const kakaoRes = await fetch('https://kapi.kakao.com/v2/user/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });

@@ -109,7 +109,7 @@ import { ReviewsSection } from "./components/ReviewsSection";
 import { LoginModal } from "./components/auth/LoginModal";
 import { MemberButton } from "./components/auth/MemberButton";
 import { upsertMemberProfile, saveMemberSaju } from "./lib/memberStore";
-import { logoutMember } from "./lib/memberAuth";
+import { logoutMember, completeKakaoLogin } from "./lib/memberAuth";
 
 const App: React.FC = () => {
   // 관리자 라우트 감지 (마운트 시 1회)
@@ -266,10 +266,26 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 푸시 알림 등 외부 진입의 딥링크 처리 (?tab=daily)
+  // 외부 진입 처리: 푸시 딥링크(?tab=daily) + 카카오 로그인 콜백(?code=)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+
+      // 카카오 로그인 콜백
+      const code = params.get('code');
+      if (code) {
+        completeKakaoLogin(code)
+          .catch((e) => console.warn('[kakao] login failed:', e?.message || e))
+          .finally(() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('code');
+            url.searchParams.delete('state');
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+          });
+        return;
+      }
+
+      // 푸시 알림 딥링크
       const tab = params.get('tab');
       const allowed = ['welcome', 'dashboard', 'daily', 'chat', 'report', 'guide', 'blog'];
       if (tab && allowed.includes(tab)) {
