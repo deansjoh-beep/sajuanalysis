@@ -74,6 +74,7 @@ import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
 const FiveElementsPieChart = React.lazy(() => import("./components/FiveElementsPieChart"));
 const LazyBlogTab = React.lazy(() => import("./components/tabs/BlogTab").then((mod) => ({ default: mod.BlogTab })));
+const LazyDailyFortuneTab = React.lazy(() => import("./components/tabs/DailyFortuneTab"));
 
 // 라우트/Gemini/관리자/Firestore 에러/블로그 헬퍼/타입/renderChatPlainText
 // 는 모두 전용 모듈로 분리됨. (App.tsx 슬림화)
@@ -107,7 +108,7 @@ import { ReviewModal } from "./components/ReviewModal";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { LoginModal } from "./components/auth/LoginModal";
 import { MemberButton } from "./components/auth/MemberButton";
-import { upsertMemberProfile } from "./lib/memberStore";
+import { upsertMemberProfile, saveMemberSaju } from "./lib/memberStore";
 import { logoutMember } from "./lib/memberAuth";
 
 const App: React.FC = () => {
@@ -117,7 +118,7 @@ const App: React.FC = () => {
   const [showReportMakerPage] = useState(isReportMakerRoute);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order">("welcome");
+  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order" | "daily">("welcome");
   const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('premium');
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
@@ -454,6 +455,22 @@ const App: React.FC = () => {
       }
       setYongshinResult(yongshin);
       setGyeokResult(gyeok);
+
+      // 로그인한 회원이면 사주 프로필을 저장 → 오늘의 운세 개인화에 사용
+      if (user) {
+        saveMemberSaju(user.uid, {
+          name: userData.name,
+          birthYear: userData.birthYear,
+          birthMonth: userData.birthMonth,
+          birthDay: userData.birthDay,
+          birthHour: userData.birthHour,
+          birthMinute: userData.birthMinute,
+          calendarType: userData.calendarType,
+          gender: userData.gender,
+          unknownTime: userData.unknownTime,
+        }).catch((e) => console.warn('[member] saju save skipped:', e?.message || e));
+      }
+
       setReportContent(null);
       setConsultationMode('basic');
       consultationModeRef.current = 'basic';
@@ -1062,6 +1079,7 @@ const App: React.FC = () => {
             {[
               { id: "welcome", label: "HOME" },
               { id: "dashboard", label: "만세력" },
+              { id: "daily", label: "오늘의 운세" },
               { id: "chat", label: "상담" },
               { id: "report", label: "프리미엄리포트" },
               ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),
@@ -1176,6 +1194,16 @@ const App: React.FC = () => {
               setReportContent={setReportContent}
               consultationModeRef={consultationModeRef}
             />
+          )}
+
+          {activeTab === "daily" && (
+            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
+              <LazyDailyFortuneTab
+                user={user}
+                onLoginClick={() => setLoginModalOpen(true)}
+                setActiveTab={setActiveTab}
+              />
+            </Suspense>
           )}
 
           {activeTab === "taekil" && (
@@ -1590,6 +1618,7 @@ const App: React.FC = () => {
           {[
             { id: "welcome", label: "HOME" },
             { id: "dashboard", label: "만세력" },
+            { id: "daily", label: "오늘" },
             { id: "chat", label: "상담" },
             { id: "report", label: "리포트" },
             ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),

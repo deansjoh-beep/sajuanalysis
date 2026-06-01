@@ -15,6 +15,8 @@ import {
   generalLimiter,
 } from "./api/lib/rate-limit.ts";
 import { serializeTimestamps } from "./api/lib/serialize.ts";
+import { generateDailyFortuneForSaju } from "./api/lib/dailyFortune.ts";
+import { getSeoulTodayYmd } from "./src/lib/seoulDateGanji.ts";
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getStorage as getAdminStorage, Storage } from 'firebase-admin/storage';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
@@ -177,6 +179,59 @@ async function startServer() {
     } catch (error: any) {
       console.error('[dev /api/auth/kakao] error:', error);
       return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || 'Kakao auth failed' });
+    }
+  });
+
+  // 오늘의 운세 (dev) — 회원 전용, ID 토큰 검증 후 생성/캐시
+  app.get('/api/daily-fortune', expressRateLimit(generalLimiter), async (req, res) => {
+    const authHeader = String(req.headers.authorization || '');
+    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!idToken) return res.status(401).json({ error: 'UNAUTHENTICATED', message: '로그인이 필요합니다.' });
+    if (!adminApp || !adminDb) {
+      return res.status(500).json({ error: 'ADMIN_SDK_UNAVAILABLE', message: 'service-account.json 이 필요합니다.' });
+    }
+    try {
+      let uid: string;
+      try {
+        const decoded = await getAdminAuth(adminApp).verifyIdToken(idToken);
+        uid = decoded.uid;
+      } catch {
+        return res.status(401).json({ error: 'INVALID_TOKEN', message: '유효하지 않은 인증입니다.' });
+      }
+
+      const memberSnap = await adminDb.collection('members').doc(uid).get();
+      const saju = memberSnap.exists ? (memberSnap.data()?.saju as any) : undefined;
+      if (!saju || !saju.birthYear) {
+        return res.status(409).json({ error: 'NO_SAJU_PROFILE', message: '사주 정보가 없습니다. 먼저 만세력 분석을 진행해 주세요.' });
+      }
+
+      const dateYmd = getSeoulTodayYmd();
+      const cacheRef = adminDb.collection('dailyFortunes').doc(`${uid}_${dateYmd}`);
+      const forceRegen = req.query.refresh === '1';
+      if (!forceRegen) {
+        const cached = await cacheRef.get();
+        if (cached.exists) return res.json({ success: true, cached: true, ...serializeTimestamps(cached.data()) });
+      }
+
+      const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+      if (!apiKey) return res.status(500).json({ error: 'GEMINI_UNAVAILABLE', message: 'Gemini API 키 미설정' });
+
+      const result = await generateDailyFortuneForSaju(saju, apiKey);
+      const payload = {
+        uid,
+        date: result.dateYmd,
+        dayPillarHanja: result.dayPillarHanja,
+        dayPillarHangul: result.dayPillarHangul,
+        fortune: result.fortune,
+        model: result.model,
+        source: 'on-demand',
+        createdAt: FieldValue.serverTimestamp(),
+      };
+      await cacheRef.set(payload, { merge: true });
+      return res.json({ success: true, cached: false, ...serializeTimestamps({ ...payload, createdAt: new Date() }) });
+    } catch (error: any) {
+      console.error('[dev /api/daily-fortune] error:', error);
+      return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || '운세 생성 실패' });
     }
   });
 
