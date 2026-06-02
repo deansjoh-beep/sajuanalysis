@@ -94,9 +94,13 @@ export const loginWithKakao = async (): Promise<void> => {
     Kakao.init(KAKAO_JS_KEY);
   }
 
+  // account_email 은 카카오 콘솔 동의항목 설정(+사업자 인증)이 필요해 KOE205 를 유발하므로 제외.
+  // 서버(handleKakao)는 이메일을 선택값으로 처리하므로 닉네임/프로필만으로 로그인이 완성된다.
+  // 이메일 수집이 필요하면 카카오 콘솔 [카카오 로그인]>[동의항목]에서 account_email 을 켜고
+  // 아래 scope 에 'account_email' 을 다시 추가하면 된다.
   Kakao.Auth.authorize({
     redirectUri: kakaoRedirectUri(),
-    scope: 'profile_nickname,profile_image,account_email',
+    scope: 'profile_nickname,profile_image',
     state: 'kakao',
   });
 
