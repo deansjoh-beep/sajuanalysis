@@ -1,6 +1,6 @@
 import { Solar, Lunar } from 'lunar-javascript';
 import { DateTime } from 'luxon';
-import { getDeityLocalizedInterpretation, getCareerExpression } from '../constants/deityInterpretation';
+import { getDeityLocalizedInterpretation, getCareerExpression } from '../constants/deityInterpretation.js';
 
 export const hanjaToHangul: Record<string, string> = {
   '甲': '갑', '乙': '을', '丙': '병', '丁': '정', '戊': '무', '己': '기', '庚': '경', '辛': '신', '壬': '임', '癸': '계',

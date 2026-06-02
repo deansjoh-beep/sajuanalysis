@@ -1,5 +1,5 @@
 import { Solar } from 'lunar-javascript';
-import { hanjaToHangul } from '../utils/saju';
+import { hanjaToHangul } from '../utils/saju.js';
 
 export const getSeoulTodayParts = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {
