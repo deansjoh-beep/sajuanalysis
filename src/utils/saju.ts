@@ -195,16 +195,29 @@ export const calculateYongshin = (sajuData: any[]) => {
   const eokbuYongshinRaw = score >= 50 ? opposites[dayMasterElement] : supports[dayMasterElement];
   const eokbuYongshin = elementNames[eokbuYongshinRaw];
 
+  // 조후(온도)는 오직 '월지(계절)'와 '시지(시간)'의 수(水)·화(火)만으로 판정한다.
+  // 연주·일지의 글자는 실제 계절 온도에 영향을 주지 않으므로 조후 계산식에서 제외한다.
+  // (MANSE_DATA_PIPELINE 조후 규칙 / SAJU_GUIDELINE "조후·운 작용력 분리 규칙 1")
   const monthBranch = pillars[1].branch.hanja;
   const hourBranch = pillars[3].branch.hanja;
-  
+
+  const COLD_BRANCHES = ['亥', '子', '丑']; // 수(水) 계열 — 겨울·한밤의 응축 기운
+  const HOT_BRANCHES = ['巳', '午', '未'];  // 화(火) 계열 — 여름·한낮의 확산 기운
+  // 월지는 계절을 결정하므로 가중치를 크게(±2), 시지는 시간대 보조로 둔다(±1).
+  // 시지 단독으로는 계절(월지)을 만들지 못하고, 월지와 반대 방향일 때 온도를 완화시킨다.
+  let tempScore = 0; // 음수=한랭, 양수=조열
+  if (COLD_BRANCHES.includes(monthBranch)) tempScore -= 2;
+  else if (HOT_BRANCHES.includes(monthBranch)) tempScore += 2;
+  if (COLD_BRANCHES.includes(hourBranch)) tempScore -= 1;
+  else if (HOT_BRANCHES.includes(hourBranch)) tempScore += 1;
+
   let johooStatus = '평온';
   let johooYongshinRaw = '';
 
-  if (['亥', '子', '丑'].includes(monthBranch)) {
+  if (tempScore <= -2) {
     johooStatus = '한랭(寒冷)';
     johooYongshinRaw = 'fire';
-  } else if (['巳', '午', '未'].includes(monthBranch)) {
+  } else if (tempScore >= 2) {
     johooStatus = '조열(燥熱)';
     johooYongshinRaw = 'water';
   }
