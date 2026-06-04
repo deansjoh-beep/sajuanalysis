@@ -215,7 +215,7 @@ const App: React.FC = () => {
   // 대운 스크롤: 현재 대운을 화면 중앙으로
   const scrollDaeunToCenter = useCallback(() => {
     if (!daeunScrollRef.current || daeunResult.length === 0) return;
-    const currentAge = currentSeoulYear - parseInt(userData.birthYear) + 1;
+    const currentAge = currentSeoulYear - parseInt(userData.birthYear); // 만 나이(연 나이) — 대운 startAge와 동일 기준
     const activeIndex = daeunResult.findIndex((dy: any, i: number) =>
       currentAge >= dy.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i + 1].startAge)
     );
@@ -477,7 +477,7 @@ const App: React.FC = () => {
       setDaeunResult(daeun);
       // 현재 대운 자동 선택
       {
-        const age = currentSeoulYear - parseInt(userData.birthYear) + 1;
+        const age = currentSeoulYear - parseInt(userData.birthYear); // 만 나이 기준
         const idx = daeun.findIndex((dy: any, i: number) =>
           age >= dy.startAge && (i === daeun.length - 1 || age < daeun[i + 1].startAge)
         );

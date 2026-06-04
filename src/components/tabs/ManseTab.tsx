@@ -1121,7 +1121,7 @@ function DaeunSection({
   const yearBranch = sajuResult.find((p) => p.title === '년주')?.branch.hanja || '';
   const yearStem = sajuResult.find((p) => p.title === '년주')?.stem.hanja || '';
 
-  const currentAge = currentSeoulYear - parseInt(userData.birthYear) + 1;
+  const currentAge = currentSeoulYear - parseInt(userData.birthYear); // 만 나이 기준
   const currentDaeunIdx = daeunResult.findIndex(
     (dy, i) =>
       currentAge >= dy.startAge &&
@@ -1297,7 +1297,7 @@ function SeunSection({
     const year = daeun.startYear + i;
     const stem = STEMS_LIST[(year + 6) % 10];
     const branch = BRANCHES_LIST[(year + 8) % 12];
-    const age = year - parseInt(userData.birthYear) + 1;
+    const age = year - parseInt(userData.birthYear); // 만 나이 기준 (대운 startAge와 동일)
     return { year, stem, branch, age };
   });
   const dayStem = sajuResult.find((p) => p.title === '일주')?.stem.hanja || '';

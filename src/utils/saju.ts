@@ -595,7 +595,8 @@ export const getDaeunData = (
     
     daeuns.push({
       startAge: startAge,
-      startYear: adjustedSolar.getYear() + startAge - 1,
+      // 만 나이 기준: 첫 대운은 출생 후 daeunSu년(만 daeunSu세)에 시작 → startYear = 출생연도 + startAge
+      startYear: adjustedSolar.getYear() + startAge,
       stem: stem,
       branch: branch,
       description: branchDescription[branch] || ''

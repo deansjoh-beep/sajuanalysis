@@ -89,9 +89,9 @@ export const buildFortuneContext = (saju: MemberSajuInput) => {
     )
     .join('\n');
 
-  // 현재 대운: 만 나이가 아닌 세는나이(연도 차 +1) 기준
+  // 현재 대운: 만 나이(연도 차) 기준 — 대운 startAge와 동일 기준
   const { year: curYear } = getSeoulTodayParts();
-  const age = curYear - parseInt(saju.birthYear, 10) + 1;
+  const age = curYear - parseInt(saju.birthYear, 10);
   const curDaeunIdx = daeun.findIndex(
     (d: any, i: number) =>
       age >= d.startAge && (i === daeun.length - 1 || age < daeun[i + 1].startAge),

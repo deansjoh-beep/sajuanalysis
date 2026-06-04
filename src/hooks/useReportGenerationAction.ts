@@ -126,7 +126,7 @@ export const useReportGenerationAction = ({
 
       const birthYearInt = parseInt(birthYear, 10);
       const currentYear = new Date().getFullYear();
-      const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt + 1;
+      const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt; // 만 나이 기준
 
       const daeunContext = daeunResult
         .map((dy, i) => {
