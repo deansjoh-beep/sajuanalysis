@@ -1,6 +1,11 @@
 import { Solar, Lunar } from 'lunar-javascript';
 import { DateTime } from 'luxon';
 import { getDeityLocalizedInterpretation, getCareerExpression } from '../constants/deityInterpretation.js';
+import {
+  SEOUL_LONGITUDE,
+  JIEQI_BOUNDARY_HOURS,
+  getKstNormalizationOffsetMinutes,
+} from '../lib/manseryeok/policy.js';
 
 export const hanjaToHangul: Record<string, string> = {
   '甲': '갑', '乙': '을', '丙': '병', '丁': '정', '戊': '무', '己': '기', '庚': '경', '辛': '신', '壬': '임', '癸': '계',
@@ -23,8 +28,10 @@ const equationOfTime = (dateTime: DateTime) => {
   return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // minutes
 };
 
-const applyTrueSolarTime = (dateTime: DateTime, longitude?: number) => {
-  if (longitude === undefined || longitude === null || Number.isNaN(longitude)) {
+const applyTrueSolarTime = (dateTime: DateTime, longitude: number = SEOUL_LONGITUDE) => {
+  // D-1-2: longitude 미전달 시 서울(126.9784°)을 기본값으로 자동 적용.
+  // Number.isNaN 방어만 남긴다 — undefined/null은 기본값으로 대체됨.
+  if (Number.isNaN(longitude)) {
     return dateTime;
   }
 
@@ -255,26 +262,13 @@ export const calculateYongshin = (sajuData: any[]) => {
   };
 };
 
-export const getAdjustedTime = (year: number, month: number, day: number, hour: number, minute: number) => {
-  let offsetMinutes = 0;
-  const dateNum = year * 10000 + month * 100 + day;
-
-  if ((dateNum >= 19120101 && dateNum <= 19540320) || dateNum >= 19610810) {
-    offsetMinutes -= 30;
-  }
-
-  const isDST = (y: number, m: number, d: number) => {
-    if (y >= 1948 && y <= 1951) return m >= 5 && m <= 9;
-    if (y >= 1955 && y <= 1960) return m >= 5 && m <= 9;
-    if (y >= 1987 && y <= 1988) return m >= 5 && m <= 10;
-    return false;
-  };
-
-  if (isDST(year, month, day)) {
-    offsetMinutes -= 60;
-  }
-
-  return offsetMinutes;
+/**
+ * @deprecated Phase 1-1(2026-07-04)부터 정책 로직은 `lib/manseryeok/policy.ts::getKstNormalizationOffsetMinutes`로 이관.
+ * 이 함수는 audit 스크립트 호환 유지 목적으로만 남아 있으며 policy 함수를 그대로 재노출한다.
+ * 새 코드는 정책 모듈을 직접 임포트하라.
+ */
+export const getAdjustedTime = (year: number, month: number, day: number, _hour: number, _minute: number) => {
+  return getKstNormalizationOffsetMinutes(year, month, day);
 };
 
 export const getSajuData = (
@@ -294,11 +288,18 @@ export const getSajuData = (
 
   if (unknownTime) {
     localDateTime = localDateTime.set({ hour: 12, minute: 0 });
+  } else {
+    // D-1-3: 한국 표준시 변경(GMT+8:30 기간) 및 서머타임 wall-clock 보정.
+    // policy.getKstNormalizationOffsetMinutes 결과를 wall-clock에 더해 현재 KST 기준으로 정규화한다.
+    const kstOffset = getKstNormalizationOffsetMinutes(year, month, day);
+    if (kstOffset !== 0) {
+      localDateTime = localDateTime.plus({ minutes: kstOffset });
+    }
   }
 
   const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
   const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
-  
+
   const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
   try {
@@ -318,7 +319,7 @@ export const getSajuData = (
 
   const dayStem = pillars[2].char.charAt(0);
 
-  return pillars.map((p, idx) => {
+  const result = pillars.map((p, idx) => {
     if (p.char === '??') {
       return {
         title: p.title,
@@ -355,6 +356,40 @@ export const getSajuData = (
       }
     };
   }).reverse();
+
+  // Phase 1-1: 절입(節入) 경계 감지 (D-1-3 산출 항목).
+  // 출생 시각이 이전/다음 절기까지 ±JIEQI_BOUNDARY_HOURS 이내면 nearJieqiBoundary=true.
+  // JSON.stringify 호환을 위해 non-enumerable 로 부착 (map/spread 순회에 노출되지 않음).
+  const boundary = unknownTime ? { nearJieqiBoundary: false, minHoursToJieqi: null as number | null } : detectNearJieqiBoundary(lunar, trueSolarDateTime);
+  Object.defineProperty(result, 'nearJieqiBoundary', { value: boundary.nearJieqiBoundary, enumerable: false });
+  Object.defineProperty(result, 'minHoursToJieqi', { value: boundary.minHoursToJieqi, enumerable: false });
+  return result as typeof result & { nearJieqiBoundary: boolean; minHoursToJieqi: number | null };
+};
+
+/**
+ * 이전·다음 절기 시각과의 거리를 계산해 ±JIEQI_BOUNDARY_HOURS 이내 여부를 판정한다.
+ * `lunar`는 진태양시 보정 후의 Solar 로부터 얻은 Lunar 객체, `birthDateTime`은 그 진태양시.
+ */
+const detectNearJieqiBoundary = (
+  lunar: any,
+  birthDateTime: DateTime,
+): { nearJieqiBoundary: boolean; minHoursToJieqi: number | null } => {
+  try {
+    const birthMs = birthDateTime.toUTC().toMillis();
+    const jieqiMs = (jie: any): number => {
+      const s = jie.getSolar();
+      // Solar 는 wall-clock 값을 반환하므로 UTC 로 정규화하기 위해 KST(+9) 로 해석.
+      return Date.UTC(s.getYear(), s.getMonth() - 1, s.getDay(), s.getHour(), s.getMinute(), s.getSecond()) - 9 * 3600 * 1000;
+    };
+    const distances: number[] = [];
+    try { distances.push(Math.abs(jieqiMs(lunar.getPrevJie()) - birthMs)); } catch { /* boundary */ }
+    try { distances.push(Math.abs(jieqiMs(lunar.getNextJie()) - birthMs)); } catch { /* boundary */ }
+    if (distances.length === 0) return { nearJieqiBoundary: false, minHoursToJieqi: null };
+    const minHours = Math.min(...distances) / 3600000;
+    return { nearJieqiBoundary: minHours <= JIEQI_BOUNDARY_HOURS, minHoursToJieqi: minHours };
+  } catch {
+    return { nearJieqiBoundary: false, minHoursToJieqi: null };
+  }
 };
 
 export const getDeityEnglishExplanation = (deity: string) => {
@@ -556,9 +591,16 @@ export const getDaeunData = (
   const minute = unknownTime ? 0 : rawMinute;
 
   let localDateTime = DateTime.fromObject({ year, month, day, hour, minute }, { zone: timezone });
+  if (!unknownTime) {
+    // D-1-3: getSajuData와 동일한 표준시/서머타임 정규화 적용
+    const kstOffset = getKstNormalizationOffsetMinutes(year, month, day);
+    if (kstOffset !== 0) {
+      localDateTime = localDateTime.plus({ minutes: kstOffset });
+    }
+  }
   const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
   const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
-  
+
   const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
   try {
