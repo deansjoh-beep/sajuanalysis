@@ -30,6 +30,7 @@ import {
   getYukhap,
   calculateDeity,
   elementMap,
+  getDeityEnglishExplanation,
   hanjaToHangul,
   hiddenStems,
 } from '../../utils/saju.js';
@@ -66,6 +67,8 @@ export type StemInfo = {
   element: OhaengKey;
   /** 일간 대비 십신. 일간 자신은 '일간'. */
   sipsin: string;
+  /** 십신 영문 설명(프리미엄 프롬프트용, Phase 1-3). 매핑 없으면 ''. */
+  sipsinEn: string;
 };
 
 export type BranchInfo = {
@@ -74,6 +77,8 @@ export type BranchInfo = {
   element: OhaengKey;
   /** 지지 본기(本氣) 기준 십신. */
   sipsin: string;
+  /** 십신 영문 설명(프리미엄 프롬프트용, Phase 1-3). 매핑 없으면 ''. */
+  sipsinEn: string;
   /** 지장간(한자) — [여기, (중기), 본기]. */
   hiddenStems: string[];
   /** 일간 기준 십이운성. */
@@ -309,6 +314,8 @@ const toPillarInfo = (p: any, dayStem: string): PillarInfo => {
   }
   const stemHanja = p.stem.hanja;
   const branchHanja = p.branch.hanja;
+  const stemSipsin = position === '일주' ? '일간' : calculateDeity(dayStem, stemHanja);
+  const branchSipsin = calculateDeity(dayStem, branchHanja, true);
   return {
     position,
     ganzhi: `${stemHanja}${branchHanja}`,
@@ -316,13 +323,15 @@ const toPillarInfo = (p: any, dayStem: string): PillarInfo => {
       hanja: stemHanja,
       hangul: hanjaToHangul[stemHanja] ?? stemHanja,
       element: p.stem.element as OhaengKey,
-      sipsin: position === '일주' ? '일간' : calculateDeity(dayStem, stemHanja),
+      sipsin: stemSipsin,
+      sipsinEn: getDeityEnglishExplanation(stemSipsin),
     },
     branch: {
       hanja: branchHanja,
       hangul: hanjaToHangul[branchHanja] ?? branchHanja,
       element: p.branch.element as OhaengKey,
-      sipsin: calculateDeity(dayStem, branchHanja, true),
+      sipsin: branchSipsin,
+      sipsinEn: getDeityEnglishExplanation(branchSipsin),
       hiddenStems: (hiddenStems[branchHanja] ?? []).map(hangulToHanja),
       sibiUnseong: getSipseung(dayStem, branchHanja),
     },

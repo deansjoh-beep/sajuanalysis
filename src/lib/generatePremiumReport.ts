@@ -1,9 +1,11 @@
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import {
-  getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation,
-  getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary, hanjaToHangul,
+  getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation, hanjaToHangul,
 } from "../utils/saju";
+import { buildSajuAnalysis } from './analysis/schema';
+import { sajuAnalysisToPromptContext } from './analysis/promptContext';
+import { toLegacyYongshin } from './analysis/gyeokyongshin';
 import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE, JOB_CAREER_GUIDELINE, LOVE_MARRIAGE_GUIDELINE } from "../constants/guidelines";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -585,7 +587,17 @@ export const generateLifeNavReport = async (
   inputData: ReportInputData,
   signal?: AbortSignal
 ): Promise<{ sections: ReportSection[]; saju: any; daeun: any; yongshin: any }> => {
-  // 1. 사주 계산
+  // 1. 사주 계산 — 프롬프트 컨텍스트는 SajuAnalysis(구조화 결정론 JSON) 단일 소스에서 파생.
+  const analysis = buildSajuAnalysis({
+    dateStr: inputData.birthDate,
+    timeStr: inputData.birthTime,
+    isLunar: inputData.isLunar,
+    isLeap: inputData.isLeap,
+    gender: inputData.gender,
+    unknownTime: inputData.unknownTime,
+  });
+
+  // 미리보기 UI(PremiumReportPreview)는 아직 레거시 saju 배열 형태를 소비하므로 반환용으로만 유지.
   const saju = getSajuData(
     inputData.birthDate,
     inputData.birthTime,
@@ -595,38 +607,15 @@ export const generateLifeNavReport = async (
     'Asia/Seoul'
   );
 
-  const daeun = getDaeunData(
-    inputData.birthDate,
-    inputData.birthTime,
-    inputData.isLunar,
-    inputData.isLeap,
-    inputData.gender,
-    inputData.unknownTime
-  );
-
-  const yongshin = calculateYongshin(saju);
+  const daeun = analysis.daeun;
+  const yongshin = analysis.gyeokYongshin
+    ? toLegacyYongshin(analysis.gyeokYongshin)
+    : calculateYongshin(saju);
   const currentYearPillar = getCurrentYearPillarKST();
 
-  // 2. 컨텍스트 문자열 생성
-  const sajuContext = saju.map((p: any) => {
-    const stemDeityEng = getDeityEnglishExplanation(p.stem.deity);
-    const branchDeityEng = getDeityEnglishExplanation(p.branch.deity);
-    return `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) — 십성: ${p.stem.deity}/${p.branch.deity}` +
-      (stemDeityEng ? ` (${stemDeityEng})` : '') +
-      (branchDeityEng ? ` (${branchDeityEng})` : '');
-  }).join('\n');
-
-  const daeunContext = daeun.map((d: any) => {
-    const stemHangul = hanjaToHangul[d.stem] || d.stem;
-    const branchHangul = hanjaToHangul[d.branch] || d.branch;
-    return `${d.startAge}세(${d.startYear}~${d.startYear + 9}년) 대운: ${stemHangul}(${d.stem})${branchHangul}(${d.branch})`;
-  }).join(', ');
-
-  const yongshinContext = `강약: ${yongshin.strength} | 조후: ${yongshin.johooStatus} | 용신: ${yongshin.yongshin} | 기신: ${yongshin.eokbuYongshin ?? ''} | 논리: ${yongshin.logicBasis ?? ''}`;
-
-  const hapchungContext = getHapChungSummary(saju);
-  const shinsalContext = getShinsalSummary(saju);
-  const sipseungContext = getOriginalSipseungSummary(saju[2]?.stem?.hanja ?? '', saju);
+  // 2. 컨텍스트 문자열 생성 (어댑터 — diff 하네스: src/lib/analysis/promptContext.test.ts)
+  const { sajuContext, daeunContext, yongshinContext, hapchungContext, shinsalContext, sipseungContext } =
+    sajuAnalysisToPromptContext(analysis);
 
   const lifeEventsText = inputData.lifeEvents.length > 0
     ? inputData.lifeEvents.map(e => `${e.year}년: ${e.description}`).join('\n')
