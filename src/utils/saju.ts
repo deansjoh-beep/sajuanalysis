@@ -86,6 +86,58 @@ const getSolarFromBirthInput = (
   );
 };
 
+/**
+ * 연주(年柱)·월주(月柱)를 출생 '실제 순간' 기준으로 산출한다.
+ *
+ * 배경(Phase 1-1 확정 버그): lunar-javascript의 절기 테이블은 **베이징시(UTC+8)** 기준이다.
+ * 종전 코드는 출생시각에만 진태양시 보정(−32분+EOT)을 적용한 값을 그대로 먹여, 절입 경계가
+ * 실제 절입_KST보다 평균 ~28분 이르게 잡혔다(연주=입춘, 월주=각 절 모두 영향).
+ * 정론상 진태양시를 출생·절입에 동일 적용하면 상쇄되므로 올바른 경계는 절입_KST 그 순간이다.
+ *
+ * 해법: 출생의 실제 순간(진태양시 보정 '전' KST 벽시계 → UTC)을 다시 **베이징 벽시계**로 표현해
+ * lunar-javascript에 먹인다. 그러면 절기(베이징) 대 출생(베이징)이 같은 프레임에서 비교되어
+ * 경계가 실제 절입 시각과 일치한다. 시주(진태양시 시辰)·일주는 종전 계산을 그대로 쓴다.
+ *
+ * 절기 기준 산출(연·월주, 대운 방향·대운수)에 공통으로 쓰인다.
+ * @param localDateTime 진태양시 보정 '전'의 KST 벽시계(표준시·서머타임 정규화는 이미 반영됨)
+ */
+const getBeijingInstant = (
+  localDateTime: DateTime,
+  isLunar: boolean,
+  isLeap: boolean
+) => {
+  // 실제 양력 벽시계(KST). 음력 입력이면 양력으로 변환.
+  const solarKst = getSolarFromBirthInput(localDateTime, isLunar, isLeap);
+  // KST 벽시계 → 실제 UTC 순간
+  const realUtcMs =
+    Date.UTC(
+      solarKst.getYear(),
+      solarKst.getMonth() - 1,
+      solarKst.getDay(),
+      solarKst.getHour(),
+      solarKst.getMinute(),
+      solarKst.getSecond()
+    ) -
+    9 * 3600 * 1000;
+  // 같은 순간을 베이징(UTC+8) 벽시계로 표현 → lunar-javascript 절기(베이징)와 같은 프레임
+  const bj = new Date(realUtcMs + 8 * 3600 * 1000);
+  const beijingSolar = Solar.fromYmdHms(
+    bj.getUTCFullYear(),
+    bj.getUTCMonth() + 1,
+    bj.getUTCDate(),
+    bj.getUTCHours(),
+    bj.getUTCMinutes(),
+    bj.getUTCSeconds()
+  );
+  const beijingLunar = beijingSolar.getLunar();
+  return {
+    realUtcMs,
+    birthSolarYear: solarKst.getYear(),
+    beijingLunar,
+    beijingEightChar: beijingLunar.getEightChar(),
+  };
+};
+
 export const calculateDeity = (dayStem: string, targetChar: string, isBranch: boolean = false) => {
   let targetStem = targetChar;
   if (isBranch && hiddenStems[targetChar]) {
@@ -310,9 +362,12 @@ export const getSajuData = (
     console.warn('Failed to setDayZero in getSajuData:', e);
   }
   
+  // Phase 1-1 수정: 연·월주는 절기 경계가 실제 절입 시각과 일치하도록 출생 실제 순간
+  // (진태양시 보정 전) 기준으로 재산출한다. 일·시주는 진태양시 기준 eightChar를 유지.
+  const { beijingEightChar } = getBeijingInstant(localDateTime, isLunar, isLeap);
   const pillars = [
-    { title: '년주', char: eightChar.getYear() },
-    { title: '월주', char: eightChar.getMonth() },
+    { title: '년주', char: beijingEightChar.getYear() },
+    { title: '월주', char: beijingEightChar.getMonth() },
     { title: '일주', char: eightChar.getDay() },
     { title: '시주', char: unknownTime ? '??' : eightChar.getTime() }
   ];
@@ -598,36 +653,42 @@ export const getDaeunData = (
       localDateTime = localDateTime.plus({ minutes: kstOffset });
     }
   }
-  const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
-  const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
+  // Phase 1-1 수정: 대운 방향(연간 음양)·시작 월주·대운수를 모두 출생 실제 순간(베이징 프레임)
+  // 기준으로 산출한다. getSajuData의 연·월주 수정과 일관성을 맞춰 입춘/절 경계 부근 모순을 제거.
+  const { realUtcMs, birthSolarYear, beijingLunar, beijingEightChar } = getBeijingInstant(
+    localDateTime,
+    isLunar,
+    isLeap
+  );
 
-  const lunar = adjustedSolar.getLunar();
-  const eightChar = lunar.getEightChar();
-  try {
-    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
-      (eightChar as any).setDayZero(2);
-    }
-  } catch (e) {
-    console.warn('Failed to setDayZero in getDaeunData:', e);
-  }
-  const yearStem = eightChar.getYear().charAt(0);
+  const yearStem = beijingEightChar.getYear().charAt(0);
   const isYangYear = yinYangMap[yearStem] === '+';
-  
+
   const isForward = gender === 'M' ? isYangYear : !isYangYear;
 
-  const targetJie = isForward ? lunar.getNextJie() : lunar.getPrevJie();
+  // 대운수: 출생 실제 순간에서 다음(순행)/이전(역행) 절(節)까지의 거리 ÷ 3.
+  // 절 시각은 lunar-javascript(베이징시) → 실제 UTC 순간으로 환산해 birth와 같은 프레임에서 비교.
+  const targetJie = isForward ? beijingLunar.getNextJie() : beijingLunar.getPrevJie();
   const targetSolar = targetJie.getSolar();
-  
-  const birthTime = Date.UTC(adjustedSolar.getYear(), adjustedSolar.getMonth() - 1, adjustedSolar.getDay(), adjustedSolar.getHour(), adjustedSolar.getMinute(), adjustedSolar.getSecond());
-  const jieTime = Date.UTC(targetSolar.getYear(), targetSolar.getMonth() - 1, targetSolar.getDay(), targetSolar.getHour(), targetSolar.getMinute(), targetSolar.getSecond());
-  const diffSeconds = Math.abs(jieTime - birthTime) / 1000;
-  
+
+  const jieUtcMs =
+    Date.UTC(
+      targetSolar.getYear(),
+      targetSolar.getMonth() - 1,
+      targetSolar.getDay(),
+      targetSolar.getHour(),
+      targetSolar.getMinute(),
+      targetSolar.getSecond()
+    ) -
+    8 * 3600 * 1000;
+  const diffSeconds = Math.abs(jieUtcMs - realUtcMs) / 1000;
+
   const diffDays = diffSeconds / (24 * 3600);
-  
+
   let daeunSu = Math.round(diffDays / 3);
   if (daeunSu === 0) daeunSu = 1;
 
-  const monthPillar = eightChar.getMonth();
+  const monthPillar = beijingEightChar.getMonth();
   const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
   const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
   
@@ -650,8 +711,9 @@ export const getDaeunData = (
     
     daeuns.push({
       startAge: startAge,
-      // 만 나이 기준: 첫 대운은 출생 후 daeunSu년(만 daeunSu세)에 시작 → startYear = 출생연도 + startAge
-      startYear: adjustedSolar.getYear() + startAge,
+      // 만 나이 기준(origin main fcf563b 정책): 첫 대운은 출생 후 daeunSu년(만 daeunSu세)에 시작
+      // → startYear = 출생연도 + startAge. birthSolarYear는 베이징 프레임 산출의 KST 출생연도.
+      startYear: birthSolarYear + startAge,
       stem: stem,
       branch: branch,
       description: branchDescription[branch] || ''

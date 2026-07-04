@@ -74,6 +74,45 @@ describe('saju utils', () => {
     expect(hiddenStems['午']).toEqual(['병', '기', '정']);
   });
 
+  // Phase 1-1: 연·월주 절입 경계가 실제 절입_KST 순간과 일치해야 한다.
+  // (종전 버그: 출생만 진태양시·절기는 베이징시라 경계가 평균 ~28분 이르게 잡혔음.)
+  describe('절입 경계 정확도 (연·월주)', () => {
+    // 2024 입춘 = 2024-02-04 17:27:07 KST. 이 순간에 연주 癸卯→甲辰, 월주 乙丑(丑월)→丙寅(寅월).
+    test('입춘 직전 출생은 이전 연·월주(癸卯/乙丑)', () => {
+      const saju = getSajuData('2024-02-04', '17:25', false, false, false, 'Asia/Seoul');
+      expect(`${saju[3].stem.hanja}${saju[3].branch.hanja}`).toBe('癸卯'); // 년주
+      expect(`${saju[2].stem.hanja}${saju[2].branch.hanja}`).toBe('乙丑'); // 월주
+    });
+
+    test('입춘 직후 출생은 이후 연·월주(甲辰/丙寅)', () => {
+      const saju = getSajuData('2024-02-04', '17:29', false, false, false, 'Asia/Seoul');
+      expect(`${saju[3].stem.hanja}${saju[3].branch.hanja}`).toBe('甲辰');
+      expect(`${saju[2].stem.hanja}${saju[2].branch.hanja}`).toBe('丙寅');
+    });
+
+    test('회귀: 입춘 7분 전(17:20)은 조기 전환하지 않는다 (종전 버그는 甲辰)', () => {
+      // 버그 시절 경계가 ~17:13이라 17:20이 이미 甲辰으로 넘어갔었다. 수정 후엔 癸卯여야 함.
+      const saju = getSajuData('2024-02-04', '17:20', false, false, false, 'Asia/Seoul');
+      expect(`${saju[3].stem.hanja}${saju[3].branch.hanja}`).toBe('癸卯');
+      expect(saju[2].branch.hanja).toBe('丑');
+    });
+
+    test('월 경계(청명 2024 16:02): 직전 卯월 → 직후 辰월', () => {
+      const before = getSajuData('2024-04-04', '16:00', false, false, false, 'Asia/Seoul');
+      const after = getSajuData('2024-04-04', '16:05', false, false, false, 'Asia/Seoul');
+      expect(before[2].branch.hanja).toBe('卯');
+      expect(after[2].branch.hanja).toBe('辰');
+    });
+
+    test('절입 경계 전후로 시주(진태양시 기준)는 변하지 않는다', () => {
+      // 일·시주는 절기와 무관 → 경계 전후 동일해야 한다(진태양시 계산 보존 확인).
+      const before = getSajuData('2024-02-04', '17:25', false, false, false, 'Asia/Seoul');
+      const after = getSajuData('2024-02-04', '17:29', false, false, false, 'Asia/Seoul');
+      expect(`${before[0].stem.hanja}${before[0].branch.hanja}`).toBe(`${after[0].stem.hanja}${after[0].branch.hanja}`); // 시주
+      expect(`${before[1].stem.hanja}${before[1].branch.hanja}`).toBe(`${after[1].stem.hanja}${after[1].branch.hanja}`); // 일주
+    });
+  });
+
   test('getAdjustedTime(deprecated)은 policy 결과를 그대로 재노출한다', () => {
     // Phase 1-1 리팩터링: policy 모듈로 이관되었으므로 결과가 일치해야 한다
     expect(getAdjustedTime(1955, 6, 15, 10, 0)).toBe(getKstNormalizationOffsetMinutes(1955, 6, 15));
