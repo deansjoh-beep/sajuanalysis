@@ -8,19 +8,21 @@
  *      2) 프로그램적으로 생성한 경계 케이스(절입 ±24h, 야자시/조자시, 서머타임)
  *  - 불일치를 유형별로 분류해 `docs/audit/manseryeok-report.md`에 반영할 수치를 산출한다.
  *
- * 한계:
- *  - IMPLEMENTATION_PLAN.md는 KASI 기준 1,000건 대조를 요구하지만, KASI 데이터셋 확보는
- *    OWNER 결정 사항(외부 발주 or API 계약)에 속한다. 이 스크립트는 확보 후 즉시 붙일 수 있도록
- *    `REFERENCE_DATASET` 배열 구조를 확정해 둔다.
+ * KASI 대조 모드 (Phase 1-1 통합):
+ *  - `kasi-expected.ts`가 KASI 절입 시각 + 순수 산술(60갑자 JDN·오호둔·오서둔)로 8자 expected를
+ *    독립 산출한다(lunar-javascript 미사용). 이를 무작위 1,000건 + 절입 경계 타깃 케이스에 주입해
+ *    진짜 정확도 %를 산출한다. IMPLEMENTATION_PLAN.md DoD("KASI 기준 1,000건 정확도 100%") 지표.
+ *  - 커버리지: KASI 실측 2000~2028년. 공백연도(1900~1999, 2029~)는 jieqi-astro 감시로 별도 커버.
  *
  * 실행: `npx tsx scripts/audit/manseryeok-verify.ts`
  */
 
 import { getSajuData, getDaeunData, getAdjustedTime } from '../../src/utils/saju';
+import { loadJeolInstants, expectedEightChar, type JeolInstant } from './kasi-expected';
 
 type ReferenceCase = {
   id: string;
-  category: 'known-good' | 'boundary-절입' | 'boundary-야자시' | 'boundary-조자시' | 'boundary-DST' | 'boundary-표준시변경';
+  category: 'known-good' | 'boundary-절입' | 'boundary-야자시' | 'boundary-조자시' | 'boundary-DST' | 'boundary-표준시변경' | 'kasi-boundary' | 'kasi-random';
   input: {
     dateStr: string;    // 'YYYY-MM-DD' (양력 표기 원문; isLunar가 true면 음력)
     timeStr: string;    // 'HH:mm'
@@ -224,12 +226,121 @@ const buildRandomCases = (n: number, seed: number): ReferenceCase[] => {
   return cases;
 };
 
+const KST_MS = 9 * 3600 * 1000;
+
+const toKstWallClock = (utcMs: number): { dateStr: string; timeStr: string } => {
+  const kst = new Date(utcMs + KST_MS);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return {
+    dateStr: `${kst.getUTCFullYear()}-${p(kst.getUTCMonth() + 1)}-${p(kst.getUTCDate())}`,
+    timeStr: `${p(kst.getUTCHours())}:${p(kst.getUTCMinutes())}`,
+  };
+};
+
+/**
+ * KASI 대조: 절입 경계 타깃 케이스.
+ * 각 절(節)의 ±5분(경계 직전/직후)·±6시간에 expected 8자를 주입한다.
+ * ±5분은 KASI 분해상도(분)·엔진 실측 오차(±2분)를 상회하는 안전 마진.
+ * 천문계산 패치 항(2011 입동)은 ±14분 정밀도라 근접 오프셋을 생략한다.
+ */
+const buildKasiBoundaryCases = (jeol: JeolInstant[]): ReferenceCase[] => {
+  const cases: ReferenceCase[] = [];
+  for (const t of jeol) {
+    const offsets = t.patched ? [-360, 360] : [-360, -5, 5, 360];
+    for (const off of offsets) {
+      const birthUtcMs = t.utcMs + off * 60000;
+      const { dateStr, timeStr } = toKstWallClock(birthUtcMs);
+      const expected = expectedEightChar(jeol, dateStr, timeStr);
+      if (!expected) continue; // 커버리지 밖 (예: 첫 절 -6h)
+      const kstYear = new Date(t.utcMs + KST_MS).getUTCFullYear();
+      cases.push({
+        id: `kasi-jeol-${kstYear}-${t.name}-${off >= 0 ? '+' : ''}${off}m`,
+        category: 'kasi-boundary',
+        input: { dateStr, timeStr, isLunar: false, isLeap: false },
+        expected: { year: expected.year, month: expected.month, day: expected.day, hour: expected.hour },
+        note: `${kstYear} ${t.name} ${off >= 0 ? '+' : ''}${off}분`,
+      });
+    }
+  }
+  return cases;
+};
+
+/**
+ * KASI 대조: 일주 자정 경계 타깃 케이스.
+ * 진태양시 보정(경도 −32.1분 + EOT −14~+16분 = 총 −46~−16분)으로 00:00~00:46 출생은
+ * 일주가 전날로 넘어갈 수 있다. 이 flip 구간과 야자시(23시대)를 명시적으로 검증한다.
+ */
+const buildKasiMidnightCases = (jeol: JeolInstant[]): ReferenceCase[] => {
+  const cases: ReferenceCase[] = [];
+  const times = ['23:40', '00:05', '00:20', '00:35', '00:50', '01:05'];
+  for (const year of [2000, 2007, 2014, 2021, 2028]) {
+    for (let month = 1; month <= 12; month++) {
+      for (const timeStr of times) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-15`;
+        const expected = expectedEightChar(jeol, dateStr, timeStr);
+        if (!expected || expected.minutesToNearestJeol < 5) continue;
+        cases.push({
+          id: `kasi-midnight-${dateStr}-${timeStr}`,
+          category: 'kasi-boundary',
+          input: { dateStr, timeStr, isLunar: false, isLeap: false },
+          expected: { year: expected.year, month: expected.month, day: expected.day, hour: expected.hour },
+          note: '일주 자정/야자시 경계 (진태양시 보정 포함)',
+        });
+      }
+    }
+  }
+  return cases;
+};
+
+/**
+ * KASI 대조: 무작위 n건 (KASI 커버리지 2000~2028 내, 시드 기반 결정론).
+ * 절입 ±5분 이내(기준·엔진 분해상도 중첩 구간)와 천문계산 패치 항 ±45분 이내는
+ * expected 신뢰도가 부족해 건너뛰고 다음 후보로 대체한다(총 n건 유지, 제외 수 로그).
+ */
+const buildKasiRandomCases = (
+  jeol: JeolInstant[],
+  n: number,
+  seed: number,
+): { cases: ReferenceCase[]; skippedNearBoundary: number } => {
+  let s = seed;
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+  const startMs = Date.UTC(2000, 1, 15); // 2000-02-15 (입춘 2000 이후, 연주 확정 가능 구간)
+  const endMs = Date.UTC(2028, 11, 28);
+  const cases: ReferenceCase[] = [];
+  let skipped = 0;
+  while (cases.length < n) {
+    const ms = startMs + Math.floor((rand() * (endMs - startMs)) / 60000) * 60000;
+    const { dateStr, timeStr } = toKstWallClock(ms);
+    const expected = expectedEightChar(jeol, dateStr, timeStr);
+    if (!expected) continue;
+    if (expected.minutesToNearestJeol < 5 || (expected.nearestJeolPatched && expected.minutesToNearestJeol < 45)) {
+      skipped++;
+      continue;
+    }
+    cases.push({
+      id: `kasi-rand-${cases.length}`,
+      category: 'kasi-random',
+      input: { dateStr, timeStr, isLunar: false, isLeap: false },
+      expected: { year: expected.year, month: expected.month, day: expected.day, hour: expected.hour },
+    });
+  }
+  return { cases, skippedNearBoundary: skipped };
+};
+
 const main = () => {
   const boundaryJieqi = buildBoundaryJieqi();
   const boundaryYajasi = buildBoundaryYajasi();
   const boundaryDST = buildBoundaryDST();
   const boundaryStd = buildBoundaryStdTime();
   const randomCases = buildRandomCases(1000, 42);
+
+  // KASI 대조 모드 (expected 있는 진짜 정확도 검증)
+  const jeol = loadJeolInstants();
+  const kasiBoundary = [...buildKasiBoundaryCases(jeol), ...buildKasiMidnightCases(jeol)];
+  const { cases: kasiRandom, skippedNearBoundary } = buildKasiRandomCases(jeol, 1000, 20260704);
 
   const allCases = [
     ...KNOWN_GOOD,
@@ -238,6 +349,8 @@ const main = () => {
     ...boundaryDST,
     ...boundaryStd,
     ...randomCases,
+    ...kasiBoundary,
+    ...kasiRandom,
   ];
 
   const results = allCases.map(runOne);
@@ -252,6 +365,38 @@ const main = () => {
 
   console.log('\n===== Manseryeok Verify Summary =====');
   console.log(JSON.stringify(summary, null, 2));
+
+  // ===== KASI 대조 정확도 (DoD 지표) =====
+  const kasiResults = results.filter(
+    (r) => r.case.category === 'kasi-boundary' || r.case.category === 'kasi-random',
+  );
+  const kasiByCat = (cat: ReferenceCase['category']) => {
+    const rs = kasiResults.filter((r) => r.case.category === cat);
+    const ok = rs.filter((r) => r.verdict === 'match').length;
+    return { total: rs.length, match: ok, pct: rs.length ? (100 * ok) / rs.length : 0 };
+  };
+  const kb = kasiByCat('kasi-boundary');
+  const kr = kasiByCat('kasi-random');
+  console.log('\n===== KASI 대조 정확도 (expected 8자 독립 산출 기준) =====');
+  console.log(`  절입 경계 타깃: ${kb.match}/${kb.total} (${kb.pct.toFixed(2)}%)`);
+  console.log(`  무작위 1,000건: ${kr.match}/${kr.total} (${kr.pct.toFixed(2)}%)  [경계근접 제외 후 재추출: ${skippedNearBoundary}건]`);
+
+  const kasiMismatches = kasiResults.filter((r) => r.verdict !== 'match');
+  if (kasiMismatches.length > 0) {
+    console.log(`\n  불일치 ${kasiMismatches.length}건 — 주(柱)별 분해:`);
+    const pillarKeys = ['year', 'month', 'day', 'hour'] as const;
+    const byPillar: Record<string, number> = { year: 0, month: 0, day: 0, hour: 0 };
+    for (const m of kasiMismatches) {
+      if (!m.actual || !m.case.expected) continue;
+      for (const k of pillarKeys) {
+        if ((m.actual as any)[k] !== m.case.expected[k]) byPillar[k]++;
+      }
+    }
+    console.log(`  ${JSON.stringify(byPillar)}`);
+    for (const m of kasiMismatches.slice(0, 30)) {
+      console.log(`  ${JSON.stringify({ id: m.case.id, input: m.case.input, expected: m.case.expected, actual: m.actual, verdict: m.verdict })}`);
+    }
+  }
 
   const mismatches = results.filter(r => r.verdict === 'mismatch' || r.verdict === 'structural-fail' || r.verdict === 'error');
   if (mismatches.length > 0) {
