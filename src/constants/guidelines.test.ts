@@ -210,6 +210,18 @@ describe('buildConsultingSystemInstruction 프롬프트 조립', () => {
     nearbyYearPillars: DUMMY_NEARBY_YEAR_PILLARS,
   };
 
+  test('일진 달력(어제/오늘/내일/모레) 값이 프롬프트에 그대로 주입됨', () => {
+    const prompt = buildConsultingSystemInstruction({
+      ...baseParams,
+      mode: 'basic',
+      modeSpecificGuideline: `${CONSULTING_GUIDELINE}\n\n${BASIC_CONSULTING_GUIDELINE}`,
+    });
+    expect(prompt).toContain('계해(癸亥)');
+    expect(prompt).toContain('갑자(甲子)');
+    expect(prompt).toContain('을축(乙丑)');
+    expect(prompt).toContain('병인(丙寅)');
+  });
+
   test('basic 모드: 프롬프트에 CONSULTING_GUIDELINE 내용이 포함됨', () => {
     const modeSpecificGuideline = `${CONSULTING_GUIDELINE}\n\n${BASIC_CONSULTING_GUIDELINE}`;
     const prompt = buildConsultingSystemInstruction({
