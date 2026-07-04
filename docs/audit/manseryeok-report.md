@@ -218,3 +218,10 @@ npx tsx scripts/audit/manseryeok-verify.ts
 - 호환: saju.ts의 두 함수는 얇은 레거시 어댑터(`toLegacyYongshin`/`toLegacyGyeok`)로 위임 — App.tsx·`generatePremiumReport`·`taekilEngine` 무변경.
 - 테스트 15건(`gyeokyongshin.test.ts`): 격국(상관격 회귀·건록격·양인격·정관격 투간), 신강/신약 불변식(isStrong⇔score≥50·득령/득지 일치·밴드 단조), 용신(한랭→fire·조열→water·평온→억부), 레거시 어댑터 동치, 결정론, provisional 표기. 전체 스위트 **115/115**.
 - ⛔ 남은 위험: `tsc --noEmit`에 무관한 선존재 오류 1건(`PremiumOrdersPanel.tsx` `naverOrderNumber`, 커밋 9b403dd 유래) — 이번 작업과 무관.
+
+### 8-7. SajuAnalysis 구조 분석 스키마 조립 (신규: `src/lib/analysis/schema.ts`, 플랜 1-2)
+- `buildSajuAnalysis(input)`: 리포트 생성(1-3)의 유일 입력이 되는 결정론 구조체. 검증된 만세력 산출물 + provisional 격국·용신을 하나로 조립.
+- 포함 필드(플랜 1-2 요구 전부): 명식 8자(위치별 십신·지장간·십이운성), 일간, 오행 분포 카운트, 대운 10개(**현재 대운 표시**), 세운(조회 시점), 월운 12개(절입 기준, 현재 월 표시), **원국↔세운↔월운 합충 이벤트 목록**(천간합·충/육합/삼합·반합/충·형·파·해·원진 태그 배열), 공망(원국 해당 + 세운/월운 공망 여부), 신살(연지 12신살 + 일간 귀인/살 구조화), 절입경계 플래그.
+- 격국·용신: `gyeokYongshin` **널 허용 예약 필드**(플랜 1-2)에 provisional 값을 채움(`provisional: true`). 정식화는 Phase 3(D-1-6).
+- 조립은 기존 검증 헬퍼(getSajuData·getDaeunData·getCurrentWolun·getGongmang·getShinsal·getSipseung·합충 술어 등) 재사용 — 신규 만세력 로직 없음.
+- 테스트 15건(`schema.test.ts`): 명식 간지·오행 합8·위치별 십신, 대운 원본 정합·현재대운 유일성, 세운/월운 getCurrentWolun 정합, 공망(己酉→寅卯), 신살/합충 구조, 격국용신 provisional, 시간미상 시주 null, 결정론. 전체 스위트 **130/130**.
