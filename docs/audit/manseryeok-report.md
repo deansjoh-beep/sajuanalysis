@@ -201,7 +201,7 @@ npx tsx scripts/audit/manseryeok-verify.ts
 
 ### 8-4. 잔여 항목 (Phase 1-1 후속)
 1. ~~월운 12개 산출(절입 기준)~~ — ✅ §8-5.
-2. 격국·용신 `SajuAnalysis` 스키마 편입.
+2. ~~격국·용신 정리·구조화~~ — ✅ §8-6 (provisional v1).
 3. `getDaeunData` 전용 단위 테스트 보강 + D-1-5(대운수 반올림 정책) 결정.
 
 ### 8-5. 월운(月運) 12개 산출 구현 (신규: `src/lib/manseryeok/wolun.ts`)
@@ -210,3 +210,11 @@ npx tsx scripts/audit/manseryeok-verify.ts
 - `getSeunGanzhi(year)`: 세운 간지.
 - 절입 시각은 lunar-javascript(D-1-4 1차 기준, 베이징→KST 환산) — 엔진 월주(`getBeijingInstant` 프레임)와 동일 기준이라 자동 정합.
 - 테스트 9건(`wolun.test.ts`): 오호둔 시퀀스, 구간 연속 불변식, KASI 실측 ±2분 대조(2026년 13개 경계), **엔진 월주와 경계 ±5분 정합**, 입춘 전 1월의 전년도 귀속, KASI 커버리지 밖 연도(1970·2030) 완주. 전체 스위트 100/100.
+
+### 8-6. 격국·용신 정리·구조화 — provisional v1 (신규: `src/lib/analysis/gyeokyongshin.ts`)
+- ⚠️ **만세력과 성격이 다르다.** 격국·용신은 유파(자평·궁통보감·적천수 등)마다 판정이 근본적으로 갈리며 KASI 같은 **검증 가능한 단일 정답이 없다.** 따라서 "정확도 100%" 대상이 아니며, 플랜 1-2 지침대로 **v1은 provisional 휴리스틱**으로 취급한다(정식 규칙 엔진은 Phase 3, 유파는 OWNER 결정 D-1-6).
+- 한 일: 기존 saju.ts에 산재하던 `calculateYongshin`/`calculateGyeok` 휴리스틱을 `analyzeGyeokYongshin`으로 정리·타입화. 모든 출력에 `provisional: true`·유파 경고문(`schoolNote`) 부착.
+- 구조화·개선(검증 가능한 부분만): 신강/신약을 득령(得令)·득지(得地)·득세(得勢) 3분해로 투명화, 투간(透干) 플래그, 격명 정본화(월지 본기 비견=**건록격**·겁재=**양인격**, 종전 '비견격/겁재격' 대체). **수치·최종 선택 로직은 종전과 동일**(런타임 통변 텍스트 불변).
+- 호환: saju.ts의 두 함수는 얇은 레거시 어댑터(`toLegacyYongshin`/`toLegacyGyeok`)로 위임 — App.tsx·`generatePremiumReport`·`taekilEngine` 무변경.
+- 테스트 15건(`gyeokyongshin.test.ts`): 격국(상관격 회귀·건록격·양인격·정관격 투간), 신강/신약 불변식(isStrong⇔score≥50·득령/득지 일치·밴드 단조), 용신(한랭→fire·조열→water·평온→억부), 레거시 어댑터 동치, 결정론, provisional 표기. 전체 스위트 **115/115**.
+- ⛔ 남은 위험: `tsc --noEmit`에 무관한 선존재 오류 1건(`PremiumOrdersPanel.tsx` `naverOrderNumber`, 커밋 9b403dd 유래) — 이번 작업과 무관.

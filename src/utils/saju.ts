@@ -6,6 +6,7 @@ import {
   JIEQI_BOUNDARY_HOURS,
   getKstNormalizationOffsetMinutes,
 } from '../lib/manseryeok/policy.js';
+import { analyzeGyeokYongshin, toLegacyGyeok } from '../lib/analysis/gyeokyongshin.js';
 
 export const hanjaToHangul: Record<string, string> = {
   '甲': '갑', '乙': '을', '丙': '병', '丁': '정', '戊': '무', '己': '기', '庚': '경', '辛': '신', '壬': '임', '癸': '계',
@@ -201,6 +202,12 @@ export const calculateDeity = (dayStem: string, targetChar: string, isBranch: bo
   return '';
 };
 
+/**
+ * 억부·조후 용신 판정. 조후는 월지(±2)·시지(±1) 온도 가중(origin main 9057c3b
+ * "조후·운 작용력 분리" 규칙)으로 산출한다.
+ * ⚠️ 격국·용신은 유파 의존 잠정 해석(검증된 단일 정답 없음). 구조화 출력
+ * (득령/득지/득세·provisional 등)은 lib/analysis/gyeokyongshin.ts를 직접 임포트하라.
+ */
 export const calculateYongshin = (sajuData: any[]) => {
   const pillars = [...sajuData].reverse();
   const dayMaster = pillars[2].stem;
@@ -726,58 +733,16 @@ export const getDaeunData = (
   return daeuns;
 };
 
+/**
+ * @deprecated Phase 1-2부터 판정 로직은 `lib/analysis/gyeokyongshin.ts::analyzeGyeokYongshin`로
+ * 이관·구조화되었다. 이 함수는 기존 반환 형태 호환을 위한 얇은 어댑터다.
+ * 정본화: 월지 본기가 비견=건록격, 겁재=양인격으로 판정된다(종전 '비견격/겁재격' 대체).
+ * ⚠️ 격국은 유파 의존 잠정 해석(검증된 단일 정답 없음).
+ */
 export const calculateGyeok = (sajuData: any[]) => {
-  if (!sajuData || sajuData.length < 4) return { gyeok: '분석 불가', composition: '' };
-  
-  const pillars = [...sajuData].reverse(); // [Year, Month, Day, Hour]
-  const dayMaster = pillars[2].stem.hanja;
-  const monthBranch = pillars[1].branch.hanja;
-  
-  // Get hidden stems of Month Branch
-  const hidden = hiddenStems[monthBranch] || [];
-  const hiddenHanjas = hidden.map(h => Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '');
-  
-  // Heavenly Stems (excluding Day Master)
-  const heavenlyStems = [pillars[0].stem.hanja, pillars[1].stem.hanja, pillars[3].stem.hanja];
-  
-  let gyeokStem = '';
-  
-  // 1. Check if any hidden stem appears in Heavenly Stems
-  // Priority: Main (Bon-gi) > Middle (Jung-gi) > Initial (Yeo-gi)
-  // hiddenStems array is [Initial, (Middle), Main]
-  for (let i = hiddenHanjas.length - 1; i >= 0; i--) {
-    if (heavenlyStems.includes(hiddenHanjas[i])) {
-      gyeokStem = hiddenHanjas[i];
-      break;
-    }
-  }
-  
-  // 2. If none appear, use Main energy (Bon-gi)
-  if (!gyeokStem && hiddenHanjas.length > 0) {
-    gyeokStem = hiddenHanjas[hiddenHanjas.length - 1];
-  }
-  
-  const deity = calculateDeity(dayMaster, gyeokStem);
-  const gyeokName = deity ? `${deity}격` : '특수격';
-  
-  // Calculate composition
-  const allDeities: string[] = [];
-  pillars.forEach((p, i) => {
-    if (p.stem.deity && p.stem.deity !== '일간') allDeities.push(p.stem.deity);
-    if (p.branch.deity) allDeities.push(p.branch.deity);
-  });
-  
-  const counts: Record<string, number> = {};
-  allDeities.forEach(d => {
-    counts[d] = (counts[d] || 0) + 1;
-  });
-  
-  const composition = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => `${name} ${count}개`)
-    .join(', ');
-    
-  return { gyeok: gyeokName, composition };
+  const analysis = analyzeGyeokYongshin(sajuData);
+  if (!analysis) return { gyeok: '분석 불가', composition: '' };
+  return toLegacyGyeok(analysis);
 };
 
 /** 십이운성(十二運星) 조견표: 일간 한자 + 지지 한자 → 운성 이름 */
