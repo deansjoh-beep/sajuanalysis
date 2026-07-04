@@ -13,9 +13,9 @@ import {
   orderCreateLimiter,
   taekilLimiter,
   generalLimiter,
-} from "./api/lib/rate-limit.ts";
-import { serializeTimestamps } from "./api/lib/serialize.ts";
-import { generateDailyFortuneForSaju } from "./api/lib/dailyFortune.ts";
+} from "./api/_lib/rate-limit.ts";
+import { serializeTimestamps } from "./api/_lib/serialize.ts";
+import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
 import { getSeoulTodayYmd } from "./src/lib/seoulDateGanji.ts";
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getStorage as getAdminStorage, Storage } from 'firebase-admin/storage';

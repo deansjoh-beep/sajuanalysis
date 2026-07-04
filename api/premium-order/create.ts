@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkVercelRateLimit, orderCreateLimiter } from '../lib/rate-limit.js';
+import { checkVercelRateLimit, orderCreateLimiter } from '../_lib/rate-limit.js';
 
 // --- Firebase Admin Utils (inlined) ---
 const DEFAULT_FIRESTORE_DB = 'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9';

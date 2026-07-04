@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb, getAdminAuth, getAdminMessaging } from './lib/admin.js';
-import { generateDailyFortuneForSaju, type MemberSajuInput, type DailyFortune } from './lib/dailyFortune.js';
-import { serializeTimestamps } from './lib/serialize.js';
+import { getAdminDb, getAdminAuth, getAdminMessaging } from './_lib/admin.js';
+import { generateDailyFortuneForSaju, type MemberSajuInput, type DailyFortune } from './_lib/dailyFortune.js';
+import { serializeTimestamps } from './_lib/serialize.js';
 import { getSeoulTodayYmd } from '../src/lib/seoulDateGanji.js';
-import { checkVercelRateLimit, generalLimiter } from './lib/rate-limit.js';
+import { checkVercelRateLimit, generalLimiter } from './_lib/rate-limit.js';
 
 /**
  * 회원 관련 통합 엔드포인트 (Hobby 플랜 서버리스 함수 12개 한도 대응으로 통합).
