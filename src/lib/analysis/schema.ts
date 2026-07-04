@@ -32,9 +32,9 @@ import {
   elementMap,
   hanjaToHangul,
   hiddenStems,
-} from '../../utils/saju';
-import { getWolunData, getCurrentWolun, type WolunMonth } from '../manseryeok/wolun';
-import { analyzeGyeokYongshin, type GyeokYongshin } from './gyeokyongshin';
+} from '../../utils/saju.js';
+import { getCurrentWolun, type WolunMonth } from '../manseryeok/wolun.js';
+import { analyzeGyeokYongshin, type GyeokYongshin } from './gyeokyongshin.js';
 
 export type OhaengKey = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 export type PillarPosition = '년주' | '월주' | '일주' | '시주';

@@ -19,7 +19,7 @@
  * 겁재→양인격)뿐이다.
  */
 
-import { calculateDeity, elementMap, hiddenStems, hanjaToHangul } from '../../utils/saju';
+import { calculateDeity, elementMap, hiddenStems, hanjaToHangul } from '../../utils/saju.js';
 
 export type OhaengElement = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 
@@ -174,14 +174,21 @@ export const analyzeGyeokYongshin = (sajuData: Pillar[]): GyeokYongshin | null =
   // ── 억부용신 ──
   const eokbu: OhaengElement = gangyak.isStrong ? CONTROLLED_BY[dayElement] : PRODUCED_BY[dayElement];
 
-  // ── 조후용신 ──
+  // ── 조후용신 (origin main 9057c3b "조후·운 작용력 분리": 월지 ±2, 시지 ±1 온도 가중) ──
+  // calculateYongshin(saju.ts)과 동일한 온도 판정을 사용해 리포트·구조체 간 조후 결과를 일치시킨다.
   const monthBranch = month.branch.hanja;
+  const hourBranch = hour.branch.hanja;
+  let tempScore = 0; // 음수=한랭, 양수=조열
+  if (HAN_MONTHS.includes(monthBranch)) tempScore -= 2;
+  else if (JO_MONTHS.includes(monthBranch)) tempScore += 2;
+  if (HAN_MONTHS.includes(hourBranch)) tempScore -= 1;
+  else if (JO_MONTHS.includes(hourBranch)) tempScore += 1;
   let johooStatus: YongshinResult['johooStatus'] = '평온';
   let johoo: OhaengElement | null = null;
-  if (HAN_MONTHS.includes(monthBranch)) {
+  if (tempScore <= -2) {
     johooStatus = '한랭';
     johoo = 'fire';
-  } else if (JO_MONTHS.includes(monthBranch)) {
+  } else if (tempScore >= 2) {
     johooStatus = '조열';
     johoo = 'water';
   }

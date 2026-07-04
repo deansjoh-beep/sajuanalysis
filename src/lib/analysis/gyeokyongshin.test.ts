@@ -105,7 +105,8 @@ describe('analyzeGyeokYongshin — 신강/신약 불변식', () => {
 describe('analyzeGyeokYongshin — 용신(억부·조후)', () => {
   test('한랭월(亥子丑) → 조후 우선, 용신 fire', () => {
     for (const mb of ['亥', '子', '丑']) {
-      const chart = mkChart('甲', '甲子', '甲午', `甲${mb}`, '甲午');
+      // 시지는 중립(戌)으로 두어 월지(±2)만으로 한랭 판정되는지 확인
+      const chart = mkChart('甲', '甲戌', '甲午', `甲${mb}`, '甲午');
       const r = analyzeGyeokYongshin(chart)!;
       expect(r.yongshin.johooStatus).toBe('한랭');
       expect(r.yongshin.johoo).toBe('fire');
@@ -116,7 +117,8 @@ describe('analyzeGyeokYongshin — 용신(억부·조후)', () => {
 
   test('조열월(巳午未) → 조후 우선, 용신 water', () => {
     for (const mb of ['巳', '午', '未']) {
-      const chart = mkChart('甲', '甲子', '甲寅', `甲${mb}`, '甲子');
+      // 시지는 중립(戌)으로 두어 월지(±2)만으로 조열 판정되는지 확인
+      const chart = mkChart('甲', '甲戌', '甲寅', `甲${mb}`, '甲子');
       const r = analyzeGyeokYongshin(chart)!;
       expect(r.yongshin.johooStatus).toBe('조열');
       expect(r.yongshin.johoo).toBe('water');
@@ -144,10 +146,20 @@ describe('analyzeGyeokYongshin — 용신(억부·조후)', () => {
 describe('레거시 어댑터 호환 & 위임', () => {
   const saju = getSajuData('1969-10-23', '10:00', true, false, false, 'Asia/Seoul');
 
-  test('calculateGyeok/calculateYongshin가 어댑터와 동일 결과', () => {
+  test('calculateGyeok는 어댑터(toLegacyGyeok)와 동일 결과 (위임)', () => {
     const r = analyzeGyeokYongshin(saju)!;
     expect(calculateGyeok(saju)).toEqual(toLegacyGyeok(r));
-    expect(calculateYongshin(saju)).toEqual(toLegacyYongshin(r));
+  });
+
+  test('calculateYongshin(saju.ts origin 인라인)과 모듈의 조후·용신 판정이 일치', () => {
+    // calculateYongshin은 origin main의 인라인 구현(문구는 다름). 통합된 조후(월지±2·시지±1)
+    // 덕분에 신강약·조후상태·최종 용신 오행은 모듈 산출과 동일해야 한다.
+    const r = analyzeGyeokYongshin(saju)!;
+    const legacy = calculateYongshin(saju);
+    const adapted = toLegacyYongshin(r);
+    expect(legacy.strength).toBe(adapted.strength);
+    expect(legacy.johooStatus).toBe(adapted.johooStatus);
+    expect(legacy.yongshin).toBe(adapted.yongshin);
   });
 
   test('레거시 yongshin 필드 형태 유지(문자열 오행명·strength·score)', () => {
