@@ -18,7 +18,9 @@
  *   - 'yajasi'  : 23:00~23:59도 다음 날 子時로 처리 (야자시)
  *   - 'jojasi'  : 자정(00:00) 기준. 23:00~23:59은 당일 子時, 00:00~00:59은 다음 날 子時 (조자시)
  *
- * 현재 확정: yajasi. lunar-javascript `setDayZero(2)`가 이 정책을 구현한다.
+ * 현재 확정: yajasi. lunar-javascript `EightChar.setSect(2)`(유파 2, 라이브러리 기본값)가
+ * 이 정책을 구현한다: 23시대의 시주는 익일 子時 간(干), 일주는 당일 유지.
+ * (주의: 과거 코드가 호출하던 `setDayZero`는 라이브러리에 존재하지 않는 메서드였다.)
  */
 export const YAJASI_MODE = 'yajasi' as const;
 

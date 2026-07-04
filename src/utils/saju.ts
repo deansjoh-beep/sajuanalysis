@@ -354,12 +354,15 @@ export const getSajuData = (
 
   const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
+  // D-1-1 야자시: lunar-javascript 유파 2(setSect(2), 라이브러리 기본값)를 명시 고정.
+  // 시주는 익일 子時 간(干), 일주는 당일 유지. (종전 setDayZero 호출은 존재하지 않는
+  // 메서드라 no-op이었고 기본값에 우연히 의존하고 있었음 — Phase 1-1에서 명시화.)
   try {
-    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
-      (eightChar as any).setDayZero(2);
+    if (eightChar && typeof (eightChar as any).setSect === 'function') {
+      (eightChar as any).setSect(2);
     }
   } catch (e) {
-    console.warn('Failed to setDayZero in getSajuData:', e);
+    console.warn('Failed to setSect in getSajuData:', e);
   }
   
   // Phase 1-1 수정: 연·월주는 절기 경계가 실제 절입 시각과 일치하도록 출생 실제 순간
