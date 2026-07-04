@@ -1,0 +1,385 @@
+/**
+ * 리포트 벤치 하네스 (IMPLEMENTATION_PLAN 1-4)
+ *
+ * 테스트 명식 N건(기본 50)을 일괄 생성해 검증 통과율·평균 원가·평균 소요시간을 집계하고,
+ * OWNER 감수용 md 파일로 내보낸다. 프롬프트 조립·품질 평가는 프로덕션과 동일 경로
+ * (src/lib/premiumReportCore.ts — SajuAnalysis 단일 소스 + 상품별 평가기)를 공유한다.
+ *
+ * 계획 대비 재정의(Phase 1-3과 동일한 기존-파이프라인 정합):
+ *   - "검증 통과율"의 검증기 = 현행 품질 평가기(섹션 마커·필수 섹션·분량, 통과 = score ≥ 80,
+ *     프로덕션 보정 트리거와 동일 기준). 금칙어·근거 검증 규칙은 OWNER 입력(골든셋·금칙어
+ *     목록) 수신 후 validate 단계로 추가한다(플랜 1-3 품질 파트).
+ *   - LLM은 현행 스택(Gemini 폴백 체인) 그대로. Anthropic 이관은 별도 결정 사항.
+ *
+ * 실행:
+ *   npx tsx scripts/report-bench.ts                          # 50건, lifeNav
+ *   npx tsx scripts/report-bench.ts --count 5                # 5건만
+ *   npx tsx scripts/report-bench.ts --product yearly2026     # 상품 선택
+ *   npx tsx scripts/report-bench.ts --no-repair              # 보정 1회 재시도 없이 단발
+ *   npx tsx scripts/report-bench.ts --out bench-output/my-run
+ *
+ * 필요 환경변수: GEMINI_API_KEY (또는 VITE_GEMINI_API_KEY) — .env/.env.local 자동 로드.
+ * ⚠️ 실 API 호출 = 실 비용. 50건 전체 실행 전 --count 1~2로 스모크 권장.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+import { assemblePremiumReportPrompt, evaluatePremiumReportQuality } from '../src/lib/premiumReportCore';
+import type { ReportInputData, ProductType } from '../src/lib/premiumOrderStore';
+
+dotenv.config();
+dotenv.config({ path: '.env.local' });
+
+// ── 설정 ─────────────────────────────────────────────────────────────────────
+
+const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+const PASS_SCORE = 80; // 프로덕션 보정 트리거와 동일 기준
+
+/** USD / 1M tokens. 2026-07 기준 공표가 — 변경 시 갱신할 것. 산출 원가는 추정치. */
+const PRICING_USD_PER_M: Record<string, { input: number; output: number }> = {
+  'gemini-2.5-pro': { input: 1.25, output: 10.0 },
+  'gemini-2.5-flash': { input: 0.3, output: 2.5 },
+  'gemini-2.0-flash': { input: 0.1, output: 0.4 },
+  'gemini-1.5-flash': { input: 0.075, output: 0.3 },
+};
+const USD_KRW = Number(process.env.BENCH_USD_KRW || 1400);
+
+// ── CLI 인자 ─────────────────────────────────────────────────────────────────
+
+const argv = process.argv.slice(2);
+const argValue = (name: string): string | undefined => {
+  const i = argv.indexOf(`--${name}`);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
+const hasFlag = (name: string) => argv.includes(`--${name}`);
+
+const COUNT = Math.max(1, parseInt(argValue('count') ?? '50', 10));
+const PRODUCT = (argValue('product') ?? 'lifeNav') as 'lifeNav' | ProductType;
+const NO_REPAIR = hasFlag('no-repair');
+const DELAY_MS = Math.max(0, parseInt(argValue('delay') ?? '1000', 10));
+const now = new Date();
+const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+const OUT_DIR = argValue('out') ?? path.join('bench-output', `bench-${PRODUCT}-${stamp}`);
+
+const API_KEY = String(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+if (!API_KEY) {
+  console.error('GEMINI_API_KEY (또는 VITE_GEMINI_API_KEY) 가 필요합니다. .env/.env.local 확인.');
+  process.exit(1);
+}
+
+// ── 테스트 명식 픽스처(결정론 — 시드 고정 LCG) ───────────────────────────────
+
+const makeRng = (seed: number) => {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
+};
+
+const CONCERNS = ['직장 이직 고민', '사업 확장 시기', '건강 관리', '재테크 방향', '없음'];
+const INTERESTS = ['재물운', '직업운', '건강운', '가정운', '없음'];
+
+const buildFixtures = (count: number): ReportInputData[] => {
+  const rng = makeRng(20260705);
+  const fixtures: ReportInputData[] = [];
+  for (let i = 0; i < count; i++) {
+    const year = 1950 + Math.floor(rng() * 56); // 1950~2005
+    const month = 1 + Math.floor(rng() * 12);
+    const day = 1 + Math.floor(rng() * 28);
+    const hour = Math.floor(rng() * 24);
+    const minute = Math.floor(rng() * 60);
+    const unknownTime = i % 10 === 9; // 10%
+    const isLunar = !unknownTime && i % 7 === 3; // ~14%
+    fixtures.push({
+      name: `벤치${String(i + 1).padStart(3, '0')}`,
+      gender: i % 2 === 0 ? 'M' : 'F',
+      birthDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      birthTime: unknownTime ? '' : `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+      isLunar,
+      isLeap: false,
+      unknownTime,
+      concern: CONCERNS[Math.floor(rng() * CONCERNS.length)],
+      interest: INTERESTS[Math.floor(rng() * INTERESTS.length)],
+      reportLevel: 'basic',
+      lifeEvents: [], // 골든셋 수신 전 단계 — 인생 이벤트 없는 기본형으로 측정
+      adminNotes: '',
+      productType: PRODUCT === 'lifeNav' ? undefined : PRODUCT,
+    });
+  }
+  return fixtures;
+};
+
+// ── Gemini 호출(프로덕션 폴백 체인과 동일 판정 규칙) ─────────────────────────
+
+type CallUsage = { model: string; inputTokens: number; outputTokens: number };
+type CallResult = { text: string; usages: CallUsage[]; modelUsed: string };
+
+const callGeminiWithFallback = async (
+  systemText: string,
+  userText: string,
+  generationConfig: Record<string, unknown>,
+): Promise<CallResult> => {
+  let lastError: unknown = null;
+  const usages: CallUsage[] = [];
+  for (const model of FALLBACK_MODELS) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemText }] },
+            contents: [{ role: 'user', parts: [{ text: userText }] }],
+            generationConfig,
+          }),
+        },
+      );
+
+      const data: any = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errMessage = data?.error?.message || 'Unknown error';
+        const errCode = data?.error?.code;
+        const errStatus = String(data?.error?.status || '').toUpperCase();
+        const isTransient =
+          response.status === 503 || response.status === 429 ||
+          errCode === 503 || errCode === 429 ||
+          errStatus === 'UNAVAILABLE' || errStatus === 'RESOURCE_EXHAUSTED';
+        const isModelUnavailable = response.status === 404 || errCode === 404 || errStatus === 'NOT_FOUND';
+        if (isTransient || isModelUnavailable) {
+          console.warn(`  [fallback] ${model} 실패(${response.status} ${errStatus}) — 다음 모델 시도`);
+          lastError = new Error(`Gemini API error (${model}): ${errMessage}`);
+          continue;
+        }
+        throw new Error(`Gemini API error: ${errMessage}`);
+      }
+
+      const um = data?.usageMetadata ?? {};
+      const inputTokens = Number(um.promptTokenCount ?? 0);
+      const totalTokens = Number(um.totalTokenCount ?? 0);
+      const candidateTokens = Number(um.candidatesTokenCount ?? 0);
+      // 2.5 계열은 thinking 토큰도 출력 과금 — total-prompt 로 포함 산정
+      const outputTokens = totalTokens > 0 ? Math.max(0, totalTokens - inputTokens) : candidateTokens;
+      usages.push({ model, inputTokens, outputTokens });
+
+      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      if (!text) {
+        console.warn(`  [fallback] ${model} 빈 응답 — 다음 모델 시도`);
+        lastError = new Error(`Gemini API returned empty text on ${model}`);
+        continue;
+      }
+      return { text, usages, modelUsed: model };
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`  [fallback] ${model} 예외 — 다음 모델 시도: ${err?.message || err}`);
+    }
+  }
+  throw lastError || new Error('모든 Gemini 모델이 응답하지 않았습니다.');
+};
+
+const costKrw = (usages: CallUsage[]): number =>
+  usages.reduce((sum, u) => {
+    const p = PRICING_USD_PER_M[u.model] ?? PRICING_USD_PER_M['gemini-2.5-pro'];
+    return sum + ((u.inputTokens * p.input + u.outputTokens * p.output) / 1_000_000) * USD_KRW;
+  }, 0);
+
+// ── 벤치 본체 ────────────────────────────────────────────────────────────────
+
+type CaseResult = {
+  index: number;
+  name: string;
+  input: ReportInputData;
+  pass: boolean;
+  score: number;
+  issues: string[];
+  repaired: boolean;
+  modelUsed: string;
+  inputTokens: number;
+  outputTokens: number;
+  costKrw: number;
+  durationSec: number;
+  error?: string;
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const runCase = async (input: ReportInputData, index: number): Promise<{ result: CaseResult; reportText: string }> => {
+  const started = Date.now();
+  const allUsages: CallUsage[] = [];
+  try {
+    const { system, user, analysis } = assemblePremiumReportPrompt(input);
+
+    const first = await callGeminiWithFallback(system, user, { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 });
+    allUsages.push(...first.usages);
+    let modelUsed = first.modelUsed;
+    let quality = evaluatePremiumReportQuality(input.productType, first.text, input.lifeEvents, analysis.daeun.length);
+    let repaired = false;
+
+    // 프로덕션과 동일한 1회 보정 루프
+    if (!NO_REPAIR && quality.score < PASS_SCORE) {
+      const repairInstruction = [
+        '[품질 보정 모드 - 최우선]',
+        '- 아래 누락/불충분 항목을 반드시 모두 보완하세요.',
+        '- 기존 텍스트를 요약하지 말고, 동일 Output Format을 유지한 완전한 본문을 다시 작성하세요.',
+        '- 특히 [SECTION] 마커, [DAEUN_START]/[DAEUN_END], [FIELD_직업]~[/FIELD_연애], [ACTION_PLAN] 형식을 정확히 지키세요.',
+        '',
+        '[보완 필요 항목]',
+        ...quality.issues.map((issue) => `- ${issue}`),
+      ].join('\n');
+      try {
+        const second = await callGeminiWithFallback(`${system}\n\n${repairInstruction}`, user, { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 });
+        allUsages.push(...second.usages);
+        const repairedQuality = evaluatePremiumReportQuality(input.productType, second.text, input.lifeEvents, analysis.daeun.length);
+        if (repairedQuality.score >= quality.score) {
+          quality = repairedQuality;
+          modelUsed = second.modelUsed;
+          repaired = true;
+        }
+      } catch (repairErr: any) {
+        console.warn(`  [repair] 보정 실패, 원본 유지: ${repairErr?.message || repairErr}`);
+      }
+    }
+
+    return {
+      result: {
+        index,
+        name: input.name,
+        input,
+        pass: quality.score >= PASS_SCORE,
+        score: quality.score,
+        issues: quality.issues,
+        repaired,
+        modelUsed,
+        inputTokens: allUsages.reduce((s, u) => s + u.inputTokens, 0),
+        outputTokens: allUsages.reduce((s, u) => s + u.outputTokens, 0),
+        costKrw: costKrw(allUsages),
+        durationSec: (Date.now() - started) / 1000,
+      },
+      reportText: quality.normalizedText,
+    };
+  } catch (err: any) {
+    return {
+      result: {
+        index,
+        name: input.name,
+        input,
+        pass: false,
+        score: 0,
+        issues: [`생성 실패: ${err?.message || err}`],
+        repaired: false,
+        modelUsed: '-',
+        inputTokens: allUsages.reduce((s, u) => s + u.inputTokens, 0),
+        outputTokens: allUsages.reduce((s, u) => s + u.outputTokens, 0),
+        costKrw: costKrw(allUsages),
+        durationSec: (Date.now() - started) / 1000,
+        error: String(err?.message || err),
+      },
+      reportText: '',
+    };
+  }
+};
+
+const fmtInput = (d: ReportInputData) =>
+  `${d.birthDate} ${d.unknownTime ? '시간미상' : d.birthTime} ${d.isLunar ? '음력' : '양력'} ${d.gender === 'M' ? '남' : '여'}`;
+
+const writeCaseMd = (dir: string, r: CaseResult, reportText: string) => {
+  const lines = [
+    `# 벤치 #${String(r.index + 1).padStart(3, '0')} — ${r.name} (${PRODUCT})`,
+    '',
+    `- 입력: ${fmtInput(r.input)}`,
+    `- 고민/관심사: ${r.input.concern} / ${r.input.interest}`,
+    `- 판정: ${r.pass ? '✅ 통과' : '❌ 실패'} (score ${r.score}, 기준 ${PASS_SCORE})`,
+    `- 모델: ${r.modelUsed}${r.repaired ? ' (보정 1회 실행)' : ''}`,
+    `- 토큰: in ${r.inputTokens.toLocaleString()} / out ${r.outputTokens.toLocaleString()} → 추정 원가 ₩${Math.round(r.costKrw).toLocaleString()}`,
+    `- 소요: ${r.durationSec.toFixed(1)}s`,
+    '',
+    '## 이슈',
+    ...(r.issues.length ? r.issues.map((i) => `- ${i}`) : ['- 없음']),
+    '',
+    '## 본문 (원문)',
+    '',
+    reportText || '(생성 실패)',
+    '',
+  ];
+  fs.writeFileSync(path.join(dir, `${String(r.index + 1).padStart(3, '0')}-${r.name}.md`), lines.join('\n'), 'utf8');
+};
+
+const writeSummary = (dir: string, results: CaseResult[], totalSec: number) => {
+  const done = results.filter((r) => !r.error);
+  const passed = results.filter((r) => r.pass);
+  const passRate = results.length ? (passed.length / results.length) * 100 : 0;
+  const avgCost = done.length ? done.reduce((s, r) => s + r.costKrw, 0) / done.length : 0;
+  const avgSec = done.length ? done.reduce((s, r) => s + r.durationSec, 0) / done.length : 0;
+  const totalCost = results.reduce((s, r) => s + r.costKrw, 0);
+
+  const modelDist: Record<string, number> = {};
+  for (const r of results) modelDist[r.modelUsed] = (modelDist[r.modelUsed] ?? 0) + 1;
+
+  const dodPass = passRate >= 90;
+  const dodCost = avgCost <= 500;
+
+  const lines = [
+    `# 리포트 벤치 결과 — ${PRODUCT} ${results.length}건 (${stamp})`,
+    '',
+    `| 지표 | 값 | DoD | 판정 |`,
+    `|---|---|---|---|`,
+    `| 검증 통과율 | ${passRate.toFixed(1)}% (${passed.length}/${results.length}) | ≥ 90% | ${dodPass ? '✅' : '❌'} |`,
+    `| 평균 원가(추정) | ₩${Math.round(avgCost).toLocaleString()}/건 | ≤ ₩500 | ${dodCost ? '✅' : '❌'} |`,
+    `| 평균 소요 | ${avgSec.toFixed(1)}s/건 | — | — |`,
+    `| 총 비용(추정) | ₩${Math.round(totalCost).toLocaleString()} | — | — |`,
+    `| 총 소요 | ${(totalSec / 60).toFixed(1)}분 | — | — |`,
+    '',
+    `- 통과 기준: 품질 평가기 score ≥ ${PASS_SCORE} (프로덕션 보정 트리거와 동일). 금칙어·근거 검증은 OWNER 입력 수신 후 추가 예정.`,
+    `- 원가는 usageMetadata 토큰 × 공표 단가(USD→₩${USD_KRW}) 추정치. 보정 재시도 비용 포함.`,
+    `- 모델 분포: ${Object.entries(modelDist).map(([m, c]) => `${m}×${c}`).join(', ')}`,
+    `- 보정 실행: ${results.filter((r) => r.repaired).length}건 / 생성 실패: ${results.filter((r) => r.error).length}건`,
+    '',
+    '## 케이스별 결과',
+    '',
+    '| # | 입력 | 판정 | score | 모델 | 원가 | 소요 | 이슈 |',
+    '|---|---|---|---|---|---|---|---|',
+    ...results.map((r) =>
+      `| ${String(r.index + 1).padStart(3, '0')} | ${fmtInput(r.input)} | ${r.pass ? '✅' : '❌'} | ${r.score} | ${r.modelUsed}${r.repaired ? '+보정' : ''} | ₩${Math.round(r.costKrw).toLocaleString()} | ${r.durationSec.toFixed(0)}s | ${r.issues.length ? r.issues.join('; ') : '-'} |`,
+    ),
+    '',
+  ];
+  fs.writeFileSync(path.join(dir, 'summary.md'), lines.join('\n'), 'utf8');
+  fs.writeFileSync(
+    path.join(dir, 'summary.json'),
+    JSON.stringify({ product: PRODUCT, count: results.length, passRate, avgCostKrw: avgCost, avgDurationSec: avgSec, totalCostKrw: totalCost, dod: { passRate: dodPass, cost: dodCost }, results }, null, 2),
+    'utf8',
+  );
+};
+
+const main = async () => {
+  const fixtures = buildFixtures(COUNT);
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  console.log(`리포트 벤치 시작 — ${PRODUCT} ${COUNT}건 → ${OUT_DIR}`);
+  console.log(`(보정: ${NO_REPAIR ? '끔' : '켬'}, 통과 기준 score ≥ ${PASS_SCORE})`);
+
+  const results: CaseResult[] = [];
+  const started = Date.now();
+  for (let i = 0; i < fixtures.length; i++) {
+    const f = fixtures[i];
+    console.log(`\n[${i + 1}/${COUNT}] ${f.name} — ${fmtInput(f)}`);
+    const { result, reportText } = await runCase(f, i);
+    results.push(result);
+    writeCaseMd(OUT_DIR, result, reportText);
+    console.log(`  → ${result.pass ? '통과' : '실패'} (score ${result.score}) | ${result.modelUsed} | ₩${Math.round(result.costKrw)} | ${result.durationSec.toFixed(0)}s${result.issues.length ? ` | 이슈 ${result.issues.length}건` : ''}`);
+    if (i < fixtures.length - 1 && DELAY_MS > 0) await sleep(DELAY_MS);
+  }
+
+  const totalSec = (Date.now() - started) / 1000;
+  writeSummary(OUT_DIR, results, totalSec);
+
+  const passed = results.filter((r) => r.pass).length;
+  console.log(`\n완료: 통과 ${passed}/${results.length} (${((passed / results.length) * 100).toFixed(1)}%) | 총 추정비용 ₩${Math.round(results.reduce((s, r) => s + r.costKrw, 0)).toLocaleString()} | ${(totalSec / 60).toFixed(1)}분`);
+  console.log(`감수용 출력: ${path.resolve(OUT_DIR)}\\summary.md`);
+};
+
+main().catch((err) => {
+  console.error('벤치 실행 실패:', err);
+  process.exit(1);
+});
