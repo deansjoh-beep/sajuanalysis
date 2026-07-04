@@ -200,6 +200,13 @@ npx tsx scripts/audit/manseryeok-verify.ts
 - 실존 API `EightChar.setSect(2)`로 교체해 정책을 명시 고정. sect=2가 기본값이므로 산출 변화는 없음(vitest 91/91, 하네스 3,860건 재확인).
 
 ### 8-4. 잔여 항목 (Phase 1-1 후속)
-1. 월운 12개 산출(절입 기준) — 미구현, 리포트 필수 데이터.
+1. ~~월운 12개 산출(절입 기준)~~ — ✅ §8-5.
 2. 격국·용신 `SajuAnalysis` 스키마 편입.
 3. `getDaeunData` 전용 단위 테스트 보강 + D-1-5(대운수 반올림 정책) 결정.
+
+### 8-5. 월운(月運) 12개 산출 구현 (신규: `src/lib/manseryeok/wolun.ts`)
+- `getWolunData(sajuYear)`: 입춘(Y)~입춘(Y+1)을 절(節) 기준 12개월(寅~丑)로 분할. 월간은 연간 오호둔, 각 달에 절입 시작/끝 시각(KST ISO + UTC ms) 포함 — 월운 캘린더 뷰(Phase 2-4)가 그대로 사용 가능.
+- `getCurrentWolun(date)`: 조회 시점의 사주 연도(입춘 기준)·세운·현재 월운 산출 (IMPLEMENTATION_PLAN 1-1 "조회 시점 기준" 요구).
+- `getSeunGanzhi(year)`: 세운 간지.
+- 절입 시각은 lunar-javascript(D-1-4 1차 기준, 베이징→KST 환산) — 엔진 월주(`getBeijingInstant` 프레임)와 동일 기준이라 자동 정합.
+- 테스트 9건(`wolun.test.ts`): 오호둔 시퀀스, 구간 연속 불변식, KASI 실측 ±2분 대조(2026년 13개 경계), **엔진 월주와 경계 ±5분 정합**, 입춘 전 1월의 전년도 귀속, KASI 커버리지 밖 연도(1970·2030) 완주. 전체 스위트 100/100.
