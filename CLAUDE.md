@@ -39,7 +39,7 @@ Node **20.x** is required (`engines` in package.json).
 ### Two runtime shapes for the same API surface
 
 - **Dev/local**: everything runs under `server.ts`. It boots Firebase Admin, mounts Vite in middleware mode, and hosts all `/api/*` routes directly (health, `runtime-config`, `generate-pdf`, premium-order CRUD, premium-report upload/email, taekil engine).
-- **Prod (Vercel)**: `vercel.json` points Vite at `dist/` and exposes the functions in `api/` (e.g. `api/generate-pdf.ts`, `api/premium-order/*.ts`, `api/premium-report/*.ts`). `api/lib/firebase-admin-utils.ts` is the shared Admin bootstrap for these.
+- **Prod (Vercel)**: `vercel.json` points Vite at `dist/` and exposes the functions in `api/` (e.g. `api/generate-pdf.ts`, `api/premium-order/*.ts`, `api/premium-report/*.ts`). `api/_lib/firebase-admin-utils.ts` is the shared Admin bootstrap for these.
 
 When adding an endpoint, wire it **both** into `server.ts` (for dev) and as a file under `api/` (for prod). The shapes must match; clients call `/api/...` identically.
 
@@ -90,7 +90,7 @@ These are treated as product content, not code comments. Edits to tone, section 
 - `*.map` files — source map exposure prevention
 - `*.zip|bak|tar|gz|sql|dump|env|log|old|orig|backup|swp|db` — backup file scan protection
 
-**Rate limiting** — `api/lib/rate-limit.ts` exports a `createRateLimiter(config)` factory plus pre-configured per-endpoint limiters (`pdfLimiter`, `emailLimiter`, `uploadLimiter`, `orderCreateLimiter`, `taekilLimiter`, `generalLimiter`). Two adapter helpers:
+**Rate limiting** — `api/_lib/rate-limit.ts` exports a `createRateLimiter(config)` factory plus pre-configured per-endpoint limiters (`pdfLimiter`, `emailLimiter`, `uploadLimiter`, `orderCreateLimiter`, `taekilLimiter`, `generalLimiter`). Two adapter helpers:
 - `expressRateLimit(limiter, skipFn?)` — Express middleware (used in `server.ts`)
 - `checkVercelRateLimit(req, res, limiter)` — returns `false` and sends 429 when exceeded (used in Vercel function handlers)
 

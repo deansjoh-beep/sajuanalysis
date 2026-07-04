@@ -16,7 +16,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as fs from 'fs';
 import * as path from 'path';
-import { checkVercelRateLimit, pdfLimiter } from './lib/rate-limit.js';
+import { checkVercelRateLimit, pdfLimiter } from './_lib/rate-limit.js';
 
 // --- Firebase Admin Utils (inlined) ---
 const VERIFIED_REPORTS_BUCKET = 'gen-lang-client-0938860351-reports';

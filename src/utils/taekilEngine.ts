@@ -182,8 +182,9 @@ function getPillar(date: DateTime) {
   const lunar = solar.getLunar();
   const eightChar = lunar.getEightChar();
   try {
-    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
-      (eightChar as any).setDayZero(2);
+    // D-1-1 야자시 유파 2 명시 고정 (라이브러리 기본값과 동일)
+    if (eightChar && typeof (eightChar as any).setSect === 'function') {
+      (eightChar as any).setSect(2);
     }
   } catch {
     // ignore and continue with library defaults

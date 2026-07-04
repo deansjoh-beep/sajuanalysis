@@ -1,6 +1,12 @@
 import { Solar, Lunar } from 'lunar-javascript';
 import { DateTime } from 'luxon';
 import { getDeityLocalizedInterpretation, getCareerExpression } from '../constants/deityInterpretation.js';
+import {
+  SEOUL_LONGITUDE,
+  JIEQI_BOUNDARY_HOURS,
+  getKstNormalizationOffsetMinutes,
+} from '../lib/manseryeok/policy.js';
+import { analyzeGyeokYongshin, toLegacyGyeok } from '../lib/analysis/gyeokyongshin.js';
 
 export const hanjaToHangul: Record<string, string> = {
   '甲': '갑', '乙': '을', '丙': '병', '丁': '정', '戊': '무', '己': '기', '庚': '경', '辛': '신', '壬': '임', '癸': '계',
@@ -23,8 +29,10 @@ const equationOfTime = (dateTime: DateTime) => {
   return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // minutes
 };
 
-const applyTrueSolarTime = (dateTime: DateTime, longitude?: number) => {
-  if (longitude === undefined || longitude === null || Number.isNaN(longitude)) {
+const applyTrueSolarTime = (dateTime: DateTime, longitude: number = SEOUL_LONGITUDE) => {
+  // D-1-2: longitude 미전달 시 서울(126.9784°)을 기본값으로 자동 적용.
+  // Number.isNaN 방어만 남긴다 — undefined/null은 기본값으로 대체됨.
+  if (Number.isNaN(longitude)) {
     return dateTime;
   }
 
@@ -77,6 +85,58 @@ const getSolarFromBirthInput = (
     dateTime.minute,
     dateTime.second
   );
+};
+
+/**
+ * 연주(年柱)·월주(月柱)를 출생 '실제 순간' 기준으로 산출한다.
+ *
+ * 배경(Phase 1-1 확정 버그): lunar-javascript의 절기 테이블은 **베이징시(UTC+8)** 기준이다.
+ * 종전 코드는 출생시각에만 진태양시 보정(−32분+EOT)을 적용한 값을 그대로 먹여, 절입 경계가
+ * 실제 절입_KST보다 평균 ~28분 이르게 잡혔다(연주=입춘, 월주=각 절 모두 영향).
+ * 정론상 진태양시를 출생·절입에 동일 적용하면 상쇄되므로 올바른 경계는 절입_KST 그 순간이다.
+ *
+ * 해법: 출생의 실제 순간(진태양시 보정 '전' KST 벽시계 → UTC)을 다시 **베이징 벽시계**로 표현해
+ * lunar-javascript에 먹인다. 그러면 절기(베이징) 대 출생(베이징)이 같은 프레임에서 비교되어
+ * 경계가 실제 절입 시각과 일치한다. 시주(진태양시 시辰)·일주는 종전 계산을 그대로 쓴다.
+ *
+ * 절기 기준 산출(연·월주, 대운 방향·대운수)에 공통으로 쓰인다.
+ * @param localDateTime 진태양시 보정 '전'의 KST 벽시계(표준시·서머타임 정규화는 이미 반영됨)
+ */
+const getBeijingInstant = (
+  localDateTime: DateTime,
+  isLunar: boolean,
+  isLeap: boolean
+) => {
+  // 실제 양력 벽시계(KST). 음력 입력이면 양력으로 변환.
+  const solarKst = getSolarFromBirthInput(localDateTime, isLunar, isLeap);
+  // KST 벽시계 → 실제 UTC 순간
+  const realUtcMs =
+    Date.UTC(
+      solarKst.getYear(),
+      solarKst.getMonth() - 1,
+      solarKst.getDay(),
+      solarKst.getHour(),
+      solarKst.getMinute(),
+      solarKst.getSecond()
+    ) -
+    9 * 3600 * 1000;
+  // 같은 순간을 베이징(UTC+8) 벽시계로 표현 → lunar-javascript 절기(베이징)와 같은 프레임
+  const bj = new Date(realUtcMs + 8 * 3600 * 1000);
+  const beijingSolar = Solar.fromYmdHms(
+    bj.getUTCFullYear(),
+    bj.getUTCMonth() + 1,
+    bj.getUTCDate(),
+    bj.getUTCHours(),
+    bj.getUTCMinutes(),
+    bj.getUTCSeconds()
+  );
+  const beijingLunar = beijingSolar.getLunar();
+  return {
+    realUtcMs,
+    birthSolarYear: solarKst.getYear(),
+    beijingLunar,
+    beijingEightChar: beijingLunar.getEightChar(),
+  };
 };
 
 export const calculateDeity = (dayStem: string, targetChar: string, isBranch: boolean = false) => {
@@ -142,6 +202,12 @@ export const calculateDeity = (dayStem: string, targetChar: string, isBranch: bo
   return '';
 };
 
+/**
+ * 억부·조후 용신 판정. 조후는 월지(±2)·시지(±1) 온도 가중(origin main 9057c3b
+ * "조후·운 작용력 분리" 규칙)으로 산출한다.
+ * ⚠️ 격국·용신은 유파 의존 잠정 해석(검증된 단일 정답 없음). 구조화 출력
+ * (득령/득지/득세·provisional 등)은 lib/analysis/gyeokyongshin.ts를 직접 임포트하라.
+ */
 export const calculateYongshin = (sajuData: any[]) => {
   const pillars = [...sajuData].reverse();
   const dayMaster = pillars[2].stem;
@@ -255,26 +321,13 @@ export const calculateYongshin = (sajuData: any[]) => {
   };
 };
 
-export const getAdjustedTime = (year: number, month: number, day: number, hour: number, minute: number) => {
-  let offsetMinutes = 0;
-  const dateNum = year * 10000 + month * 100 + day;
-
-  if ((dateNum >= 19120101 && dateNum <= 19540320) || dateNum >= 19610810) {
-    offsetMinutes -= 30;
-  }
-
-  const isDST = (y: number, m: number, d: number) => {
-    if (y >= 1948 && y <= 1951) return m >= 5 && m <= 9;
-    if (y >= 1955 && y <= 1960) return m >= 5 && m <= 9;
-    if (y >= 1987 && y <= 1988) return m >= 5 && m <= 10;
-    return false;
-  };
-
-  if (isDST(year, month, day)) {
-    offsetMinutes -= 60;
-  }
-
-  return offsetMinutes;
+/**
+ * @deprecated Phase 1-1(2026-07-04)부터 정책 로직은 `lib/manseryeok/policy.ts::getKstNormalizationOffsetMinutes`로 이관.
+ * 이 함수는 audit 스크립트 호환 유지 목적으로만 남아 있으며 policy 함수를 그대로 재노출한다.
+ * 새 코드는 정책 모듈을 직접 임포트하라.
+ */
+export const getAdjustedTime = (year: number, month: number, day: number, _hour: number, _minute: number) => {
+  return getKstNormalizationOffsetMinutes(year, month, day);
 };
 
 export const getSajuData = (
@@ -294,31 +347,44 @@ export const getSajuData = (
 
   if (unknownTime) {
     localDateTime = localDateTime.set({ hour: 12, minute: 0 });
+  } else {
+    // D-1-3: 한국 표준시 변경(GMT+8:30 기간) 및 서머타임 wall-clock 보정.
+    // policy.getKstNormalizationOffsetMinutes 결과를 wall-clock에 더해 현재 KST 기준으로 정규화한다.
+    const kstOffset = getKstNormalizationOffsetMinutes(year, month, day);
+    if (kstOffset !== 0) {
+      localDateTime = localDateTime.plus({ minutes: kstOffset });
+    }
   }
 
   const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
   const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
-  
+
   const lunar = adjustedSolar.getLunar();
   const eightChar = lunar.getEightChar();
+  // D-1-1 야자시: lunar-javascript 유파 2(setSect(2), 라이브러리 기본값)를 명시 고정.
+  // 시주는 익일 子時 간(干), 일주는 당일 유지. (종전 setDayZero 호출은 존재하지 않는
+  // 메서드라 no-op이었고 기본값에 우연히 의존하고 있었음 — Phase 1-1에서 명시화.)
   try {
-    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
-      (eightChar as any).setDayZero(2);
+    if (eightChar && typeof (eightChar as any).setSect === 'function') {
+      (eightChar as any).setSect(2);
     }
   } catch (e) {
-    console.warn('Failed to setDayZero in getSajuData:', e);
+    console.warn('Failed to setSect in getSajuData:', e);
   }
   
+  // Phase 1-1 수정: 연·월주는 절기 경계가 실제 절입 시각과 일치하도록 출생 실제 순간
+  // (진태양시 보정 전) 기준으로 재산출한다. 일·시주는 진태양시 기준 eightChar를 유지.
+  const { beijingEightChar } = getBeijingInstant(localDateTime, isLunar, isLeap);
   const pillars = [
-    { title: '년주', char: eightChar.getYear() },
-    { title: '월주', char: eightChar.getMonth() },
+    { title: '년주', char: beijingEightChar.getYear() },
+    { title: '월주', char: beijingEightChar.getMonth() },
     { title: '일주', char: eightChar.getDay() },
     { title: '시주', char: unknownTime ? '??' : eightChar.getTime() }
   ];
 
   const dayStem = pillars[2].char.charAt(0);
 
-  return pillars.map((p, idx) => {
+  const result = pillars.map((p, idx) => {
     if (p.char === '??') {
       return {
         title: p.title,
@@ -355,6 +421,40 @@ export const getSajuData = (
       }
     };
   }).reverse();
+
+  // Phase 1-1: 절입(節入) 경계 감지 (D-1-3 산출 항목).
+  // 출생 시각이 이전/다음 절기까지 ±JIEQI_BOUNDARY_HOURS 이내면 nearJieqiBoundary=true.
+  // JSON.stringify 호환을 위해 non-enumerable 로 부착 (map/spread 순회에 노출되지 않음).
+  const boundary = unknownTime ? { nearJieqiBoundary: false, minHoursToJieqi: null as number | null } : detectNearJieqiBoundary(lunar, trueSolarDateTime);
+  Object.defineProperty(result, 'nearJieqiBoundary', { value: boundary.nearJieqiBoundary, enumerable: false });
+  Object.defineProperty(result, 'minHoursToJieqi', { value: boundary.minHoursToJieqi, enumerable: false });
+  return result as typeof result & { nearJieqiBoundary: boolean; minHoursToJieqi: number | null };
+};
+
+/**
+ * 이전·다음 절기 시각과의 거리를 계산해 ±JIEQI_BOUNDARY_HOURS 이내 여부를 판정한다.
+ * `lunar`는 진태양시 보정 후의 Solar 로부터 얻은 Lunar 객체, `birthDateTime`은 그 진태양시.
+ */
+const detectNearJieqiBoundary = (
+  lunar: any,
+  birthDateTime: DateTime,
+): { nearJieqiBoundary: boolean; minHoursToJieqi: number | null } => {
+  try {
+    const birthMs = birthDateTime.toUTC().toMillis();
+    const jieqiMs = (jie: any): number => {
+      const s = jie.getSolar();
+      // Solar 는 wall-clock 값을 반환하므로 UTC 로 정규화하기 위해 KST(+9) 로 해석.
+      return Date.UTC(s.getYear(), s.getMonth() - 1, s.getDay(), s.getHour(), s.getMinute(), s.getSecond()) - 9 * 3600 * 1000;
+    };
+    const distances: number[] = [];
+    try { distances.push(Math.abs(jieqiMs(lunar.getPrevJie()) - birthMs)); } catch { /* boundary */ }
+    try { distances.push(Math.abs(jieqiMs(lunar.getNextJie()) - birthMs)); } catch { /* boundary */ }
+    if (distances.length === 0) return { nearJieqiBoundary: false, minHoursToJieqi: null };
+    const minHours = Math.min(...distances) / 3600000;
+    return { nearJieqiBoundary: minHours <= JIEQI_BOUNDARY_HOURS, minHoursToJieqi: minHours };
+  } catch {
+    return { nearJieqiBoundary: false, minHoursToJieqi: null };
+  }
 };
 
 export const getDeityEnglishExplanation = (deity: string) => {
@@ -556,36 +656,49 @@ export const getDaeunData = (
   const minute = unknownTime ? 0 : rawMinute;
 
   let localDateTime = DateTime.fromObject({ year, month, day, hour, minute }, { zone: timezone });
-  const trueSolarDateTime = applyTrueSolarTime(localDateTime, longitude);
-  const adjustedSolar = getSolarFromBirthInput(trueSolarDateTime, isLunar, isLeap);
-  
-  const lunar = adjustedSolar.getLunar();
-  const eightChar = lunar.getEightChar();
-  try {
-    if (eightChar && typeof (eightChar as any).setDayZero === 'function') {
-      (eightChar as any).setDayZero(2);
+  if (!unknownTime) {
+    // D-1-3: getSajuData와 동일한 표준시/서머타임 정규화 적용
+    const kstOffset = getKstNormalizationOffsetMinutes(year, month, day);
+    if (kstOffset !== 0) {
+      localDateTime = localDateTime.plus({ minutes: kstOffset });
     }
-  } catch (e) {
-    console.warn('Failed to setDayZero in getDaeunData:', e);
   }
-  const yearStem = eightChar.getYear().charAt(0);
+  // Phase 1-1 수정: 대운 방향(연간 음양)·시작 월주·대운수를 모두 출생 실제 순간(베이징 프레임)
+  // 기준으로 산출한다. getSajuData의 연·월주 수정과 일관성을 맞춰 입춘/절 경계 부근 모순을 제거.
+  const { realUtcMs, birthSolarYear, beijingLunar, beijingEightChar } = getBeijingInstant(
+    localDateTime,
+    isLunar,
+    isLeap
+  );
+
+  const yearStem = beijingEightChar.getYear().charAt(0);
   const isYangYear = yinYangMap[yearStem] === '+';
-  
+
   const isForward = gender === 'M' ? isYangYear : !isYangYear;
 
-  const targetJie = isForward ? lunar.getNextJie() : lunar.getPrevJie();
+  // 대운수: 출생 실제 순간에서 다음(순행)/이전(역행) 절(節)까지의 거리 ÷ 3.
+  // 절 시각은 lunar-javascript(베이징시) → 실제 UTC 순간으로 환산해 birth와 같은 프레임에서 비교.
+  const targetJie = isForward ? beijingLunar.getNextJie() : beijingLunar.getPrevJie();
   const targetSolar = targetJie.getSolar();
-  
-  const birthTime = Date.UTC(adjustedSolar.getYear(), adjustedSolar.getMonth() - 1, adjustedSolar.getDay(), adjustedSolar.getHour(), adjustedSolar.getMinute(), adjustedSolar.getSecond());
-  const jieTime = Date.UTC(targetSolar.getYear(), targetSolar.getMonth() - 1, targetSolar.getDay(), targetSolar.getHour(), targetSolar.getMinute(), targetSolar.getSecond());
-  const diffSeconds = Math.abs(jieTime - birthTime) / 1000;
-  
+
+  const jieUtcMs =
+    Date.UTC(
+      targetSolar.getYear(),
+      targetSolar.getMonth() - 1,
+      targetSolar.getDay(),
+      targetSolar.getHour(),
+      targetSolar.getMinute(),
+      targetSolar.getSecond()
+    ) -
+    8 * 3600 * 1000;
+  const diffSeconds = Math.abs(jieUtcMs - realUtcMs) / 1000;
+
   const diffDays = diffSeconds / (24 * 3600);
-  
+
   let daeunSu = Math.round(diffDays / 3);
   if (daeunSu === 0) daeunSu = 1;
 
-  const monthPillar = eightChar.getMonth();
+  const monthPillar = beijingEightChar.getMonth();
   const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
   const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
   
@@ -608,8 +721,9 @@ export const getDaeunData = (
     
     daeuns.push({
       startAge: startAge,
-      // 만 나이 기준: 첫 대운은 출생 후 daeunSu년(만 daeunSu세)에 시작 → startYear = 출생연도 + startAge
-      startYear: adjustedSolar.getYear() + startAge,
+      // 만 나이 기준(origin main fcf563b 정책): 첫 대운은 출생 후 daeunSu년(만 daeunSu세)에 시작
+      // → startYear = 출생연도 + startAge. birthSolarYear는 베이징 프레임 산출의 KST 출생연도.
+      startYear: birthSolarYear + startAge,
       stem: stem,
       branch: branch,
       description: branchDescription[branch] || ''
@@ -619,58 +733,16 @@ export const getDaeunData = (
   return daeuns;
 };
 
+/**
+ * @deprecated Phase 1-2부터 판정 로직은 `lib/analysis/gyeokyongshin.ts::analyzeGyeokYongshin`로
+ * 이관·구조화되었다. 이 함수는 기존 반환 형태 호환을 위한 얇은 어댑터다.
+ * 정본화: 월지 본기가 비견=건록격, 겁재=양인격으로 판정된다(종전 '비견격/겁재격' 대체).
+ * ⚠️ 격국은 유파 의존 잠정 해석(검증된 단일 정답 없음).
+ */
 export const calculateGyeok = (sajuData: any[]) => {
-  if (!sajuData || sajuData.length < 4) return { gyeok: '분석 불가', composition: '' };
-  
-  const pillars = [...sajuData].reverse(); // [Year, Month, Day, Hour]
-  const dayMaster = pillars[2].stem.hanja;
-  const monthBranch = pillars[1].branch.hanja;
-  
-  // Get hidden stems of Month Branch
-  const hidden = hiddenStems[monthBranch] || [];
-  const hiddenHanjas = hidden.map(h => Object.keys(hanjaToHangul).find(key => hanjaToHangul[key] === h) || '');
-  
-  // Heavenly Stems (excluding Day Master)
-  const heavenlyStems = [pillars[0].stem.hanja, pillars[1].stem.hanja, pillars[3].stem.hanja];
-  
-  let gyeokStem = '';
-  
-  // 1. Check if any hidden stem appears in Heavenly Stems
-  // Priority: Main (Bon-gi) > Middle (Jung-gi) > Initial (Yeo-gi)
-  // hiddenStems array is [Initial, (Middle), Main]
-  for (let i = hiddenHanjas.length - 1; i >= 0; i--) {
-    if (heavenlyStems.includes(hiddenHanjas[i])) {
-      gyeokStem = hiddenHanjas[i];
-      break;
-    }
-  }
-  
-  // 2. If none appear, use Main energy (Bon-gi)
-  if (!gyeokStem && hiddenHanjas.length > 0) {
-    gyeokStem = hiddenHanjas[hiddenHanjas.length - 1];
-  }
-  
-  const deity = calculateDeity(dayMaster, gyeokStem);
-  const gyeokName = deity ? `${deity}격` : '특수격';
-  
-  // Calculate composition
-  const allDeities: string[] = [];
-  pillars.forEach((p, i) => {
-    if (p.stem.deity && p.stem.deity !== '일간') allDeities.push(p.stem.deity);
-    if (p.branch.deity) allDeities.push(p.branch.deity);
-  });
-  
-  const counts: Record<string, number> = {};
-  allDeities.forEach(d => {
-    counts[d] = (counts[d] || 0) + 1;
-  });
-  
-  const composition = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => `${name} ${count}개`)
-    .join(', ');
-    
-  return { gyeok: gyeokName, composition };
+  const analysis = analyzeGyeokYongshin(sajuData);
+  if (!analysis) return { gyeok: '분석 불가', composition: '' };
+  return toLegacyGyeok(analysis);
 };
 
 /** 십이운성(十二運星) 조견표: 일간 한자 + 지지 한자 → 운성 이름 */

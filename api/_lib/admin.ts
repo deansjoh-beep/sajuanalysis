@@ -26,7 +26,7 @@ const getApp = async (): Promise<any | null> => {
           });
     return cachedApp;
   } catch (error) {
-    console.error('[api/lib/admin] init failed:', error);
+    console.error('[api/_lib/admin] init failed:', error);
     cachedApp = null;
     return null;
   }

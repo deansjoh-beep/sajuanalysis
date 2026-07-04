@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { serializeTimestamps } from './lib/serialize.js';
+import { serializeTimestamps } from './_lib/serialize.js';
 
 // --- Firebase Admin Utils (inlined) ---
 const DEFAULT_FIRESTORE_DB = 'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9';

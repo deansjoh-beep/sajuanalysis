@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkVercelRateLimit, generalLimiter } from '../lib/rate-limit.js';
+import { checkVercelRateLimit, generalLimiter } from '../_lib/rate-limit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!checkVercelRateLimit(req, res, generalLimiter)) return;
