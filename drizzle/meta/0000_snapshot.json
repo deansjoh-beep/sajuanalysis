@@ -1,5 +1,5 @@
 {
-  "id": "62972bec-e3e9-44a3-bffa-83d11a34599d",
+  "id": "9d4823f0-b4df-4eb7-8d63-c8b864e9650d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -25,7 +25,7 @@
           "name": "myeongsik",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -86,6 +86,12 @@
         },
         "order_no": {
           "name": "order_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_key": {
+          "name": "payment_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true

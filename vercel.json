@@ -87,6 +87,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/premium-order/:action",
+      "destination": "/api/premium-order?action=:action"
+    },
+    {
+      "source": "/api/payment/:action",
+      "destination": "/api/payment?action=:action"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

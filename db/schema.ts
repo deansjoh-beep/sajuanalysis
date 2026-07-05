@@ -82,13 +82,21 @@ export const FORBIDDEN_MYEONGSIK_KEYS = [
   'user_id',
 ] as const;
 
+/** 개인 식별 키 검출 오류 — API 계층에서 400으로 매핑한다 */
+export class PersonalDataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PersonalDataError';
+  }
+}
+
 export function assertNoPersonalKeys(myeongsik: Record<string, unknown>): void {
   const walk = (obj: unknown, path: string): void => {
     if (obj === null || typeof obj !== 'object') return;
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       const normalized = key.toLowerCase().replace(/[^a-z_]/g, '');
       if ((FORBIDDEN_MYEONGSIK_KEYS as readonly string[]).includes(normalized)) {
-        throw new Error(
+        throw new PersonalDataError(
           `개인 식별 키 저장 금지: myeongsik${path}.${key} — codes.myeongsik에는 명식 재생성 최소 파라미터만 허용됩니다.`,
         );
       }
@@ -98,13 +106,16 @@ export function assertNoPersonalKeys(myeongsik: Record<string, unknown>): void {
   walk(myeongsik, '');
 }
 
-/** 사주 코드 — 재열람의 유일한 열쇠. code 형식: 접두 2자 + '-' + 6자 (예: HW-3F9K2A) */
+/**
+ * 사주 코드 — 재열람의 유일한 열쇠. code 형식: 접두 2자 + '-' + 6자 (예: HW-3F9K2A).
+ * myeongsik이 null이면 "미사용 선물 코드" — 수령자가 코드 입력 + 생시 입력 시 채워진다.
+ */
 export const codes = pgTable(
   'codes',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     code: varchar('code', { length: 12 }).notNull().unique(),
-    myeongsik: jsonb('myeongsik').$type<MyeongsikParams>().notNull(),
+    myeongsik: jsonb('myeongsik').$type<MyeongsikParams>(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -120,6 +131,8 @@ export const orders = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     orderNo: text('order_no').notNull().unique(),
+    /** 토스페이먼츠 paymentKey — 환불(cancel API) 호출에 필요 */
+    paymentKey: text('payment_key').notNull(),
     codeId: uuid('code_id')
       .notNull()
       .references(() => codes.id, { onDelete: 'cascade' }),

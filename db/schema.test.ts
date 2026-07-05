@@ -128,7 +128,7 @@ describe('purge — 연쇄 파기·만료 삭제', () => {
     const [codeRow] = await db.insert(codes).values({ code: codeStr, myeongsik }).returning();
     const [order] = await db
       .insert(orders)
-      .values({ orderNo: `order-${codeStr}`, codeId: codeRow.id, product: 'yearly2026', amount: 49000 })
+      .values({ orderNo: `order-${codeStr}`, paymentKey: `pk-${codeStr}`, codeId: codeRow.id, product: 'yearly2026', amount: 49000 })
       .returning();
     const [report] = await db
       .insert(reports)
@@ -150,7 +150,7 @@ describe('purge — 연쇄 파기·만료 삭제', () => {
     const [codeRow] = await db.select().from(codes).where(sql`${codes.code} = 'AA-111111'`);
     const [order2] = await db
       .insert(orders)
-      .values({ orderNo: 'order-AA-2', codeId: codeRow.id, product: 'jobCareer', amount: 39000 })
+      .values({ orderNo: 'order-AA-2', paymentKey: 'pk-AA-2', codeId: codeRow.id, product: 'jobCareer', amount: 39000 })
       .returning();
     await db.insert(reports).values({ codeId: codeRow.id, orderId: order2.id, product: 'jobCareer', content: '두 번째 본문' });
 

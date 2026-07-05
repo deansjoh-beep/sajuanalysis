@@ -3,7 +3,7 @@ CREATE TYPE "public"."product" AS ENUM('premium', 'yearly2026', 'jobCareer', 'lo
 CREATE TABLE "codes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"code" varchar(12) NOT NULL,
-	"myeongsik" jsonb NOT NULL,
+	"myeongsik" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone,
 	CONSTRAINT "codes_code_unique" UNIQUE("code")
@@ -12,6 +12,7 @@ CREATE TABLE "codes" (
 CREATE TABLE "orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"order_no" text NOT NULL,
+	"payment_key" text NOT NULL,
 	"code_id" uuid NOT NULL,
 	"product" "product" NOT NULL,
 	"status" "order_status" DEFAULT 'paid' NOT NULL,
