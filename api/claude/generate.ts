@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkVercelRateLimit, generalLimiter } from '../_lib/rate-limit.js';
+import { claudeStreamAggregate } from '../_lib/claude-stream.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!checkVercelRateLimit(req, res, generalLimiter)) return;
@@ -13,13 +14,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Anthropic API key not configured' });
   }
 
-  const { model, system, messages, max_tokens = 8192, temperature } = req.body || {};
+  const { model, system, messages, max_tokens = 8192, temperature, thinking, stream } = req.body || {};
   if (!model || !messages) {
     return res.status(400).json({ error: 'model and messages fields required' });
   }
 
   try {
     // temperature는 명시된 경우에만 전달 — Sonnet 5·Opus 4.7+ 계열은 비기본 값을 400으로 거부.
+    const claudeBody = {
+      model,
+      system,
+      messages,
+      max_tokens,
+      ...(typeof temperature === 'number' ? { temperature } : {}),
+      ...(thinking && typeof thinking === 'object' ? { thinking } : {}),
+    };
+
+    // 장문 생성(stream: true)은 SSE 수신 → 서버측 조립으로 헤더 타임아웃 회피.
+    if (stream === true) {
+      const { status, data } = await claudeStreamAggregate(apiKey, claudeBody as any);
+      return res.status(status).json(data);
+    }
+
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -27,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ model, system, messages, max_tokens, ...(typeof temperature === 'number' ? { temperature } : {}) }),
+      body: JSON.stringify(claudeBody),
     });
 
     const data = await claudeRes.json();

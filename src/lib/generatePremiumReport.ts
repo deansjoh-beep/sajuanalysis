@@ -417,6 +417,10 @@ export const generateLifeNavReport = async (
         systemInstruction: systemText,
         userMessage: userText,
         maxTokens: 32000,
+        // 장문 생성: 프록시 서버측 SSE 조립(헤더 타임아웃 회피) + thinking 비활성
+        // (생성 시간을 Vercel 함수 한도 내로 단축 — Sonnet 5는 disabled 허용).
+        stream: true,
+        thinking: { type: 'disabled' },
         signal,
       });
       if (text) return text;

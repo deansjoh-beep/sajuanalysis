@@ -28,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { assemblePremiumReportPrompt, evaluatePremiumReportQuality } from '../src/lib/premiumReportCore';
+import { claudeStreamAggregate } from '../api/_lib/claude-stream';
 import type { ReportInputData, ProductType } from '../src/lib/premiumOrderStore';
 
 dotenv.config();
@@ -190,28 +191,26 @@ const callGeminiWithFallback = async (
   throw lastError || new Error('모든 Gemini 모델이 응답하지 않았습니다.');
 };
 
-/** Claude Sonnet 5 직접 호출 — 프로덕션 프록시와 동일 파라미터(샘플링 파라미터 없음, thinking 기본값). */
+/**
+ * Claude Sonnet 5 직접 호출 — 프로덕션 프록시와 동일 구성:
+ * SSE 수신 → 조립(헤더 타임아웃 회피) + thinking 비활성(생성 시간 단축).
+ */
 const callClaude = async (systemText: string, userText: string): Promise<CallResult> => {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: PREMIUM_CLAUDE_MODEL,
-      max_tokens: 32000,
-      system: systemText,
-      messages: [{ role: 'user', content: userText }],
-    }),
+  const { status, data } = await claudeStreamAggregate(ANTHROPIC_KEY, {
+    model: PREMIUM_CLAUDE_MODEL,
+    max_tokens: 32000,
+    system: systemText,
+    messages: [{ role: 'user', content: userText }],
+    thinking: { type: 'disabled' },
   });
-  const data: any = await response.json().catch(() => ({}));
   const usage: CallUsage = {
     model: PREMIUM_CLAUDE_MODEL,
     inputTokens: Number(data?.usage?.input_tokens ?? 0),
-    outputTokens: Number(data?.usage?.output_tokens ?? 0), // thinking 토큰 포함 과금
+    outputTokens: Number(data?.usage?.output_tokens ?? 0),
   };
-  if (!response.ok) {
-    throw Object.assign(new Error(`Claude API error (${response.status}): ${data?.error?.message || 'Unknown'}`), { usage });
+  if (status !== 200) {
+    throw Object.assign(new Error(`Claude API error (${status}): ${data?.error?.message || 'Unknown'}`), { usage });
   }
-  // adaptive thinking 모델은 text 앞에 thinking 블록이 올 수 있다 — text 블록 탐색.
   const textBlock = Array.isArray(data?.content) ? data.content.find((b: any) => b?.type === 'text') : null;
   const text = textBlock ? String(textBlock.text) : '';
   if (!text) {
