@@ -294,13 +294,14 @@ async function startServer() {
     const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
     if (!apiKey) return res.status(500).json({ error: 'Anthropic API key not configured' });
 
-    const { model, system, messages, max_tokens = 8192, temperature = 0.8 } = req.body || {};
+    const { model, system, messages, max_tokens = 8192, temperature } = req.body || {};
     if (!model || !messages) return res.status(400).json({ error: 'model and messages fields required' });
 
+    // temperature는 명시된 경우에만 전달 — Sonnet 5·Opus 4.7+ 계열은 비기본 값을 400으로 거부.
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, system, messages, max_tokens, temperature }),
+      body: JSON.stringify({ model, system, messages, max_tokens, ...(typeof temperature === 'number' ? { temperature } : {}) }),
     });
     const data = await claudeRes.json();
     return res.status(claudeRes.status).json(data);

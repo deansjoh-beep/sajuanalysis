@@ -5,6 +5,7 @@ import {
 } from "../utils/saju";
 import { toLegacyYongshin } from './analysis/gyeokyongshin';
 import { assemblePremiumReportPrompt, evaluatePremiumReportQuality } from './premiumReportCore';
+import { claudeGenerateContent } from './claudeClient';
 import { SAJU_GUIDELINE, REPORT_GUIDELINE } from "../constants/guidelines";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -337,7 +338,9 @@ export const generateLifeNavReport = async (
     ? toLegacyYongshin(analysis.gyeokYongshin)
     : calculateYongshin(saju);
 
-  // 2. Gemini AI 호출 (폴백 체인: 2.5-pro → 2.5-flash → 2.0-flash → 1.5-flash)
+  // 2. AI 호출 — Claude Sonnet 5 우선, 실패 시 Gemini 폴백 체인(2.5-pro → 2.5-flash → 2.0-flash → 1.5-flash).
+  //    (OWNER 결정 2026-07-05: 유료 장문 리포트는 Claude 우선 + Gemini Pro 백업)
+  const PREMIUM_CLAUDE_MODEL = 'claude-sonnet-5';
   const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
   const callGeminiWithFallback = async (
@@ -401,8 +404,32 @@ export const generateLifeNavReport = async (
     throw lastError || new Error('모든 Gemini 모델이 응답하지 않았습니다. 잠시 후 다시 시도해주세요.');
   };
 
+  // Claude 우선 → Gemini 폴백. geminiConfig는 Gemini 폴백 시에만 사용된다
+  // (Sonnet 5는 비기본 temperature 등 샘플링 파라미터를 400으로 거부하므로 생략).
+  const callWithModelChain = async (
+    systemText: string,
+    userText: string,
+    geminiConfig: any,
+  ): Promise<string> => {
+    try {
+      const { text } = await claudeGenerateContent({
+        model: PREMIUM_CLAUDE_MODEL,
+        systemInstruction: systemText,
+        userMessage: userText,
+        maxTokens: 32000,
+        signal,
+      });
+      if (text) return text;
+      console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${PREMIUM_CLAUDE_MODEL} returned empty — falling back to Gemini.`);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') throw err;
+      console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${PREMIUM_CLAUDE_MODEL} failed — falling back to Gemini.`, err?.message || err);
+    }
+    return callGeminiWithFallback(systemText, userText, geminiConfig);
+  };
+
   // system은 코어 모듈이 SAJU_GUIDELINE 포함 완성본으로 반환한다.
-  const rawText = await callGeminiWithFallback(
+  const rawText = await callWithModelChain(
     system,
     user,
     { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 }
@@ -423,7 +450,7 @@ export const generateLifeNavReport = async (
     ].join('\n');
 
     try {
-      const repairedRawText = await callGeminiWithFallback(
+      const repairedRawText = await callWithModelChain(
         `${system}\n\n${repairInstruction}`,
         user,
         { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 }

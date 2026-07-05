@@ -18,7 +18,9 @@
  *   npx tsx scripts/report-bench.ts --no-repair              # 보정 1회 재시도 없이 단발
  *   npx tsx scripts/report-bench.ts --out bench-output/my-run
  *
- * 필요 환경변수: GEMINI_API_KEY (또는 VITE_GEMINI_API_KEY) — .env/.env.local 자동 로드.
+ * 필요 환경변수 (.env/.env.local 자동 로드):
+ *   - ANTHROPIC_API_KEY — Claude Sonnet 5 우선 경로(프로덕션 파리티). 없으면 Gemini만 측정(경고).
+ *   - GEMINI_API_KEY (또는 VITE_GEMINI_API_KEY) — Gemini 폴백 체인.
  * ⚠️ 실 API 호출 = 실 비용. 50건 전체 실행 전 --count 1~2로 스모크 권장.
  */
 
@@ -33,11 +35,16 @@ dotenv.config({ path: '.env.local' });
 
 // ── 설정 ─────────────────────────────────────────────────────────────────────
 
+// 프로덕션(generateLifeNavReport)과 동일 체인: Claude Sonnet 5 우선 → Gemini 폴백
+// (OWNER 결정 2026-07-05). ANTHROPIC_API_KEY 미설정 시 Claude 구간을 건너뛰고 경고한다.
+const PREMIUM_CLAUDE_MODEL = 'claude-sonnet-5';
 const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 const PASS_SCORE = 80; // 프로덕션 보정 트리거와 동일 기준
 
 /** USD / 1M tokens. 2026-07 기준 공표가 — 변경 시 갱신할 것. 산출 원가는 추정치. */
 const PRICING_USD_PER_M: Record<string, { input: number; output: number }> = {
+  // Sonnet 5 인트로가($2/$10)는 2026-08-31까지 — 이후 정가 $3/$15로 갱신할 것.
+  'claude-sonnet-5': { input: 2.0, output: 10.0 },
   'gemini-2.5-pro': { input: 1.25, output: 10.0 },
   'gemini-2.5-flash': { input: 0.3, output: 2.5 },
   'gemini-2.0-flash': { input: 0.1, output: 0.4 },
@@ -66,6 +73,10 @@ const API_KEY = String(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API
 if (!API_KEY) {
   console.error('GEMINI_API_KEY (또는 VITE_GEMINI_API_KEY) 가 필요합니다. .env/.env.local 확인.');
   process.exit(1);
+}
+const ANTHROPIC_KEY = String(process.env.ANTHROPIC_API_KEY || '').trim();
+if (!ANTHROPIC_KEY) {
+  console.warn('⚠️ ANTHROPIC_API_KEY 미설정 — Claude 우선 구간을 건너뛰고 Gemini 폴백 경로만 측정합니다(프로덕션 파리티 아님).');
 }
 
 // ── 테스트 명식 픽스처(결정론 — 시드 고정 LCG) ───────────────────────────────
@@ -179,6 +190,55 @@ const callGeminiWithFallback = async (
   throw lastError || new Error('모든 Gemini 모델이 응답하지 않았습니다.');
 };
 
+/** Claude Sonnet 5 직접 호출 — 프로덕션 프록시와 동일 파라미터(샘플링 파라미터 없음, thinking 기본값). */
+const callClaude = async (systemText: string, userText: string): Promise<CallResult> => {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: PREMIUM_CLAUDE_MODEL,
+      max_tokens: 32000,
+      system: systemText,
+      messages: [{ role: 'user', content: userText }],
+    }),
+  });
+  const data: any = await response.json().catch(() => ({}));
+  const usage: CallUsage = {
+    model: PREMIUM_CLAUDE_MODEL,
+    inputTokens: Number(data?.usage?.input_tokens ?? 0),
+    outputTokens: Number(data?.usage?.output_tokens ?? 0), // thinking 토큰 포함 과금
+  };
+  if (!response.ok) {
+    throw Object.assign(new Error(`Claude API error (${response.status}): ${data?.error?.message || 'Unknown'}`), { usage });
+  }
+  // adaptive thinking 모델은 text 앞에 thinking 블록이 올 수 있다 — text 블록 탐색.
+  const textBlock = Array.isArray(data?.content) ? data.content.find((b: any) => b?.type === 'text') : null;
+  const text = textBlock ? String(textBlock.text) : '';
+  if (!text) {
+    throw Object.assign(new Error(`Claude returned empty text (stop_reason: ${data?.stop_reason ?? 'unknown'})`), { usage });
+  }
+  return { text, usages: [usage], modelUsed: PREMIUM_CLAUDE_MODEL };
+};
+
+/** 프로덕션 동일 체인: Claude Sonnet 5 우선 → Gemini 폴백. 실패한 Claude 시도의 과금 토큰도 원가에 반영. */
+const callWithModelChain = async (
+  systemText: string,
+  userText: string,
+  generationConfig: Record<string, unknown>,
+): Promise<CallResult> => {
+  if (!ANTHROPIC_KEY) return callGeminiWithFallback(systemText, userText, generationConfig);
+  try {
+    return await callClaude(systemText, userText);
+  } catch (err: any) {
+    console.warn(`  [fallback] ${PREMIUM_CLAUDE_MODEL} 실패 — Gemini 폴백: ${err?.message || err}`);
+    const gem = await callGeminiWithFallback(systemText, userText, generationConfig);
+    if (err?.usage && (err.usage.inputTokens > 0 || err.usage.outputTokens > 0)) {
+      gem.usages.unshift(err.usage as CallUsage);
+    }
+    return gem;
+  }
+};
+
 const costKrw = (usages: CallUsage[]): number =>
   usages.reduce((sum, u) => {
     const p = PRICING_USD_PER_M[u.model] ?? PRICING_USD_PER_M['gemini-2.5-pro'];
@@ -211,7 +271,7 @@ const runCase = async (input: ReportInputData, index: number): Promise<{ result:
   try {
     const { system, user, analysis } = assemblePremiumReportPrompt(input);
 
-    const first = await callGeminiWithFallback(system, user, { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 });
+    const first = await callWithModelChain(system, user, { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 });
     allUsages.push(...first.usages);
     let modelUsed = first.modelUsed;
     let quality = evaluatePremiumReportQuality(input.productType, first.text, input.lifeEvents, analysis.daeun.length);
@@ -229,7 +289,7 @@ const runCase = async (input: ReportInputData, index: number): Promise<{ result:
         ...quality.issues.map((issue) => `- ${issue}`),
       ].join('\n');
       try {
-        const second = await callGeminiWithFallback(`${system}\n\n${repairInstruction}`, user, { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 });
+        const second = await callWithModelChain(`${system}\n\n${repairInstruction}`, user, { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 });
         allUsages.push(...second.usages);
         const repairedQuality = evaluatePremiumReportQuality(input.productType, second.text, input.lifeEvents, analysis.daeun.length);
         if (repairedQuality.score >= quality.score) {
