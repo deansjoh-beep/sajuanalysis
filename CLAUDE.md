@@ -78,6 +78,15 @@ These are treated as product content, not code comments. Edits to tone, section 
 
 `isAdminRoute()` swaps the shell for `AdminPage`. Admin can manage premium orders (Firestore `premiumOrders`) and generate the long-form PDF report via `api/generate-pdf.ts` (Puppeteer with `@sparticuz/chromium-min` on Vercel, local Chrome path fallback in dev). Reports are uploaded to Storage (`api/premium-report/upload.ts` / `upload-url.ts`) and emailed (`sendPremiumReportEmail.ts`, Resend). Firestore security is in `firestore.rules`; the Firestore **database id** is non-default — always pass `'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9'` when building new admin queries.
 
+### Postgres data layer (Phase 2)
+
+`db/` holds the drizzle-orm Postgres layer for the commerce flow (decision D-0-2 — new saju data goes to Postgres, Firestore stays for blog/admin legacy):
+- `db/schema.ts` — `codes` (사주 코드 + `myeongsik` JSONB), `orders`, `reports` (`expires_at` 72h). **No personally identifying columns, ever** — `db/schema.test.ts` enforces this (column names + migration SQL), and `assertNoPersonalKeys()` guards JSONB payloads at insert time. Keep it passing.
+- `db/client.ts` — hosting-neutral: `DATABASE_URL`/`POSTGRES_URL` (pooled) → node-postgres; no URL in dev → PGlite fallback at `.pglite/` with auto-migration; no URL in production → APIs return 503.
+- `db/purge.ts` — shared purge logic. `DELETE /api/purge?code=` hard-deletes a code and cascades to orders/reports (irrecoverable by design); `GET /api/purge` with `Authorization: Bearer CRON_SECRET` deletes expired reports (daily Vercel cron). Hobby cron is once-daily, so read paths must also check `expires_at` themselves.
+- Migrations: `npx drizzle-kit generate` (offline) → SQL in `drizzle/`; apply with `npx drizzle-kit migrate` once a DB is provisioned.
+- ⚠️ Vercel Hobby caps serverless functions at **12** and `api/` is now exactly at the cap. New endpoints must be consolidated into existing function files (see `api/member.ts` and `api/purge.ts` for the pattern) until the plan is upgraded.
+
 ### Security layer
 
 **HTTP headers** — `vercel.json` applies these globally via `"source": "/(.*)"`:
