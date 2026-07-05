@@ -14,7 +14,20 @@ export interface ClaudeGenerateParams {
   systemInstruction: string;
   userMessage: string;
   maxTokens?: number;
+  /**
+   * ⚠️ Sonnet 5·Opus 4.7+ 계열은 비기본 temperature를 400으로 거부한다.
+   * 해당 모델 호출 시 생략할 것(생략하면 요청 본문에 포함하지 않음).
+   */
   temperature?: number;
+  /** thinking 설정(예: { type: 'disabled' }). 생략 시 모델 기본값(Sonnet 5는 adaptive). */
+  thinking?: { type: string };
+  /**
+   * true면 프록시가 Anthropic SSE를 수신해 서버측 조립 후 완성본을 반환한다.
+   * 1만+ 토큰 장문 생성 시 필수 — 비스트리밍은 응답 헤더가 수 분 뒤에 도착해
+   * 서버측(undici) 헤더 타임아웃(300s)에 걸린다.
+   */
+  stream?: boolean;
+  signal?: AbortSignal;
 }
 
 /**
@@ -26,15 +39,21 @@ export const claudeGenerateContent = async ({
   systemInstruction,
   userMessage,
   maxTokens = 8192,
-  temperature = 0.8,
+  temperature,
+  thinking,
+  stream,
+  signal,
 }: ClaudeGenerateParams): Promise<{ text: string }> => {
   const response = await fetch('/api/claude/generate', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
+    signal,
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
-      temperature,
+      ...(typeof temperature === 'number' ? { temperature } : {}),
+      ...(thinking ? { thinking } : {}),
+      ...(stream === true ? { stream: true } : {}),
       system: systemInstruction,
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -54,9 +73,10 @@ export const claudeGenerateContent = async ({
   }
 
   const data = await response.json();
-  const text =
-    Array.isArray(data.content) && data.content[0]?.type === 'text'
-      ? String(data.content[0].text)
-      : '';
-  return { text };
+  // Sonnet 5 등 adaptive thinking 모델은 text 앞에 thinking 블록이 올 수 있다 —
+  // 첫 블록 고정 접근 대신 text 타입 블록을 찾는다.
+  const textBlock = Array.isArray(data.content)
+    ? data.content.find((b: any) => b?.type === 'text')
+    : null;
+  return { text: textBlock ? String(textBlock.text) : '' };
 };

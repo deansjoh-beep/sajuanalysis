@@ -1,70 +1,16 @@
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import {
-  getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation,
-  getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary, hanjaToHangul,
+  getSajuData, getDaeunData, calculateYongshin, getDeityEnglishExplanation, hanjaToHangul,
 } from "../utils/saju";
-import { SAJU_GUIDELINE, REPORT_GUIDELINE, BASIC_REPORT_GUIDELINE, ADVANCED_REPORT_GUIDELINE, YEARLY_FORTUNE_2026_GUIDELINE, JOB_CAREER_GUIDELINE, LOVE_MARRIAGE_GUIDELINE } from "../constants/guidelines";
+import { toLegacyYongshin } from './analysis/gyeokyongshin';
+import { assemblePremiumReportPrompt, evaluatePremiumReportQuality } from './premiumReportCore';
+import { claudeGenerateContent } from './claudeClient';
+import { SAJU_GUIDELINE, REPORT_GUIDELINE } from "../constants/guidelines";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PremiumOrder, ReportInputData, ReportSection, DaeunBlock } from "./premiumOrderStore";
-import { getCurrentYearPillarKST, getTodayDayPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
-import { buildLifeNavReportPrompt, buildYearlyFortune2026Prompt, buildJobCareerPrompt, buildLoveMarriagePrompt } from './promptBuilders';
-
-const LIFE_NAV_REQUIRED_SECTION_IDS = [
-  'cover',
-  'fourpillars',
-  'yongshin',
-  'profile',
-  'daeun',
-  'hapchung',
-  'sinsal',
-  'fortune',
-  'fields',
-  'concern',
-  'admin',
-  'glossary',
-] as const;
-
-const YEARLY_FORTUNE_REQUIRED_SECTION_IDS = [
-  'cover',
-  'chart',
-  'answer',
-  'yearly',
-  'monthly',
-  'checklist',
-  'glossary',
-] as const;
-
-const JOB_CAREER_REQUIRED_SECTION_IDS = [
-  'cover',
-  'chart',
-  'answer',
-  'foundation',
-  'sipseng',
-  'ohaeng',
-  'timing',
-  'action',
-  'glossary',
-] as const;
-
-const LOVE_MARRIAGE_REQUIRED_SECTION_IDS = [
-  'cover',
-  'chart',
-  'answer',
-  'foundation',
-  'love',
-  'marriage',
-  'partner',
-  'action',
-  'glossary',
-] as const;
-
-const stripCodeFence = (text: string): string => {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith('```')) return trimmed;
-  return trimmed.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
-};
+import { PremiumOrder, ReportInputData, ReportSection } from "./premiumOrderStore";
+import { getCurrentYearPillarKST, getTodayDayPillarKST } from './seoulDateGanji';
 
 export const generatePremiumReport = async (order: PremiumOrder): Promise<{ reportText: string; pdfUrl: string }> => {
   try {
@@ -367,225 +313,17 @@ const generateReportPDF = async (order: PremiumOrder, reportText: string): Promi
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 인생 네비게이션 리포트 생성
+// (프롬프트 조립·섹션 파싱·품질 평가는 premiumReportCore.ts — 벤치 하네스와 공유)
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** [DAEUN_START]...[DAEUN_END] 블록 파싱 */
-const parseDaeunBlocks = (content: string, lifeEvents: { year: number; description: string }[]): DaeunBlock[] => {
-  const blocks: DaeunBlock[] = [];
-  const regex = /\[DAEUN_START\]\s*(.*?)\s*\[DAEUN_CONTENT\]([\s\S]*?)\[DAEUN_END\]/g;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(content)) !== null) {
-    const label = m[1].trim();
-    const blockContent = m[2].trim();
-    // e.g. "甲子운 (5~14세)"
-    const ageMatch = label.match(/\((\d+)~(\d+)세\)/);
-    const startAge = ageMatch ? parseInt(ageMatch[1]) : 0;
-    const endAge = ageMatch ? parseInt(ageMatch[2]) : startAge + 9;
-
-    // 이 대운 기간 내의 인생 이벤트 매핑
-    const birthYear = 0; // 실제 생년 없이 나이로만 비교하기 어려우므로 별도 처리 없이 이미 AI 본문에 포함
-    const relatedEvents = lifeEvents.filter(e => {
-      // 이 블록의 label 안에 해당 연도 언급이 있으면 연결
-      return blockContent.includes(String(e.year));
-    });
-
-    blocks.push({ label, startAge, endAge, content: blockContent, lifeEvents: relatedEvents });
-  }
-  return blocks;
-};
-
-/** 섹션 마커 파싱: [SECTION] id [TITLE] ... [SUMMARY] ... [CONTENT] ... [END] */
-const parseLifeNavSections = (
-  raw: string,
-  lifeEvents: { year: number; description: string }[]
-): ReportSection[] => {
-  const sections: ReportSection[] = [];
-  const regex = /\[SECTION\]\s*(\S+)\s*\[TITLE\]\s*([\s\S]*?)\s*\[SUMMARY\]\s*([\s\S]*?)\s*\[CONTENT\]\s*([\s\S]*?)\s*\[END\]/g;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(raw)) !== null) {
-    const id = m[1].trim();
-    const title = m[2].trim();
-    const summary = m[3].trim();
-    const content = m[4].trim();
-    const daeunBlocks = id === 'daeun' ? parseDaeunBlocks(content, lifeEvents) : undefined;
-    sections.push({ id, title, summary, content, daeunBlocks });
-  }
-  return sections;
-};
-
-const evaluateLifeNavReportQuality = (
-  rawText: string,
-  lifeEvents: { year: number; description: string }[],
-  expectedDaeunCount: number
-): {
-  score: number;
-  issues: string[];
-  normalizedText: string;
-  sections: ReportSection[];
-} => {
-  const normalizedText = stripCodeFence(rawText);
-  const sections = parseLifeNavSections(normalizedText, lifeEvents);
-  const issues: string[] = [];
-
-  if (sections.length === 0) {
-    issues.push('섹션 마커 파싱 실패');
-  }
-
-  const ids = new Set(sections.map((s) => s.id));
-  LIFE_NAV_REQUIRED_SECTION_IDS.forEach((id) => {
-    if (!ids.has(id)) {
-      issues.push(`필수 섹션 누락: ${id}`);
-    }
-  });
-
-  sections.forEach((section) => {
-    if (section.id === 'cover') return;
-    const contentLen = section.content.replace(/\s+/g, '').length;
-    if (contentLen < 120) {
-      issues.push(`본문이 너무 짧음: ${section.id}`);
-    }
-  });
-
-  const daeunSection = sections.find((s) => s.id === 'daeun');
-  const actualDaeunBlocks = daeunSection?.daeunBlocks?.length ?? 0;
-  const expectedMinDaeunBlocks = Math.max(8, Math.min(12, expectedDaeunCount));
-  if (actualDaeunBlocks < expectedMinDaeunBlocks) {
-    issues.push(`대운 블록 부족: ${actualDaeunBlocks}/${expectedMinDaeunBlocks}`);
-  }
-
-  const score = Math.max(0, 100 - (issues.length * 12));
-  return { score, issues, normalizedText, sections };
-};
-
-const evaluateYearlyFortuneQuality = (
-  rawText: string
-): {
-  score: number;
-  issues: string[];
-  normalizedText: string;
-  sections: ReportSection[];
-} => {
-  const normalizedText = stripCodeFence(rawText);
-  const sections = parseLifeNavSections(normalizedText, []);
-  const issues: string[] = [];
-
-  if (sections.length === 0) issues.push('섹션 마커 파싱 실패');
-
-  const ids = new Set(sections.map((s) => s.id));
-  YEARLY_FORTUNE_REQUIRED_SECTION_IDS.forEach((id) => {
-    if (!ids.has(id)) issues.push(`필수 섹션 누락: ${id}`);
-  });
-
-  sections.forEach((section) => {
-    if (section.id === 'cover') return;
-    const contentLen = section.content.replace(/\s+/g, '').length;
-    if (section.id === 'answer' && contentLen < 1200) {
-      issues.push(`Part I(answer) 분량 부족: ${contentLen}자 (2,000자 권장)`);
-    } else if (section.id === 'monthly' && contentLen < 2000) {
-      issues.push(`Part III(monthly) 분량 부족: ${contentLen}자`);
-    } else if (contentLen < 120) {
-      issues.push(`본문이 너무 짧음: ${section.id}`);
-    }
-  });
-
-  // 월별 블록 개수 확인 (최소 10개)
-  const monthlySection = sections.find((s) => s.id === 'monthly');
-  if (monthlySection) {
-    const monthBlockCount = (monthlySection.content.match(/\[MONTH_START\]/g) || []).length;
-    if (monthBlockCount < 10) {
-      issues.push(`월별 블록 부족: ${monthBlockCount}/12`);
-    }
-  }
-
-  const score = Math.max(0, 100 - issues.length * 12);
-  return { score, issues, normalizedText, sections };
-};
-
-const evaluateJobCareerQuality = (
-  rawText: string
-): {
-  score: number;
-  issues: string[];
-  normalizedText: string;
-  sections: ReportSection[];
-} => {
-  const normalizedText = stripCodeFence(rawText);
-  const sections = parseLifeNavSections(normalizedText, []);
-  const issues: string[] = [];
-
-  if (sections.length === 0) issues.push('섹션 마커 파싱 실패');
-
-  const ids = new Set(sections.map((s) => s.id));
-  JOB_CAREER_REQUIRED_SECTION_IDS.forEach((id) => {
-    if (!ids.has(id)) issues.push(`필수 섹션 누락: ${id}`);
-  });
-
-  sections.forEach((section) => {
-    if (section.id === 'cover') return;
-    const contentLen = section.content.replace(/\s+/g, '').length;
-    if (section.id === 'answer' && contentLen < 800) {
-      issues.push(`answer 섹션 분량 부족: ${contentLen}자 (1,200자 권장)`);
-    } else if (section.id === 'timing') {
-      const seunBlockCount = (section.content.match(/\[SEUN_BLOCK\]/g) || []).length;
-      if (seunBlockCount < 3) issues.push(`SEUN_BLOCK 부족: ${seunBlockCount}/3`);
-      if (contentLen < 600) issues.push(`timing 섹션 분량 부족: ${contentLen}자`);
-    } else if (section.id === 'action') {
-      if (!section.content.includes('[ACTION_PLAN]')) issues.push('ACTION_PLAN 마커 누락');
-    } else if (contentLen < 120) {
-      issues.push(`본문이 너무 짧음: ${section.id}`);
-    }
-  });
-
-  const score = Math.max(0, 100 - issues.length * 12);
-  return { score, issues, normalizedText, sections };
-};
-
-const evaluateLoveMarriageQuality = (
-  rawText: string
-): {
-  score: number;
-  issues: string[];
-  normalizedText: string;
-  sections: ReportSection[];
-} => {
-  const normalizedText = stripCodeFence(rawText);
-  const sections = parseLifeNavSections(normalizedText, []);
-  const issues: string[] = [];
-
-  if (sections.length === 0) issues.push('섹션 마커 파싱 실패');
-
-  const ids = new Set(sections.map((s) => s.id));
-  LOVE_MARRIAGE_REQUIRED_SECTION_IDS.forEach((id) => {
-    if (!ids.has(id)) issues.push(`필수 섹션 누락: ${id}`);
-  });
-
-  sections.forEach((section) => {
-    if (section.id === 'cover') return;
-    const contentLen = section.content.replace(/\s+/g, '').length;
-    if (section.id === 'answer' && contentLen < 800) {
-      issues.push(`answer 섹션 분량 부족: ${contentLen}자 (1,200자 권장)`);
-    } else if (section.id === 'love') {
-      const seunBlockCount = (section.content.match(/\[SEUN_BLOCK\]/g) || []).length;
-      if (seunBlockCount < 3) issues.push(`love SEUN_BLOCK 부족: ${seunBlockCount}/3`);
-      if (contentLen < 700) issues.push(`love 섹션 분량 부족: ${contentLen}자`);
-    } else if (section.id === 'marriage') {
-      if (contentLen < 700) issues.push(`marriage 섹션 분량 부족: ${contentLen}자`);
-    } else if (section.id === 'action') {
-      if (!section.content.includes('[ACTION_PLAN]')) issues.push('ACTION_PLAN 마커 누락');
-    } else if (contentLen < 120) {
-      issues.push(`본문이 너무 짧음: ${section.id}`);
-    }
-  });
-
-  const score = Math.max(0, 100 - issues.length * 12);
-  return { score, issues, normalizedText, sections };
-};
 
 export const generateLifeNavReport = async (
   inputData: ReportInputData,
   signal?: AbortSignal
 ): Promise<{ sections: ReportSection[]; saju: any; daeun: any; yongshin: any }> => {
-  // 1. 사주 계산
+  // 1. 프롬프트 조립 — SajuAnalysis 단일 소스(코어 모듈, 벤치 하네스와 동일 경로).
+  const { system, user, analysis } = assemblePremiumReportPrompt(inputData);
+
+  // 미리보기 UI(PremiumReportPreview)는 아직 레거시 saju 배열 형태를 소비하므로 반환용으로만 유지.
   const saju = getSajuData(
     inputData.birthDate,
     inputData.birthTime,
@@ -595,204 +333,14 @@ export const generateLifeNavReport = async (
     'Asia/Seoul'
   );
 
-  const daeun = getDaeunData(
-    inputData.birthDate,
-    inputData.birthTime,
-    inputData.isLunar,
-    inputData.isLeap,
-    inputData.gender,
-    inputData.unknownTime
-  );
+  const daeun = analysis.daeun;
+  const yongshin = analysis.gyeokYongshin
+    ? toLegacyYongshin(analysis.gyeokYongshin)
+    : calculateYongshin(saju);
 
-  const yongshin = calculateYongshin(saju);
-  const currentYearPillar = getCurrentYearPillarKST();
-
-  // 2. 컨텍스트 문자열 생성
-  const sajuContext = saju.map((p: any) => {
-    const stemDeityEng = getDeityEnglishExplanation(p.stem.deity);
-    const branchDeityEng = getDeityEnglishExplanation(p.branch.deity);
-    return `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) — 십성: ${p.stem.deity}/${p.branch.deity}` +
-      (stemDeityEng ? ` (${stemDeityEng})` : '') +
-      (branchDeityEng ? ` (${branchDeityEng})` : '');
-  }).join('\n');
-
-  const daeunContext = daeun.map((d: any) => {
-    const stemHangul = hanjaToHangul[d.stem] || d.stem;
-    const branchHangul = hanjaToHangul[d.branch] || d.branch;
-    return `${d.startAge}세(${d.startYear}~${d.startYear + 9}년) 대운: ${stemHangul}(${d.stem})${branchHangul}(${d.branch})`;
-  }).join(', ');
-
-  const yongshinContext = `강약: ${yongshin.strength} | 조후: ${yongshin.johooStatus} | 용신: ${yongshin.yongshin} | 기신: ${yongshin.eokbuYongshin ?? ''} | 논리: ${yongshin.logicBasis ?? ''}`;
-
-  const hapchungContext = getHapChungSummary(saju);
-  const shinsalContext = getShinsalSummary(saju);
-  const sipseungContext = getOriginalSipseungSummary(saju[2]?.stem?.hanja ?? '', saju);
-
-  const lifeEventsText = inputData.lifeEvents.length > 0
-    ? inputData.lifeEvents.map(e => `${e.year}년: ${e.description}`).join('\n')
-    : '없음';
-
-  // 현재 나이 계산
-  const birthYear = parseInt(inputData.birthDate.split('-')[0]);
-  const currentAge = currentYearPillar.year - birthYear;
-
-  // 오늘 날짜 (서울 기준) — AI가 "올해" 기준연도를 정확히 인식하도록 명시
-  const seoulNow = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date());
-  const todayY = seoulNow.find(p => p.type === 'year')?.value ?? String(currentYearPillar.year);
-  const todayM = seoulNow.find(p => p.type === 'month')?.value ?? '01';
-  const todayD = seoulNow.find(p => p.type === 'day')?.value ?? '01';
-  const todayDateText = `${todayY}년 ${parseInt(todayM)}월 ${parseInt(todayD)}일`;
-
-  const isYearlyFortune = inputData.productType === 'yearly2026';
-  const isJobCareer = inputData.productType === 'jobCareer';
-  const isLoveMarriage = inputData.productType === 'loveMarriage';
-
-  let system: string;
-  let user: string;
-
-  if (isLoveMarriage) {
-    // 연애·결혼운 가이드북: 2026~2028 세운 고정 블록 주입
-    const seun3YText = [
-      '2026년: 병오(丙午) — 천간 丙(양화), 지지 午(화)',
-      '2027년: 정미(丁未) — 천간 丁(음화), 지지 未(토)',
-      '2028년: 무신(戊申) — 천간 戊(양토), 지지 申(금)',
-    ].join('\n');
-
-    const built = buildLoveMarriagePrompt({
-      userName: inputData.name,
-      gender: inputData.gender,
-      birthDate: inputData.birthDate,
-      birthTime: inputData.birthTime,
-      isLunar: inputData.isLunar,
-      isLeap: inputData.isLeap,
-      unknownTime: inputData.unknownTime,
-      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
-      daeunContext,
-      yongshinContext,
-      currentAge,
-      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
-      todayDateText,
-      seun3YText,
-      relationshipStatus: inputData.relationshipStatus || '',
-      loveConcern: inputData.concern || '',
-      desiredDirection: inputData.interest || '',
-      loveMarriageGuideline: LOVE_MARRIAGE_GUIDELINE,
-    });
-    system = built.system;
-    user = built.user;
-  } else if (isJobCareer) {
-    // 직업운 리포트: 2026~2028 세운 고정 블록 주입
-    const seun3YText = [
-      '2026년: 병오(丙午) — 천간 丙(양화), 지지 午(화)',
-      '2027년: 정미(丁未) — 천간 丁(음화), 지지 未(토)',
-      '2028년: 무신(戊申) — 천간 戊(양토), 지지 申(금)',
-    ].join('\n');
-
-    const built = buildJobCareerPrompt({
-      userName: inputData.name,
-      gender: inputData.gender,
-      birthDate: inputData.birthDate,
-      birthTime: inputData.birthTime,
-      isLunar: inputData.isLunar,
-      isLeap: inputData.isLeap,
-      unknownTime: inputData.unknownTime,
-      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
-      daeunContext,
-      yongshinContext,
-      currentAge,
-      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
-      todayDateText,
-      seun3YText,
-      currentJob: inputData.currentJob || '',
-      careerConcern: inputData.concern || '',
-      careerGoal: inputData.interest || '',
-      workHistory: inputData.workHistory || '',
-      jobCareerGuideline: JOB_CAREER_GUIDELINE,
-    });
-    system = built.system;
-    user = built.user;
-  } else if (isYearlyFortune) {
-    // 2026 월별 간지 텍스트
-    const monthPillars = getMonthPillarsForYear(currentYearPillar.year);
-    const monthPillarsText = monthPillars
-      .map((p) => `${p.month}월: ${p.monthPillarHanja}(${p.monthPillarHangul})`)
-      .join('\n');
-
-    // 향후 세운 흐름 — 전년 1년 + 현재 + 미래 5년 = 총 7년치 (2년·3년 후 질문 대응)
-    const seunStart = currentYearPillar.year - 1;
-    const seunEnd = currentYearPillar.year + 5;
-    const yearPillars = getYearPillarsForRange(seunStart, seunEnd);
-    const seunRangeText = yearPillars
-      .map((p) => {
-        const relLabel =
-          p.year === currentYearPillar.year
-            ? ' (올해)'
-            : p.year > currentYearPillar.year
-              ? ` (${p.year - currentYearPillar.year}년 후)`
-              : ` (${currentYearPillar.year - p.year}년 전)`;
-        return `${p.year}년: ${p.yearPillarHanja}(${p.yearPillarHangul})${relLabel}`;
-      })
-      .join('\n');
-
-    const built = buildYearlyFortune2026Prompt({
-      userName: inputData.name,
-      gender: inputData.gender,
-      birthDate: inputData.birthDate,
-      birthTime: inputData.birthTime,
-      isLunar: inputData.isLunar,
-      isLeap: inputData.isLeap,
-      unknownTime: inputData.unknownTime,
-      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
-      daeunContext,
-      yongshinContext,
-      currentAge,
-      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
-      todayDateText,
-      monthPillarsText,
-      seunRangeText,
-      currentJob: inputData.currentJob || '',
-      concern: inputData.concern,
-      interest: inputData.interest,
-      yearlyFortuneGuideline: YEARLY_FORTUNE_2026_GUIDELINE,
-    });
-    system = built.system;
-    user = built.user;
-  } else {
-    const levelGuideline = inputData.reportLevel === 'advanced'
-      ? ADVANCED_REPORT_GUIDELINE
-      : inputData.reportLevel === 'both'
-        ? `${ADVANCED_REPORT_GUIDELINE}\n\n${BASIC_REPORT_GUIDELINE}`
-        : BASIC_REPORT_GUIDELINE;
-
-    const built = buildLifeNavReportPrompt({
-      userName: inputData.name,
-      gender: inputData.gender,
-      birthDate: inputData.birthDate,
-      birthTime: inputData.birthTime,
-      isLunar: inputData.isLunar,
-      isLeap: inputData.isLeap,
-      unknownTime: inputData.unknownTime,
-      reportLevel: inputData.reportLevel,
-      sajuContext: `${sajuContext}\n\n[합충형파해]\n${hapchungContext}\n\n[십이신살]\n${shinsalContext}\n\n[십이운성]\n${sipseungContext}`,
-      daeunContext,
-      yongshinContext,
-      currentAge,
-      currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
-      todayDateText,
-      lifeEventsText,
-      concern: inputData.concern,
-      interest: inputData.interest,
-      adminNotes: inputData.adminNotes,
-      levelGuideline,
-    });
-    system = built.system;
-    user = built.user;
-  }
-
-  // 3. Gemini AI 호출 (폴백 체인: 2.5-pro → 2.5-flash → 2.0-flash → 1.5-flash)
+  // 2. AI 호출 — Claude Sonnet 5 우선, 실패 시 Gemini 폴백 체인(2.5-pro → 2.5-flash → 2.0-flash → 1.5-flash).
+  //    (OWNER 결정 2026-07-05: 유료 장문 리포트는 Claude 우선 + Gemini Pro 백업)
+  const PREMIUM_CLAUDE_MODEL = 'claude-sonnet-5';
   const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
   const callGeminiWithFallback = async (
@@ -856,19 +404,42 @@ export const generateLifeNavReport = async (
     throw lastError || new Error('모든 Gemini 모델이 응답하지 않았습니다. 잠시 후 다시 시도해주세요.');
   };
 
-  const rawText = await callGeminiWithFallback(
-    `${SAJU_GUIDELINE}\n\n${system}`,
+  // Claude 우선 → Gemini 폴백. geminiConfig는 Gemini 폴백 시에만 사용된다
+  // (Sonnet 5는 비기본 temperature 등 샘플링 파라미터를 400으로 거부하므로 생략).
+  const callWithModelChain = async (
+    systemText: string,
+    userText: string,
+    geminiConfig: any,
+  ): Promise<string> => {
+    try {
+      const { text } = await claudeGenerateContent({
+        model: PREMIUM_CLAUDE_MODEL,
+        systemInstruction: systemText,
+        userMessage: userText,
+        maxTokens: 32000,
+        // 장문 생성: 프록시 서버측 SSE 조립(헤더 타임아웃 회피) + thinking 비활성
+        // (생성 시간을 Vercel 함수 한도 내로 단축 — Sonnet 5는 disabled 허용).
+        stream: true,
+        thinking: { type: 'disabled' },
+        signal,
+      });
+      if (text) return text;
+      console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${PREMIUM_CLAUDE_MODEL} returned empty — falling back to Gemini.`);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') throw err;
+      console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${PREMIUM_CLAUDE_MODEL} failed — falling back to Gemini.`, err?.message || err);
+    }
+    return callGeminiWithFallback(systemText, userText, geminiConfig);
+  };
+
+  // system은 코어 모듈이 SAJU_GUIDELINE 포함 완성본으로 반환한다.
+  const rawText = await callWithModelChain(
+    system,
     user,
     { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 }
   );
 
-  let quality = isLoveMarriage
-    ? evaluateLoveMarriageQuality(rawText)
-    : isJobCareer
-      ? evaluateJobCareerQuality(rawText)
-      : isYearlyFortune
-        ? evaluateYearlyFortuneQuality(rawText)
-        : evaluateLifeNavReportQuality(rawText, inputData.lifeEvents, daeun.length);
+  let quality = evaluatePremiumReportQuality(inputData.productType, rawText, inputData.lifeEvents, daeun.length);
 
   // 품질 점수가 낮으면 1회 보정 생성 시도
   if (quality.score < 80) {
@@ -883,18 +454,12 @@ export const generateLifeNavReport = async (
     ].join('\n');
 
     try {
-      const repairedRawText = await callGeminiWithFallback(
-        `${SAJU_GUIDELINE}\n\n${system}\n\n${repairInstruction}`,
+      const repairedRawText = await callWithModelChain(
+        `${system}\n\n${repairInstruction}`,
         user,
         { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 }
       );
-      const repairedQuality = isLoveMarriage
-        ? evaluateLoveMarriageQuality(repairedRawText)
-        : isJobCareer
-          ? evaluateJobCareerQuality(repairedRawText)
-          : isYearlyFortune
-            ? evaluateYearlyFortuneQuality(repairedRawText)
-            : evaluateLifeNavReportQuality(repairedRawText, inputData.lifeEvents, daeun.length);
+      const repairedQuality = evaluatePremiumReportQuality(inputData.productType, repairedRawText, inputData.lifeEvents, daeun.length);
       if (repairedQuality.score >= quality.score) {
         quality = repairedQuality;
       }
@@ -904,7 +469,7 @@ export const generateLifeNavReport = async (
     }
   }
 
-  // 4. 섹션 파싱
+  // 3. 섹션 파싱
   const sections = quality.sections;
 
   // 파싱 실패 시 단일 섹션으로 fallback

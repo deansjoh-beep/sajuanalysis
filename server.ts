@@ -16,6 +16,7 @@ import {
 } from "./api/_lib/rate-limit.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
+import { claudeStreamAggregate } from "./api/_lib/claude-stream.ts";
 import { getSeoulTodayYmd } from "./src/lib/seoulDateGanji.ts";
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getStorage as getAdminStorage, Storage } from 'firebase-admin/storage';
@@ -294,13 +295,29 @@ async function startServer() {
     const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
     if (!apiKey) return res.status(500).json({ error: 'Anthropic API key not configured' });
 
-    const { model, system, messages, max_tokens = 8192, temperature = 0.8 } = req.body || {};
+    const { model, system, messages, max_tokens = 8192, temperature, thinking, stream } = req.body || {};
     if (!model || !messages) return res.status(400).json({ error: 'model and messages fields required' });
+
+    // temperature는 명시된 경우에만 전달 — Sonnet 5·Opus 4.7+ 계열은 비기본 값을 400으로 거부.
+    const claudeBody = {
+      model,
+      system,
+      messages,
+      max_tokens,
+      ...(typeof temperature === 'number' ? { temperature } : {}),
+      ...(thinking && typeof thinking === 'object' ? { thinking } : {}),
+    };
+
+    // 장문 생성(stream: true)은 SSE 수신 → 서버측 조립으로 헤더 타임아웃 회피.
+    if (stream === true) {
+      const { status, data } = await claudeStreamAggregate(apiKey, claudeBody as any);
+      return res.status(status).json(data);
+    }
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, system, messages, max_tokens, temperature }),
+      body: JSON.stringify(claudeBody),
     });
     const data = await claudeRes.json();
     return res.status(claudeRes.status).json(data);
