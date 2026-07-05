@@ -285,17 +285,61 @@ const evaluateLoveMarriageQuality = (rawText: string): PremiumReportQuality => {
   return { score, issues, normalizedText, sections };
 };
 
-/** 상품 유형별 품질 평가 디스패처. 미지정/premium은 인생네비 기준. */
+// ─────────────────────────────────────────────────────────────────────────────
+// 금칙어(단정 표현) 검사 — OWNER 지시(2026-07-05)
+// "사망·이혼·파산 등 단정적 표현 금지"를 v1 규칙으로 넣고, 추후 아래 배열에 추가한다.
+// 위반은 품질 이슈로 계상되어(건당 -12점) 80점 미만이면 보정 재생성이 발동한다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ForbiddenRule = { label: string; pattern: RegExp };
+
+/** 등장 자체를 금지하는 표현(운세 리포트에 부적절한 수명 단정어). ※ 추가는 여기에. */
+const FORBIDDEN_TERMS: ReadonlyArray<ForbiddenRule> = [
+  { label: '수명 단정어(요절·단명·비명횡사)', pattern: /요절|단명|비명횡사/ },
+];
+
+/** 민감 주제어 — 아래 단정 어미와 한 문장 내(30자)에서 결합하면 위반. ※ 추가는 여기에. */
+const SENSITIVE_TOPICS: ReadonlyArray<string> = [
+  '사망', '죽음', '죽게', '이혼', '파경', '사별', '파산', '부도',
+];
+
+/** 단정 어미 패턴 — "~할 수 있으니 조심" 같은 경향·주의 서술은 허용, 확정 서술만 잡는다. */
+const ASSERTIVE_ENDINGS =
+  '(합니다|하게\\s*됩니다|하게\\s*될\\s*것|할\\s*것입니다|이\\s*확실|은\\s*확실|을\\s*피할\\s*수\\s*없|은\\s*피할\\s*수\\s*없|하고\\s*맙니다|예정입니다|운명입니다|정해져\\s*있)';
+
+const FORBIDDEN_ASSERTIONS: ReadonlyArray<ForbiddenRule> = SENSITIVE_TOPICS.map((topic) => ({
+  label: `${topic} 단정 표현`,
+  pattern: new RegExp(`${topic}[^.!?\\n]{0,30}${ASSERTIVE_ENDINGS}`),
+}));
+
+/** 리포트 본문에서 금칙(단정) 표현 위반 라벨 목록을 반환한다. 없으면 빈 배열. */
+export const checkForbiddenExpressions = (text: string): string[] => {
+  const violations: string[] = [];
+  for (const rule of [...FORBIDDEN_TERMS, ...FORBIDDEN_ASSERTIONS]) {
+    if (rule.pattern.test(text)) violations.push(rule.label);
+  }
+  return violations;
+};
+
+/** 상품 유형별 품질 평가 디스패처(+ 금칙어 검사). 미지정/premium은 인생네비 기준. */
 export const evaluatePremiumReportQuality = (
   productType: ProductType | undefined,
   rawText: string,
   lifeEvents: LifeEvent[],
   expectedDaeunCount: number,
 ): PremiumReportQuality => {
-  if (productType === 'loveMarriage') return evaluateLoveMarriageQuality(rawText);
-  if (productType === 'jobCareer') return evaluateJobCareerQuality(rawText);
-  if (productType === 'yearly2026') return evaluateYearlyFortuneQuality(rawText);
-  return evaluateLifeNavReportQuality(rawText, lifeEvents, expectedDaeunCount);
+  const quality =
+    productType === 'loveMarriage' ? evaluateLoveMarriageQuality(rawText)
+    : productType === 'jobCareer' ? evaluateJobCareerQuality(rawText)
+    : productType === 'yearly2026' ? evaluateYearlyFortuneQuality(rawText)
+    : evaluateLifeNavReportQuality(rawText, lifeEvents, expectedDaeunCount);
+
+  const violations = checkForbiddenExpressions(quality.normalizedText);
+  if (violations.length > 0) {
+    quality.issues.push(...violations.map((v) => `금칙어(단정 표현) 위반: ${v} — 경향·주의 서술로 완화 필요`));
+    quality.score = Math.max(0, quality.score - violations.length * 12);
+  }
+  return quality;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
