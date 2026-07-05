@@ -13,6 +13,7 @@
  *   리포트지침(고급) → report-advanced.ts
  *   직업운 리포트    → job-career.ts
  *   연애결혼운 리포트 → love-marriage.ts
+ *   골든셋 모범예시(인생네비) → golden-lifenav.ts
  */
 export { SAJU_GUIDELINE } from './saju';
 export { CONSULTING_GUIDELINE } from './consulting-common';
@@ -24,3 +25,4 @@ export { ADVANCED_REPORT_GUIDELINE } from './report-advanced';
 export { YEARLY_FORTUNE_2026_GUIDELINE } from './yearly-fortune-2026';
 export { JOB_CAREER_GUIDELINE } from './job-career';
 export { LOVE_MARRIAGE_GUIDELINE } from './love-marriage';
+export { GOLDEN_LIFENAV_EXAMPLE } from './golden-lifenav';

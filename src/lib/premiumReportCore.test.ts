@@ -7,7 +7,8 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { checkForbiddenExpressions, evaluatePremiumReportQuality } from './premiumReportCore';
+import { assemblePremiumReportPrompt, checkForbiddenExpressions, evaluatePremiumReportQuality } from './premiumReportCore';
+import type { ReportInputData } from './premiumOrderStore';
 
 describe('checkForbiddenExpressions — 단정 표현은 위반', () => {
   test.each([
@@ -42,5 +43,34 @@ describe('evaluatePremiumReportQuality — 금칙어 통합', () => {
     expect(dirty.issues.some((i) => i.includes('금칙어'))).toBe(true);
     expect(dirty.score).toBeLessThanOrEqual(clean.score);
     expect(clean.issues.some((i) => i.includes('금칙어'))).toBe(false);
+  });
+});
+
+describe('assemblePremiumReportPrompt — 골든셋 few-shot 주입 (D-2-4)', () => {
+  const baseInput: ReportInputData = {
+    name: '테스트',
+    gender: 'M',
+    birthDate: '1986-11-23',
+    birthTime: '13:06',
+    isLunar: false,
+    isLeap: false,
+    unknownTime: false,
+    concern: '',
+    interest: '',
+    reportLevel: 'basic',
+    lifeEvents: [],
+    adminNotes: '',
+  };
+
+  test('인생네비(기본 상품)에는 골든셋 예시가 포함된다', () => {
+    const { system } = assemblePremiumReportPrompt(baseInput);
+    expect(system).toContain('[골든셋 모범 예시');
+    expect(system).toContain('<모범예시>');
+    expect(system).toContain('○○○');
+  });
+
+  test('타 상품(yearly2026)에는 골든셋 예시가 포함되지 않는다', () => {
+    const { system } = assemblePremiumReportPrompt({ ...baseInput, productType: 'yearly2026' });
+    expect(system).not.toContain('[골든셋 모범 예시');
   });
 });

@@ -17,6 +17,7 @@ import {
   YEARLY_FORTUNE_2026_GUIDELINE,
   JOB_CAREER_GUIDELINE,
   LOVE_MARRIAGE_GUIDELINE,
+  GOLDEN_LIFENAV_EXAMPLE,
 } from '../constants/guidelines';
 import { getCurrentYearPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
 import {
@@ -533,6 +534,21 @@ export const assemblePremiumReportPrompt = (inputData: ReportInputData): Premium
     });
     system = built.system;
     user = built.user;
+
+    // 골든셋 few-shot 주입 (D-2-4, OWNER 위임 선정 2026-07-05) — 인생네비 전용.
+    // 형식·톤·깊이의 기준 예시일 뿐, 간지·해석은 실제 고객 데이터에서만 도출하도록 명시한다.
+    system += [
+      '',
+      '',
+      '[골든셋 모범 예시 — 형식·톤·깊이 기준]',
+      '아래는 모범 리포트 예시다. 문체·비유 수준·섹션별 구성과 깊이를 이 예시에 맞춰라.',
+      '단, 간지·오행·십성·대운 등 모든 해석 내용은 예시가 아니라 위에 제공된 이번 고객의 사주 데이터에서만 도출하고,',
+      '고객 이름은 반드시 이번 고객의 실제 이름을 사용하라. 예시 속 ○○○ 명식·해석을 절대 복사하지 마라.',
+      '',
+      '<모범예시>',
+      GOLDEN_LIFENAV_EXAMPLE.trim(),
+      '</모범예시>',
+    ].join('\n');
   }
 
   return { system: `${SAJU_GUIDELINE}\n\n${system}`, user, analysis };
