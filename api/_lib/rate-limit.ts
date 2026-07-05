@@ -122,6 +122,9 @@ export const taekilLimiter = createRateLimiter({ windowMs: 60_000, max: 15 });
 /** 일반 조회 API — 분당 30회 */
 export const generalLimiter = createRateLimiter({ windowMs: 60_000, max: 30 });
 
+/** 즉시 파기(DELETE /api/purge) — 파괴적 작업, 코드 무차별 대입 방지. 분당 5회 */
+export const purgeLimiter = createRateLimiter({ windowMs: 60_000, max: 5 });
+
 // ─── Express 미들웨어 헬퍼 ──────────────────────────────────────────────────
 
 type ExpressReq = { ip?: string; socket?: { remoteAddress?: string }; headers: Record<string, string | string[] | undefined> };

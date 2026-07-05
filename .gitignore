@@ -9,3 +9,5 @@ bench-output/
 !.env.example
 service-account.json
 .claude/settings.local.json
+.vercel/
+.pglite/

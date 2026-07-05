@@ -13,7 +13,10 @@ import {
   orderCreateLimiter,
   taekilLimiter,
   generalLimiter,
+  purgeLimiter,
 } from "./api/_lib/rate-limit.ts";
+import { getDb, isDbConfigured } from "./db/client.ts";
+import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from "./db/purge.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
 import { claudeStreamAggregate } from "./api/_lib/claude-stream.ts";
@@ -576,6 +579,60 @@ async function startServer() {
       return res.sendFile(filePath);
     } catch (error: any) {
       return res.status(500).send(error?.message || 'Failed to read file');
+    }
+  });
+
+  // ── Phase 2-1: 파기 API — api/purge.ts(Vercel)와 동일 형상 유지 ──────────
+  // DELETE /api/purge?code= → 즉시 파기(codes·orders·reports 연쇄, 복구 불가)
+  app.delete("/api/purge", expressRateLimit(purgeLimiter), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED', message: '데이터베이스가 아직 구성되지 않았습니다 (DATABASE_URL 미설정).' });
+      }
+      const raw = String(req.query.code || '').trim();
+      if (!raw) {
+        return res.status(400).json({ error: 'CODE_REQUIRED', message: 'code 쿼리 파라미터가 필요합니다.' });
+      }
+      const code = normalizeCode(raw);
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const db = await getDb();
+      const result = await purgeByCode(db, code);
+      if (!result.found) {
+        return res.status(404).json({ error: 'CODE_NOT_FOUND', message: '해당 코드를 찾을 수 없습니다.' });
+      }
+      return res.status(200).json({
+        ok: true,
+        irrecoverable: true,
+        message: '해당 코드의 명식·주문·리포트가 모두 파기되었습니다. 이 작업은 되돌릴 수 없습니다.',
+        ordersPurged: result.ordersPurged,
+        reportsPurged: result.reportsPurged,
+      });
+    } catch (error: any) {
+      console.error('[purge] failed:', error);
+      return res.status(500).json({ error: 'PURGE_FAILED', message: error?.message || 'purge failed' });
+    }
+  });
+
+  // GET /api/purge → 만료 리포트 청소 (프로덕션 크론과 동일 경로, CRON_SECRET 필요)
+  app.get("/api/purge", async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const cronSecret = (process.env.CRON_SECRET || '').trim();
+      const auth = String(req.headers['authorization'] || '');
+      if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+        return res.status(401).json({ error: 'UNAUTHORIZED' });
+      }
+      const db = await getDb();
+      const purged = await purgeExpiredReports(db);
+      console.log(`[purge-cron] expired reports purged: ${purged}`);
+      return res.status(200).json({ ok: true, expiredReportsPurged: purged });
+    } catch (error: any) {
+      console.error('[purge-cron] failed:', error);
+      return res.status(500).json({ error: 'PURGE_CRON_FAILED', message: error?.message || 'purge cron failed' });
     }
   });
 
