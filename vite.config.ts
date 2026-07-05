@@ -70,6 +70,11 @@ export default defineConfig(() => {
     },
     test: {
       exclude: ['e2e/**', 'test-results/**', 'node_modules/**', 'dist/**'],
+      coverage: {
+        // Phase 1 DoD 측정 범위: 만세력·구조 분석 계층 (90%+ 목표)
+        include: ['src/lib/manseryeok/**', 'src/lib/analysis/**'],
+        reporter: ['text', 'json-summary'],
+      },
     },
   };
 });
