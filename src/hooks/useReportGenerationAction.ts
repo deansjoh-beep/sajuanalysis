@@ -95,11 +95,12 @@ export const useReportGenerationAction = ({
       const wolunSipseung = dayMasterHanja ? getSipseung(dayMasterHanja, wolunBranch) : '';
 
       // 7순위: 합·충·공망·신살·원국운성
-      const yearStemHanja = sajuResult.length >= 4 ? sajuResult[3].stem.hanja : '';
-      const yearBranchHanja = sajuResult.length >= 4 ? sajuResult[3].branch.hanja : '';
       const hapChungStr = sajuResult.length >= 2 ? getHapChungSummary(sajuResult) : '';
-      const gongmangStr = (yearStemHanja && yearBranchHanja && yearBranchHanja !== '?')
-        ? getGongmangSummary(yearStemHanja, yearBranchHanja, sajuResult)
+      // 공망은 일주 기준 단일(기준서 부록 A-6)
+      const dayStemHanja = sajuResult.length >= 2 ? sajuResult[1].stem.hanja : '';
+      const dayBranchHanja = sajuResult.length >= 2 ? sajuResult[1].branch.hanja : '';
+      const gongmangStr = (dayStemHanja && dayBranchHanja && dayBranchHanja !== '?')
+        ? getGongmangSummary(dayStemHanja, dayBranchHanja, sajuResult)
         : '';
       const shinsalStr = getShinsalSummary(sajuResult);
       const originalSipseungStr = dayMasterHanja ? getOriginalSipseungSummary(dayMasterHanja, sajuResult) : '';

@@ -86,7 +86,7 @@ describe('buildSajuAnalysis — 대운·세운·월운', () => {
 describe('buildSajuAnalysis — 공망·신살·합충·격국용신', () => {
   const a = buildSajuAnalysis(baseInput);
 
-  test('공망: 己酉년 → 寅卯 공망, 원국 해당 없음', () => {
+  test('공망: 일주 기준 단일(기준서 A-6) — 辛亥일(甲辰旬) → 寅卯 공망, 원국 해당 없음', () => {
     expect(a.gongmang.branches).toEqual(['寅', '卯']);
     expect(a.gongmang.natalHits).toEqual([]);
     expect(typeof a.gongmang.seunInGongmang).toBe('boolean');

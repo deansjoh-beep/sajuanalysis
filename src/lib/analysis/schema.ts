@@ -27,6 +27,8 @@ import {
   isPa,
   isHae,
   isWonjin,
+  isGwimun,
+  getHongyeom,
   getYukhap,
   calculateDeity,
   elementMap,
@@ -270,8 +272,8 @@ export const buildSajuAnalysis = (input: BuildSajuAnalysisInput): SajuAnalysis =
   ];
   const hapChungEvents = detectHapChung(tokens);
 
-  // ── 공망 ──
-  const gongmang = buildGongmang(yearP, natalOrder, seun.branch, currentWolun.branch);
+  // ── 공망(일주 기준 단일 — 기준서 부록 A-6) ──
+  const gongmang = buildGongmang(dayP, natalOrder, seun.branch, currentWolun.branch);
 
   // ── 신살(연지 12신살 + 일간 기준 귀인/살) ──
   const shinsal = buildShinsal(natalOrder, dayStem, yearP.branch.hanja, seun, currentWolun, dayP);
@@ -379,6 +381,7 @@ const detectHapChung = (tokens: RunToken[]): HapChungEvent[] => {
       if (isPa(a.branch, b.branch)) events.push({ tag: '파', detail: '파', between: [at(a, a.branch), at(b, b.branch)] });
       if (isHae(a.branch, b.branch)) events.push({ tag: '해', detail: '해', between: [at(a, a.branch), at(b, b.branch)] });
       if (isWonjin(a.branch, b.branch)) events.push({ tag: '원진', detail: '원진', between: [at(a, a.branch), at(b, b.branch)] });
+      if (isGwimun(a.branch, b.branch)) events.push({ tag: '귀문', detail: '귀문관살', between: [at(a, a.branch), at(b, b.branch)] });
     }
   }
 
@@ -403,12 +406,12 @@ const detectHapChung = (tokens: RunToken[]): HapChungEvent[] => {
 };
 
 const buildGongmang = (
-  yearP: any,
+  dayP: any,
   natalOrder: any[],
   seunBranch: string,
   wolunBranch: string,
 ): GongmangInfo => {
-  const gm = getGongmang(yearP.stem.hanja, yearP.branch.hanja);
+  const gm = getGongmang(dayP.stem.hanja, dayP.branch.hanja);
   const natalHits = natalOrder
     .filter((p) => p.branch?.hanja && gm.includes(p.branch.hanja))
     .map((p) => p.title as PillarPosition);
@@ -449,6 +452,7 @@ const buildShinsal = (
   const munchang = getMunchang(dayStem);
   const hakdang = getHakdang(dayStem);
   const yangin = getYangin(dayStem);
+  const hongyeom = getHongyeom(dayStem);
   for (const p of natalOrder) {
     const br = p.branch?.hanja;
     if (!br || br === '?') continue;
@@ -457,6 +461,7 @@ const buildShinsal = (
     if (munchang === br) out.push({ scope: '원국', label, branch: br, name: '문창귀인' });
     if (hakdang === br) out.push({ scope: '원국', label, branch: br, name: '학당귀인' });
     if (yangin === br) out.push({ scope: '원국', label, branch: br, name: '양인살' });
+    if (hongyeom === br) out.push({ scope: '원국', label, branch: br, name: '홍염살' });
   }
 
   // 괴강살(일주)

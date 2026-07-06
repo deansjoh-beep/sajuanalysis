@@ -13,6 +13,8 @@ import {
   getHakdang,
   isGoegang,
   isWonjin,
+  isGwimun,
+  getHongyeom,
   isHyeong,
   isPa,
   isHae,
@@ -1050,12 +1052,40 @@ function ShinsalOtherSection({
       });
     }
   }
+  const hongyeom = getHongyeom(dayStem);
+  if (hongyeom) {
+    const hit = findPillarsWith(hongyeom);
+    if (hit) {
+      items.push({
+        position: `${hit}의 ${hanjaToHangul[hongyeom]}(${hongyeom})`,
+        name: '홍염살(紅艶殺)',
+        desc: '이성에게 매력적으로 비치는 다정다감한 기운입니다. 사교성과 표현력이 좋아 인기가 따르지만, 관계의 경계를 흐리면 구설로 이어질 수 있습니다.',
+        impact: '영향력 중간 — 대인 매력과 감성 표현의 자산이 되며, 절제가 곁들여질 때 빛납니다.',
+      });
+    }
+  }
   if (goegang) {
     items.push({
       position: `일주 ${hanjaToHangul[dayStem]}${hanjaToHangul[dayBranch]}(${dayStem}${dayBranch})`,
       name: '괴강살(魁罡)',
       desc: '일주에만 성립하는 강렬한 살입니다. 총명하고 강한 카리스마를 지니지만 고집이 세고 충돌이 잦습니다. 부귀와 고난이 함께 오며, 끝까지 밀어붙이는 결단력이 성공의 열쇠입니다.',
       impact: '영향력 매우 강함 — 성공과 좌절의 진폭이 크고, 다스리는 만큼 명예가 따릅니다.',
+    });
+  }
+  const gwimunPairs: string[] = [];
+  for (let a = 0; a < pillars.length; a++) {
+    for (let b = a + 1; b < pillars.length; b++) {
+      if (isGwimun(pillars[a].branch.hanja, pillars[b].branch.hanja)) {
+        gwimunPairs.push(`${pillars[a].title}↔${pillars[b].title}`);
+      }
+    }
+  }
+  if (gwimunPairs.length > 0) {
+    items.push({
+      position: `${gwimunPairs.join(', ')} 사이`,
+      name: '귀문관살(鬼門關殺)',
+      desc: '감수성과 직관이 극도로 예민해지는 기운입니다. 몰입과 집착이 강해 정신적 피로가 쌓이기 쉽지만, 예술·연구처럼 깊이 파고드는 분야에서는 비범한 집중력으로 발현됩니다.',
+      impact: '영향력 중간 — 예민함을 다스리면 통찰과 몰입의 재능이 됩니다.',
     });
   }
   const wonjinPairs: string[] = [];
