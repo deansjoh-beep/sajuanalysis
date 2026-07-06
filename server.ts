@@ -19,7 +19,7 @@ import {
 } from "./api/_lib/rate-limit.ts";
 import { getDb, isDbConfigured } from "./db/client.ts";
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from "./db/purge.ts";
-import { consumeFollowup, lookupCode, redeemGiftCode } from "./db/code.ts";
+import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from "./db/code.ts";
 import { createTossClient, isTossConfigured, TossApiError } from "./api/_lib/toss.ts";
 import {
   confirmPaymentAndPersist,
@@ -741,6 +741,41 @@ async function startServer() {
     } catch (error: any) {
       console.error('[code:followup] failed:', error);
       return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'followup failed' });
+    }
+  });
+
+  app.post("/api/code/save-report", expressRateLimit(codeLookupLimiter), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const code = normalizeCode(String(req.body?.code || ''));
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const orderId = String(req.body?.orderId || '').trim();
+      if (!CODE_UUID_PATTERN.test(orderId)) {
+        return res.status(400).json({ error: 'ORDER_ID_INVALID', message: 'orderId가 올바르지 않습니다.' });
+      }
+      const content = typeof req.body?.content === 'string' ? req.body.content : '';
+      if (content.trim().length < 100 || content.length > 300_000) {
+        return res.status(400).json({ error: 'CONTENT_INVALID', message: '리포트 본문이 비어 있거나 허용 크기를 벗어났습니다.' });
+      }
+      const db = await getDb();
+      const outcome = await saveReport(db, code, orderId, content);
+      if (!outcome.ok && outcome.reason === 'order_not_found') {
+        return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 코드의 주문을 찾을 수 없습니다.' });
+      }
+      if (!outcome.ok && outcome.reason === 'order_not_eligible') {
+        return res.status(409).json({ error: 'ORDER_NOT_ELIGIBLE', message: '환불된 주문에는 리포트를 저장할 수 없습니다.' });
+      }
+      if (!outcome.ok) {
+        return res.status(409).json({ error: 'REPORT_ALREADY_ACTIVE', message: '이미 유효한 리포트가 있습니다. 만료 후 재생성할 수 있습니다.' });
+      }
+      return res.status(200).json({ ok: true, reportId: outcome.reportId, expiresAt: outcome.expiresAt });
+    } catch (error: any) {
+      console.error('[code:save-report] failed:', error);
+      return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'save-report failed' });
     }
   });
 

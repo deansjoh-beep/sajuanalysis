@@ -187,6 +187,57 @@ export async function redeemGiftCode(
   return existing ? 'already_redeemed' : 'not_found';
 }
 
+// ─── 리포트 저장 (결제 후 생성 완료분) ──────────────────────────────────────
+
+export interface SaveReportOutcome {
+  ok: boolean;
+  reason: 'saved' | 'order_not_found' | 'order_not_eligible' | 'already_active';
+  reportId: string | null;
+  expiresAt: Date | null;
+}
+
+/**
+ * 생성 완료된 리포트 본문을 저장하고 주문을 generated로 전이한다 (2-4 생성 파이프 연결).
+ * - 코드-주문 소속 검증 (코드 소지 = 자격)
+ * - 환불된 주문은 저장 불가
+ * - 같은 주문의 유효(미만료) 리포트가 있으면 already_active — 무과금 재생성은 만료 후에만
+ */
+export async function saveReport(
+  db: Db,
+  rawCode: string,
+  orderId: string,
+  content: string,
+): Promise<SaveReportOutcome> {
+  const code = rawCode.trim().toUpperCase();
+  const none = (reason: SaveReportOutcome['reason']): SaveReportOutcome =>
+    ({ ok: false, reason, reportId: null, expiresAt: null });
+
+  const [codeRow] = await db.select({ id: codes.id }).from(codes).where(eq(codes.code, code));
+  if (!codeRow) return none('order_not_found');
+
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.codeId, codeRow.id)));
+  if (!order) return none('order_not_found');
+  if (order.status === 'refunded') return none('order_not_eligible');
+
+  const now = new Date();
+  const existing = await db.select().from(reports).where(eq(reports.orderId, order.id));
+  if (existing.some((r) => r.expiresAt.getTime() > now.getTime())) {
+    return none('already_active');
+  }
+
+  const [report] = await db
+    .insert(reports)
+    .values({ codeId: codeRow.id, orderId: order.id, product: order.product, content })
+    .returning();
+  if (order.status !== 'generated') {
+    await db.update(orders).set({ status: 'generated' }).where(eq(orders.id, order.id));
+  }
+  return { ok: true, reason: 'saved', reportId: report.id, expiresAt: report.expiresAt };
+}
+
 // ─── 후속 질문 회수 차감 ────────────────────────────────────────────────────
 
 export interface FollowupOutcome {
