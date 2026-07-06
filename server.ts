@@ -13,7 +13,22 @@ import {
   orderCreateLimiter,
   taekilLimiter,
   generalLimiter,
+  purgeLimiter,
+  paymentLimiter,
+  codeLookupLimiter,
 } from "./api/_lib/rate-limit.ts";
+import { getDb, isDbConfigured } from "./db/client.ts";
+import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from "./db/purge.ts";
+import { consumeFollowup, lookupCode, redeemGiftCode } from "./db/code.ts";
+import { createTossClient, isTossConfigured, TossApiError } from "./api/_lib/toss.ts";
+import {
+  confirmPaymentAndPersist,
+  isPaidProduct,
+  PaymentValidationError,
+  refundOrder,
+  RefundPolicyPendingError,
+} from "./db/payment.ts";
+import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
 import { claudeStreamAggregate } from "./api/_lib/claude-stream.ts";
@@ -576,6 +591,257 @@ async function startServer() {
       return res.sendFile(filePath);
     } catch (error: any) {
       return res.status(500).send(error?.message || 'Failed to read file');
+    }
+  });
+
+  // ── Phase 2-1: 파기 API — api/code.ts(Vercel)와 동일 형상 유지 ──────────
+  // DELETE /api/purge?code= (스펙 경로) = DELETE /api/code?code= → 즉시 파기(연쇄, 복구 불가)
+  app.delete(["/api/purge", "/api/code"], expressRateLimit(purgeLimiter), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED', message: '데이터베이스가 아직 구성되지 않았습니다 (DATABASE_URL 미설정).' });
+      }
+      const raw = String(req.query.code || '').trim();
+      if (!raw) {
+        return res.status(400).json({ error: 'CODE_REQUIRED', message: 'code 쿼리 파라미터가 필요합니다.' });
+      }
+      const code = normalizeCode(raw);
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const db = await getDb();
+      const result = await purgeByCode(db, code);
+      if (!result.found) {
+        return res.status(404).json({ error: 'CODE_NOT_FOUND', message: '해당 코드를 찾을 수 없습니다.' });
+      }
+      return res.status(200).json({
+        ok: true,
+        irrecoverable: true,
+        message: '해당 코드의 명식·주문·리포트가 모두 파기되었습니다. 이 작업은 되돌릴 수 없습니다.',
+        ordersPurged: result.ordersPurged,
+        reportsPurged: result.reportsPurged,
+      });
+    } catch (error: any) {
+      console.error('[purge] failed:', error);
+      return res.status(500).json({ error: 'PURGE_FAILED', message: error?.message || 'purge failed' });
+    }
+  });
+
+  // GET /api/purge → 만료 리포트 청소 (프로덕션 크론과 동일 경로, CRON_SECRET 필요)
+  app.get("/api/purge", async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const cronSecret = (process.env.CRON_SECRET || '').trim();
+      const auth = String(req.headers['authorization'] || '');
+      if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+        return res.status(401).json({ error: 'UNAUTHORIZED' });
+      }
+      const db = await getDb();
+      const purged = await purgeExpiredReports(db);
+      console.log(`[purge-cron] expired reports purged: ${purged}`);
+      return res.status(200).json({ ok: true, expiredReportsPurged: purged });
+    } catch (error: any) {
+      console.error('[purge-cron] failed:', error);
+      return res.status(500).json({ error: 'PURGE_CRON_FAILED', message: error?.message || 'purge cron failed' });
+    }
+  });
+
+  // ── Phase 2-3: 사주 코드 조회/재열람·선물 리딤·후속 질문 — api/code.ts와 동일 형상 ──
+  const CODE_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  app.get("/api/code", expressRateLimit(codeLookupLimiter, (req) => !String((req as any).query?.code || '').trim()), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const raw = String(req.query.code || '').trim();
+      if (!raw) {
+        // 코드 없는 GET = 만료 청소 크론 (프로덕션 vercel.json crons와 동일 경로)
+        const cronSecret = (process.env.CRON_SECRET || '').trim();
+        const auth = String(req.headers['authorization'] || '');
+        if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+          return res.status(401).json({ error: 'UNAUTHORIZED' });
+        }
+        const db = await getDb();
+        const purged = await purgeExpiredReports(db);
+        console.log(`[purge-cron] expired reports purged: ${purged}`);
+        return res.status(200).json({ ok: true, expiredReportsPurged: purged });
+      }
+      const code = normalizeCode(raw);
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const db = await getDb();
+      const result = await lookupCode(db, code);
+      if (!result.found) {
+        return res.status(404).json({ error: 'CODE_NOT_FOUND', message: '해당 코드를 찾을 수 없습니다.' });
+      }
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error('[code:lookup] failed:', error);
+      return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'lookup failed' });
+    }
+  });
+
+  app.post("/api/code/redeem", expressRateLimit(codeLookupLimiter), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const code = normalizeCode(String(req.body?.code || ''));
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const myeongsik = req.body?.myeongsik as MyeongsikParams | undefined;
+      if (!myeongsik || typeof myeongsik !== 'object') {
+        return res.status(400).json({ error: 'MYEONGSIK_REQUIRED', message: '선물 코드 등록에는 myeongsik(명식 파라미터)이 필요합니다.' });
+      }
+      const db = await getDb();
+      const outcome = await redeemGiftCode(db, code, myeongsik);
+      if (outcome === 'not_found') {
+        return res.status(404).json({ error: 'CODE_NOT_FOUND', message: '해당 코드를 찾을 수 없습니다.' });
+      }
+      if (outcome === 'already_redeemed') {
+        return res.status(409).json({ error: 'ALREADY_REDEEMED', message: '이미 등록된 코드입니다.' });
+      }
+      return res.status(200).json({ ok: true, redeemed: true });
+    } catch (error: any) {
+      if (error instanceof PersonalDataError) {
+        return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
+      }
+      console.error('[code:redeem] failed:', error);
+      return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'redeem failed' });
+    }
+  });
+
+  app.post("/api/code/followup", expressRateLimit(codeLookupLimiter), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const code = normalizeCode(String(req.body?.code || ''));
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const orderId = String(req.body?.orderId || '').trim();
+      if (!CODE_UUID_PATTERN.test(orderId)) {
+        return res.status(400).json({ error: 'ORDER_ID_INVALID', message: 'orderId가 올바르지 않습니다.' });
+      }
+      const db = await getDb();
+      const outcome = await consumeFollowup(db, code, orderId);
+      if (!outcome.ok && outcome.reason === 'order_not_found') {
+        return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 코드의 주문을 찾을 수 없습니다.' });
+      }
+      if (!outcome.ok) {
+        return res.status(429).json({ error: 'FOLLOWUP_EXHAUSTED', message: '후속 질문 횟수를 모두 사용했습니다 (구매당 3회).', remaining: 0 });
+      }
+      return res.status(200).json({ ok: true, remaining: outcome.remaining });
+    } catch (error: any) {
+      console.error('[code:followup] failed:', error);
+      return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'followup failed' });
+    }
+  });
+
+  // ── Phase 2-2: 결제 — api/payment.ts(Vercel)와 동일 형상 유지 ──────────
+  const handlePaymentError = (res: any, action: string, error: unknown) => {
+    if (error instanceof PaymentValidationError) {
+      return res.status(400).json({ error: 'AMOUNT_MISMATCH', message: error.message });
+    }
+    if (error instanceof PersonalDataError) {
+      return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
+    }
+    if (error instanceof RefundPolicyPendingError) {
+      return res.status(501).json({ error: 'REFUND_POLICY_PENDING', message: error.message });
+    }
+    if (error instanceof TossApiError) {
+      console.error(`[payment:${action}] toss error ${error.code}:`, error.message);
+      return res.status(402).json({ error: error.code, message: error.message });
+    }
+    const message = error instanceof Error ? error.message : 'payment failed';
+    console.error(`[payment:${action}] error:`, error);
+    return res.status(500).json({ error: 'PAYMENT_FAILED', message });
+  };
+
+  const requirePaymentReady = (res: any): boolean => {
+    if (!isDbConfigured()) {
+      res.status(503).json({ error: 'DB_NOT_CONFIGURED', message: '데이터베이스가 아직 구성되지 않았습니다.' });
+      return false;
+    }
+    if (!isTossConfigured()) {
+      res.status(503).json({
+        error: 'PAYMENT_NOT_CONFIGURED',
+        message: '결제 모듈이 아직 활성화되지 않았습니다 (TOSS_SECRET_KEY 미설정 — 테스트 키로 선행 개발 가능).',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  app.post("/api/payment/confirm", expressRateLimit(paymentLimiter), async (req, res) => {
+    if (!requirePaymentReady(res)) return;
+    try {
+      const body = (req.body || {}) as Record<string, unknown>;
+      const paymentKey = String(body.paymentKey || '').trim();
+      const orderNo = String(body.orderId || '').trim();
+      const amount = Number(body.amount);
+      const product = String(body.product || '');
+      const gift = Boolean(body.gift);
+      const myeongsik = gift ? null : (body.myeongsik as MyeongsikParams | undefined);
+
+      if (!paymentKey || !orderNo || !Number.isInteger(amount)) {
+        return res.status(400).json({ error: 'INVALID_REQUEST', message: 'paymentKey, orderId, amount는 필수입니다.' });
+      }
+      if (!isPaidProduct(product)) {
+        return res.status(400).json({ error: 'INVALID_PRODUCT', message: `알 수 없는 상품: ${product}` });
+      }
+      if (!gift && !myeongsik) {
+        return res.status(400).json({ error: 'MYEONGSIK_REQUIRED', message: '일반 상품 결제에는 myeongsik(명식 파라미터)이 필요합니다.' });
+      }
+      if (myeongsik) assertNoPersonalKeys(myeongsik as unknown as Record<string, unknown>);
+
+      const db = await getDb();
+      const toss = createTossClient();
+      const result = await confirmPaymentAndPersist(db, toss, {
+        orderNo, paymentKey, amount, product, myeongsik: myeongsik ?? null,
+      });
+      return res.status(200).json({
+        ok: true,
+        alreadyProcessed: result.alreadyProcessed,
+        code: result.code,
+        orderId: result.orderId,
+      });
+    } catch (error) {
+      return handlePaymentError(res, 'confirm', error);
+    }
+  });
+
+  app.post("/api/payment/refund", expressRateLimit(paymentLimiter), async (req, res) => {
+    if (!requirePaymentReady(res)) return;
+    try {
+      const adminToken = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
+      const provided = String(req.headers['x-admin-token'] || '');
+      if (!adminToken || provided !== adminToken) {
+        return res.status(401).json({ error: 'UNAUTHORIZED', message: '환불은 관리자 토큰이 필요합니다.' });
+      }
+      const orderNo = String(req.body?.orderNo || '').trim();
+      const reason = String(req.body?.reason || '').trim();
+      if (!orderNo || !reason) {
+        return res.status(400).json({ error: 'INVALID_REQUEST', message: 'orderNo, reason은 필수입니다.' });
+      }
+      const db = await getDb();
+      const toss = createTossClient();
+      const outcome = await refundOrder(db, toss, orderNo, reason);
+      if (!outcome.found) {
+        return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 주문을 찾을 수 없습니다.' });
+      }
+      if (outcome.alreadyRefunded) {
+        return res.status(200).json({ ok: true, alreadyRefunded: true });
+      }
+      return res.status(200).json({ ok: true, refunded: true, amount: outcome.amount });
+    } catch (error) {
+      return handlePaymentError(res, 'refund', error);
     }
   });
 
