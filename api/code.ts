@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkVercelRateLimit, codeLookupLimiter, purgeLimiter } from './_lib/rate-limit.js';
 import { getDb, isDbConfigured } from '../db/client.js';
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from '../db/purge.js';
-import { consumeFollowup, lookupCode, redeemGiftCode } from '../db/code.js';
+import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from '../db/code.js';
 import { PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 
 /**
@@ -13,6 +13,7 @@ import { PersonalDataError, type MyeongsikParams } from '../db/schema.js';
  * - GET    /api/code (Bearer CRON_SECRET) → 만료 리포트 청소 크론 (vercel.json crons).
  * - POST   /api/code/redeem              → 선물 코드 리딤 (code + myeongsik).
  * - POST   /api/code/followup            → 후속 질문 1회 차감 (code + orderId, 주문당 3회).
+ * - POST   /api/code/save-report         → 생성 완료 리포트 저장 + 주문 generated 전이 (code + orderId + content).
  * - DELETE /api/code?code=               → 즉시 파기 (구 /api/purge — rewrite로 경로 보존, 복구 불가).
  *   · Hobby 크론은 1일 1회 정밀도 → 읽기 경로에서도 expires_at 검사 필수(72h 논리 보장).
  */
@@ -96,6 +97,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(429).json({ error: 'FOLLOWUP_EXHAUSTED', message: '후속 질문 횟수를 모두 사용했습니다 (구매당 3회).', remaining: 0 });
         }
         return res.status(200).json({ ok: true, remaining: outcome.remaining });
+      }
+
+      if (action === 'save-report') {
+        const orderId = String(body.orderId || '').trim();
+        const content = typeof body.content === 'string' ? body.content : '';
+        if (!UUID_PATTERN.test(orderId)) {
+          return res.status(400).json({ error: 'ORDER_ID_INVALID', message: 'orderId가 올바르지 않습니다.' });
+        }
+        if (content.trim().length < 100 || content.length > 300_000) {
+          return res.status(400).json({ error: 'CONTENT_INVALID', message: '리포트 본문이 비어 있거나 허용 크기를 벗어났습니다.' });
+        }
+        const outcome = await saveReport(db, code, orderId, content);
+        if (!outcome.ok && outcome.reason === 'order_not_found') {
+          return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 코드의 주문을 찾을 수 없습니다.' });
+        }
+        if (!outcome.ok && outcome.reason === 'order_not_eligible') {
+          return res.status(409).json({ error: 'ORDER_NOT_ELIGIBLE', message: '환불된 주문에는 리포트를 저장할 수 없습니다.' });
+        }
+        if (!outcome.ok) {
+          return res.status(409).json({ error: 'REPORT_ALREADY_ACTIVE', message: '이미 유효한 리포트가 있습니다. 만료 후 재생성할 수 있습니다.' });
+        }
+        return res.status(200).json({ ok: true, reportId: outcome.reportId, expiresAt: outcome.expiresAt });
       }
 
       return res.status(400).json({ error: 'UNKNOWN_ACTION', message: `Unknown action: ${action || '(empty)'}` });

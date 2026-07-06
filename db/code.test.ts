@@ -12,6 +12,7 @@ import {
   lookupCode,
   NEW_YEAR_DISCOUNT_PERCENT,
   redeemGiftCode,
+  saveReport,
 } from './code.ts';
 import { PersonalDataError } from './schema.ts';
 import * as schema from './schema.ts';
@@ -180,6 +181,49 @@ describe('사주 코드 체계 — 조회·리딤·후속질문', () => {
 
     const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(row.followupUsed).toBe(0);
+  });
+
+  // ─── 리포트 저장 (생성 파이프 연결) ──────────────────────────────────
+
+  it('saveReport: 본문 저장 + 주문 paid→generated 전이 + 72h 만료', async () => {
+    const { order } = await seed('NN-111222');
+    const outcome = await saveReport(db, 'nn-111222', order.id, '생성된 리포트 본문');
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.reportId).toBeTruthy();
+    expect(outcome.expiresAt!.getTime()).toBeGreaterThan(Date.now());
+
+    const [orderRow] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(orderRow.status).toBe('generated');
+
+    const result = await lookupCode(db, 'NN-111222');
+    expect(result.reports).toHaveLength(1);
+    expect(result.reports[0].content).toBe('생성된 리포트 본문');
+    expect(result.regenerable).toHaveLength(0);
+  });
+
+  it('saveReport: 유효 리포트가 있으면 already_active (만료 전 중복 저장 차단)', async () => {
+    const { order } = await seed('PP-333444', { orderStatus: 'generated', withReport: true });
+    const outcome = await saveReport(db, 'PP-333444', order.id, '두 번째 본문');
+    expect(outcome).toMatchObject({ ok: false, reason: 'already_active' });
+  });
+
+  it('saveReport: 만료된 리포트만 있으면 재저장 허용 (무과금 재생성 경로)', async () => {
+    const { order } = await seed('QQ-555666', { orderStatus: 'generated', withReport: true, reportExpired: true });
+    const outcome = await saveReport(db, 'QQ-555666', order.id, '재생성된 본문');
+    expect(outcome.ok).toBe(true);
+
+    const result = await lookupCode(db, 'QQ-555666');
+    expect(result.reports).toHaveLength(1);
+    expect(result.reports[0].content).toBe('재생성된 본문');
+  });
+
+  it('saveReport: 환불 주문은 order_not_eligible, 타 코드 주문은 order_not_found', async () => {
+    const { order } = await seed('RR-777888', { orderStatus: 'refunded' });
+    expect(await saveReport(db, 'RR-777888', order.id, '본문')).toMatchObject({ ok: false, reason: 'order_not_eligible' });
+
+    await seed('SS-999000');
+    expect(await saveReport(db, 'SS-999000', order.id, '본문')).toMatchObject({ ok: false, reason: 'order_not_found' });
   });
 
   it('followup: 존재하지 않는 코드/주문은 order_not_found', async () => {
