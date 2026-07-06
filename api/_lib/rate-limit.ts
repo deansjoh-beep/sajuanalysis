@@ -50,15 +50,19 @@ export interface RateLimiterConfig {
  * const result = pdfLimiter('203.0.113.1');
  * if (!result.allowed) return res.status(429).json({ error: '...' });
  */
+/** 리미터 인스턴스별 스토어 네임스페이스 — 없으면 서로 다른 엔드포인트가 카운터를 공유하는 버그가 생긴다 */
+let limiterSeq = 0;
+
 export function createRateLimiter(config: RateLimiterConfig) {
   const { windowMs, max } = config;
   const windowSec = Math.ceil(windowMs / 1000);
+  const namespace = `L${limiterSeq++}`;
 
   return function check(ip: string): RateLimitResult {
     maybeCleanup();
 
     const now = Date.now();
-    const storeKey = ip;
+    const storeKey = `${namespace}:${ip}`;
     const rec = store.get(storeKey);
 
     if (!rec || rec.resetAt <= now) {
@@ -127,6 +131,9 @@ export const purgeLimiter = createRateLimiter({ windowMs: 60_000, max: 5 });
 
 /** 결제 승인/환불 — PG API 보호. 분당 10회 */
 export const paymentLimiter = createRateLimiter({ windowMs: 60_000, max: 10 });
+
+/** 사주 코드 조회/리딤/후속질문 — 코드 무차별 대입 방지. 분당 10회 */
+export const codeLookupLimiter = createRateLimiter({ windowMs: 60_000, max: 10 });
 
 // ─── Express 미들웨어 헬퍼 ──────────────────────────────────────────────────
 

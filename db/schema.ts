@@ -139,6 +139,8 @@ export const orders = pgTable(
     product: productEnum('product').notNull(),
     status: orderStatusEnum('status').notNull().default('paid'),
     amount: integer('amount').notNull(),
+    /** 후속 질문 사용 횟수 — 구매(주문)당 3회 한도 (FOLLOWUP_LIMIT, OWNER 확정안) */
+    followupUsed: integer('followup_used').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

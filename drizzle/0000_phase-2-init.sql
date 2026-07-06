@@ -17,6 +17,7 @@ CREATE TABLE "orders" (
 	"product" "product" NOT NULL,
 	"status" "order_status" DEFAULT 'paid' NOT NULL,
 	"amount" integer NOT NULL,
+	"followup_used" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "orders_order_no_unique" UNIQUE("order_no")
 );

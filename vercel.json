@@ -24,7 +24,7 @@
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/purge",
+      "path": "/api/code",
       "schedule": "0 18 * * *"
     }
   ],
@@ -93,6 +93,14 @@
     {
       "source": "/api/payment/:action",
       "destination": "/api/payment?action=:action"
+    },
+    {
+      "source": "/api/code/:action",
+      "destination": "/api/code?action=:action"
+    },
+    {
+      "source": "/api/purge",
+      "destination": "/api/code"
     },
     {
       "source": "/api/(.*)",
