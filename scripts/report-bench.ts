@@ -17,6 +17,9 @@
  *   npx tsx scripts/report-bench.ts --product yearly2026     # 상품 선택
  *   npx tsx scripts/report-bench.ts --no-repair              # 보정 1회 재시도 없이 단발
  *   npx tsx scripts/report-bench.ts --out bench-output/my-run
+ *   npx tsx scripts/report-bench.ts --engine v1.5            # 자평 규칙 엔진 컨텍스트(v1.5)로 생성
+ *   npx tsx scripts/report-bench.ts --ab --count 30          # 플랜 3-1 A/B: 케이스당 v1·v1.5 쌍 생성
+ *                                                            #  → ab-compare.md 감수 후 ⛔ OWNER 병합 판정
  *
  * 필요 환경변수 (.env/.env.local 자동 로드):
  *   - ANTHROPIC_API_KEY — Claude Sonnet 5 우선 경로(프로덕션 파리티). 없으면 Gemini만 측정(경고).
@@ -66,9 +69,12 @@ const COUNT = Math.max(1, parseInt(argValue('count') ?? '50', 10));
 const PRODUCT = (argValue('product') ?? 'lifeNav') as 'lifeNav' | ProductType;
 const NO_REPAIR = hasFlag('no-repair');
 const DELAY_MS = Math.max(0, parseInt(argValue('delay') ?? '1000', 10));
+type YongshinEngine = 'v1' | 'v1.5';
+const ENGINE = (argValue('engine') ?? 'v1') as YongshinEngine; // 플랜 3-1 — v1.5 = 자평 규칙 엔진 컨텍스트
+const AB = hasFlag('ab'); // 케이스당 v1·v1.5 쌍 생성(A/B 벤치, ⛔ OWNER 병합 판정용)
 const now = new Date();
 const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-const OUT_DIR = argValue('out') ?? path.join('bench-output', `bench-${PRODUCT}-${stamp}`);
+const OUT_DIR = argValue('out') ?? path.join('bench-output', `bench-${PRODUCT}-${AB ? 'ab' : ENGINE}-${stamp}`);
 
 const API_KEY = String(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
 if (!API_KEY) {
@@ -249,6 +255,7 @@ const costKrw = (usages: CallUsage[]): number =>
 type CaseResult = {
   index: number;
   name: string;
+  engine: YongshinEngine;
   input: ReportInputData;
   pass: boolean;
   score: number;
@@ -264,11 +271,15 @@ type CaseResult = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const runCase = async (input: ReportInputData, index: number): Promise<{ result: CaseResult; reportText: string }> => {
+const runCase = async (
+  input: ReportInputData,
+  index: number,
+  engine: YongshinEngine,
+): Promise<{ result: CaseResult; reportText: string }> => {
   const started = Date.now();
   const allUsages: CallUsage[] = [];
   try {
-    const { system, user, analysis } = assemblePremiumReportPrompt(input);
+    const { system, user, analysis } = assemblePremiumReportPrompt(input, { yongshinEngine: engine });
 
     const first = await callWithModelChain(system, user, { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 });
     allUsages.push(...first.usages);
@@ -305,6 +316,7 @@ const runCase = async (input: ReportInputData, index: number): Promise<{ result:
       result: {
         index,
         name: input.name,
+        engine,
         input,
         pass: quality.score >= PASS_SCORE,
         score: quality.score,
@@ -323,6 +335,7 @@ const runCase = async (input: ReportInputData, index: number): Promise<{ result:
       result: {
         index,
         name: input.name,
+        engine,
         input,
         pass: false,
         score: 0,
@@ -344,8 +357,9 @@ const fmtInput = (d: ReportInputData) =>
   `${d.birthDate} ${d.unknownTime ? '시간미상' : d.birthTime} ${d.isLunar ? '음력' : '양력'} ${d.gender === 'M' ? '남' : '여'}`;
 
 const writeCaseMd = (dir: string, r: CaseResult, reportText: string) => {
+  const engineSuffix = AB ? `-${r.engine.replace('.', '')}` : '';
   const lines = [
-    `# 벤치 #${String(r.index + 1).padStart(3, '0')} — ${r.name} (${PRODUCT})`,
+    `# 벤치 #${String(r.index + 1).padStart(3, '0')} — ${r.name} (${PRODUCT}, 엔진 ${r.engine})`,
     '',
     `- 입력: ${fmtInput(r.input)}`,
     `- 고민/관심사: ${r.input.concern} / ${r.input.interest}`,
@@ -362,10 +376,10 @@ const writeCaseMd = (dir: string, r: CaseResult, reportText: string) => {
     reportText || '(생성 실패)',
     '',
   ];
-  fs.writeFileSync(path.join(dir, `${String(r.index + 1).padStart(3, '0')}-${r.name}.md`), lines.join('\n'), 'utf8');
+  fs.writeFileSync(path.join(dir, `${String(r.index + 1).padStart(3, '0')}-${r.name}${engineSuffix}.md`), lines.join('\n'), 'utf8');
 };
 
-const writeSummary = (dir: string, results: CaseResult[], totalSec: number) => {
+const writeSummary = (dir: string, results: CaseResult[], totalSec: number, fileBase = 'summary') => {
   const done = results.filter((r) => !r.error);
   const passed = results.filter((r) => r.pass);
   const passRate = results.length ? (passed.length / results.length) * 100 : 0;
@@ -404,26 +418,87 @@ const writeSummary = (dir: string, results: CaseResult[], totalSec: number) => {
     ),
     '',
   ];
-  fs.writeFileSync(path.join(dir, 'summary.md'), lines.join('\n'), 'utf8');
+  fs.writeFileSync(path.join(dir, `${fileBase}.md`), lines.join('\n'), 'utf8');
   fs.writeFileSync(
-    path.join(dir, 'summary.json'),
+    path.join(dir, `${fileBase}.json`),
     JSON.stringify({ product: PRODUCT, count: results.length, passRate, avgCostKrw: avgCost, avgDurationSec: avgSec, totalCostKrw: totalCost, dod: { passRate: dodPass, cost: dodCost }, results }, null, 2),
     'utf8',
   );
 };
 
+/** A/B 비교표(플랜 3-1) — 케이스별 v1↔v1.5 쌍을 나란히 놓고 OWNER 감수 판정란을 붙인다. */
+const writeAbCompare = (dir: string, v1: CaseResult[], v15: CaseResult[]) => {
+  const avg = (rs: CaseResult[], f: (r: CaseResult) => number) =>
+    rs.length ? rs.reduce((s, r) => s + f(r), 0) / rs.length : 0;
+  const passRate = (rs: CaseResult[]) => (rs.length ? (rs.filter((r) => r.pass).length / rs.length) * 100 : 0);
+  const lines = [
+    `# A/B 벤치 비교 — v1(프롬프트만) vs v1.5(자평 규칙 엔진 결합) · ${PRODUCT} ${v1.length}건 (${stamp})`,
+    '',
+    '플랜 3-1: 이 표와 케이스 쌍(md 파일 `-v1` / `-v15` 접미사)을 감수해 병합 여부를 판정한다(⛔ OWNER).',
+    'v1.5는 yongshinContext를 자평 표준 판정 + 기준서 §조항 근거로 대체한 것 외에 동일 조건이다.',
+    '',
+    '| 지표 | v1 | v1.5 |',
+    '|---|---|---|',
+    `| 검증 통과율 | ${passRate(v1).toFixed(1)}% | ${passRate(v15).toFixed(1)}% |`,
+    `| 평균 score | ${avg(v1, (r) => r.score).toFixed(1)} | ${avg(v15, (r) => r.score).toFixed(1)} |`,
+    `| 평균 원가 | ₩${Math.round(avg(v1, (r) => r.costKrw)).toLocaleString()} | ₩${Math.round(avg(v15, (r) => r.costKrw)).toLocaleString()} |`,
+    `| 평균 소요 | ${avg(v1, (r) => r.durationSec).toFixed(1)}s | ${avg(v15, (r) => r.durationSec).toFixed(1)}s |`,
+    '',
+    '## 케이스별 쌍 (감수 판정: v1 우세 / v1.5 우세 / 동급 중 기입)',
+    '',
+    '| # | 입력 | v1 score | v1.5 score | 감수 판정 | 메모 |',
+    '|---|---|---|---|---|---|',
+    ...v1.map((a, i) => {
+      const b = v15[i];
+      return `| ${String(a.index + 1).padStart(3, '0')} | ${fmtInput(a.input)} | ${a.pass ? '✅' : '❌'} ${a.score} | ${b ? `${b.pass ? '✅' : '❌'} ${b.score}` : '-'} |  |  |`;
+    }),
+    '',
+    '## 병합 판정 (⛔ OWNER)',
+    '',
+    '- [ ] v1.5 병합 승인 — 기본 엔진을 v1.5로 전환(§1.1.3 provisional 문구 대체 포함)',
+    '- [ ] 보류 — 사유:',
+    '',
+  ];
+  fs.writeFileSync(path.join(dir, 'ab-compare.md'), lines.join('\n'), 'utf8');
+};
+
 const main = async () => {
   const fixtures = buildFixtures(COUNT);
   fs.mkdirSync(OUT_DIR, { recursive: true });
-  console.log(`리포트 벤치 시작 — ${PRODUCT} ${COUNT}건 → ${OUT_DIR}`);
+  const modeLabel = AB ? 'A/B(v1↔v1.5)' : `엔진 ${ENGINE}`;
+  console.log(`리포트 벤치 시작 — ${PRODUCT} ${COUNT}건 · ${modeLabel} → ${OUT_DIR}`);
   console.log(`(보정: ${NO_REPAIR ? '끔' : '켬'}, 통과 기준 score ≥ ${PASS_SCORE})`);
 
-  const results: CaseResult[] = [];
   const started = Date.now();
+
+  if (AB) {
+    // 플랜 3-1 A/B — 케이스마다 v1·v1.5 쌍 생성(동일 픽스처·동일 체인)
+    const v1Results: CaseResult[] = [];
+    const v15Results: CaseResult[] = [];
+    for (let i = 0; i < fixtures.length; i++) {
+      const f = fixtures[i];
+      console.log(`\n[${i + 1}/${COUNT}] ${f.name} — ${fmtInput(f)}`);
+      for (const engine of ['v1', 'v1.5'] as const) {
+        const { result, reportText } = await runCase(f, i, engine);
+        (engine === 'v1' ? v1Results : v15Results).push(result);
+        writeCaseMd(OUT_DIR, result, reportText);
+        console.log(`  [${engine}] → ${result.pass ? '통과' : '실패'} (score ${result.score}) | ${result.modelUsed} | ₩${Math.round(result.costKrw)} | ${result.durationSec.toFixed(0)}s`);
+        if (DELAY_MS > 0) await sleep(DELAY_MS);
+      }
+    }
+    const totalSec = (Date.now() - started) / 1000;
+    writeSummary(OUT_DIR, v1Results, totalSec, 'summary-v1');
+    writeSummary(OUT_DIR, v15Results, totalSec, 'summary-v15');
+    writeAbCompare(OUT_DIR, v1Results, v15Results);
+    console.log(`\nA/B 완료 — 감수용 출력: ${path.resolve(OUT_DIR)}\\ab-compare.md (⛔ OWNER 병합 판정)`);
+    return;
+  }
+
+  const results: CaseResult[] = [];
   for (let i = 0; i < fixtures.length; i++) {
     const f = fixtures[i];
     console.log(`\n[${i + 1}/${COUNT}] ${f.name} — ${fmtInput(f)}`);
-    const { result, reportText } = await runCase(f, i);
+    const { result, reportText } = await runCase(f, i, ENGINE);
     results.push(result);
     writeCaseMd(OUT_DIR, result, reportText);
     console.log(`  → ${result.pass ? '통과' : '실패'} (score ${result.score}) | ${result.modelUsed} | ₩${Math.round(result.costKrw)} | ${result.durationSec.toFixed(0)}s${result.issues.length ? ` | 이슈 ${result.issues.length}건` : ''}`);

@@ -354,8 +354,15 @@ export type PremiumReportPromptBundle = {
   analysis: SajuAnalysis;
 };
 
-/** 입력 → SajuAnalysis(단일 소스) → 상품별 system/user 프롬프트 조립. */
-export const assemblePremiumReportPrompt = (inputData: ReportInputData): PremiumReportPromptBundle => {
+/**
+ * 입력 → SajuAnalysis(단일 소스) → 상품별 system/user 프롬프트 조립.
+ * opts.yongshinEngine: 'v1'(기본) | 'v1.5'(자평 표준 규칙 엔진 + 기준서 §조항 주입) —
+ * 기본값 전환은 A/B 벤치 감수 후 ⛔ OWNER 병합 판정(플랜 3-1).
+ */
+export const assemblePremiumReportPrompt = (
+  inputData: ReportInputData,
+  opts?: { yongshinEngine?: 'v1' | 'v1.5' },
+): PremiumReportPromptBundle => {
   // 1. 사주 계산 — 프롬프트 컨텍스트는 SajuAnalysis(구조화 결정론 JSON) 단일 소스에서 파생.
   const analysis = buildSajuAnalysis({
     dateStr: inputData.birthDate,
@@ -370,7 +377,7 @@ export const assemblePremiumReportPrompt = (inputData: ReportInputData): Premium
 
   // 2. 컨텍스트 문자열 생성 (어댑터 — diff 하네스: src/lib/analysis/promptContext.test.ts)
   const { sajuContext, daeunContext, yongshinContext, hapchungContext, shinsalContext, sipseungContext } =
-    sajuAnalysisToPromptContext(analysis);
+    sajuAnalysisToPromptContext(analysis, opts);
 
   const lifeEventsText = inputData.lifeEvents.length > 0
     ? inputData.lifeEvents.map(e => `${e.year}년: ${e.description}`).join('\n')
