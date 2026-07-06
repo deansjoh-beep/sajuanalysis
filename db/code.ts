@@ -207,6 +207,7 @@ export async function saveReport(
   rawCode: string,
   orderId: string,
   content: string,
+  meta: { generationCostKrw?: number | null; qualityScore?: number | null } = {},
 ): Promise<SaveReportOutcome> {
   const code = rawCode.trim().toUpperCase();
   const none = (reason: SaveReportOutcome['reason']): SaveReportOutcome =>
@@ -230,7 +231,14 @@ export async function saveReport(
 
   const [report] = await db
     .insert(reports)
-    .values({ codeId: codeRow.id, orderId: order.id, product: order.product, content })
+    .values({
+      codeId: codeRow.id,
+      orderId: order.id,
+      product: order.product,
+      content,
+      generationCostKrw: meta.generationCostKrw ?? null,
+      qualityScore: meta.qualityScore ?? null,
+    })
     .returning();
   if (order.status !== 'generated') {
     await db.update(orders).set({ status: 'generated' }).where(eq(orders.id, order.id));

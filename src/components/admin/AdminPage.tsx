@@ -16,8 +16,10 @@ import {
   Sparkles,
   Ticket,
   Star,
+  BarChart3,
 } from 'lucide-react';
 import { ReviewsPanel } from './ReviewsPanel';
+import { SalesReviewPanel } from './SalesReviewPanel';
 import { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -65,12 +67,12 @@ const GUIDELINE_LABELS: Record<GuidelineKey, string> = {
   guideContact: '문의하기 (Contact)',
 };
 
-type AdminSection = 'dashboard' | 'guidelines' | 'blog' | 'guide_editor' | 'board' | 'report_maker' | 'premium_orders' | 'reviews';
+type AdminSection = 'dashboard' | 'guidelines' | 'blog' | 'guide_editor' | 'board' | 'report_maker' | 'premium_orders' | 'reviews' | 'sales_review';
 
 const getInitialAdminSection = (): AdminSection => {
   if (typeof window === 'undefined') return 'dashboard';
   const section = new URLSearchParams(window.location.search).get('section');
-  const allowed: AdminSection[] = ['dashboard', 'guidelines', 'blog', 'guide_editor', 'board', 'report_maker', 'premium_orders', 'reviews'];
+  const allowed: AdminSection[] = ['dashboard', 'guidelines', 'blog', 'guide_editor', 'board', 'report_maker', 'premium_orders', 'reviews', 'sales_review'];
   return allowed.includes(section as AdminSection) ? (section as AdminSection) : 'dashboard';
 };
 
@@ -550,6 +552,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
   const navItems: { section: AdminSection; icon: React.FC<any>; label: string }[] = [
     { section: 'dashboard', icon: Settings, label: '대시보드' },
+    { section: 'sales_review', icon: BarChart3, label: '매출·검수' },
     { section: 'premium_orders', icon: Ticket, label: '프리미엄 주문' },
     { section: 'reviews', icon: Star, label: '고객 후기' },
     { section: 'guidelines', icon: BookOpen, label: '지침 관리' },
@@ -720,6 +723,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
           {activeSection === 'reviews' && (
             <ReviewsPanel />
+          )}
+
+          {activeSection === 'sales_review' && (
+            <SalesReviewPanel />
           )}
 
           {activeSection === 'guidelines' && (

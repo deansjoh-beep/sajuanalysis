@@ -20,6 +20,7 @@ import {
 import { getDb, isDbConfigured } from "./db/client.ts";
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from "./db/purge.ts";
 import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from "./db/code.ts";
+import { getAdminStats, sampleReportsForReview, saveReview } from "./db/admin.ts";
 import { createTossClient, isTossConfigured, TossApiError } from "./api/_lib/toss.ts";
 import {
   confirmPaymentAndPersist,
@@ -651,10 +652,63 @@ async function startServer() {
   // ── Phase 2-3: 사주 코드 조회/재열람·선물 리딤·후속 질문 — api/code.ts와 동일 형상 ──
   const CODE_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+  // 관리자 토큰 검사 (2-5) — ADMIN_ACCESS_TOKEN 미설정 시 관리자 기능 전체 비활성
+  const isAdminReq = (req: any): boolean => {
+    const token = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
+    return Boolean(token) && String(req.headers['x-admin-token'] || '') === token;
+  };
+
+  // ── Phase 2-5: 관리자 통계·검수 — api/payment.ts(stats)·api/code.ts(sample/review)와 동일 형상 ──
+  app.get("/api/payment/stats", async (req, res) => {
+    try {
+      if (!isDbConfigured()) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      if (!isAdminReq(req)) return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
+      const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
+      const db = await getDb();
+      const stats = await getAdminStats(db, days);
+      return res.status(200).json({ ok: true, stats });
+    } catch (error: any) {
+      console.error('[payment:stats] failed:', error);
+      return res.status(500).json({ error: 'STATS_FAILED', message: error?.message || 'stats failed' });
+    }
+  });
+
+  app.post("/api/code/review", async (req, res) => {
+    try {
+      if (!isDbConfigured()) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      if (!isAdminReq(req)) return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
+      const reportId = String(req.body?.reportId || '').trim();
+      const verdict = String(req.body?.verdict || '');
+      if (!CODE_UUID_PATTERN.test(reportId) || (verdict !== 'approved' && verdict !== 'rejected')) {
+        return res.status(400).json({ error: 'INVALID_REQUEST', message: 'reportId와 verdict(approved|rejected)가 필요합니다.' });
+      }
+      const tags = Array.isArray(req.body?.tags) ? req.body.tags.map(String).slice(0, 10) : [];
+      const note = String(req.body?.note || '').slice(0, 2000);
+      const db = await getDb();
+      const outcome = await saveReview(db, { reportId, verdict: verdict as 'approved' | 'rejected', tags, note });
+      if (!outcome.ok) {
+        return res.status(404).json({ error: 'REPORT_NOT_FOUND', message: '해당 리포트를 찾을 수 없습니다 (만료·파기됐을 수 있습니다).' });
+      }
+      return res.status(200).json({ ok: true });
+    } catch (error: any) {
+      console.error('[code:review] failed:', error);
+      return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'review failed' });
+    }
+  });
+
   app.get("/api/code", expressRateLimit(codeLookupLimiter, (req) => !String((req as any).query?.code || '').trim()), async (req, res) => {
     try {
       if (!isDbConfigured()) {
         return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      // [관리자] 오늘 생성분 검수 샘플
+      if (String(req.query.adminSample || '') === '1') {
+        if (!isAdminReq(req)) {
+          return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
+        }
+        const db = await getDb();
+        const samples = await sampleReportsForReview(db, 10);
+        return res.status(200).json({ ok: true, samples });
       }
       const raw = String(req.query.code || '').trim();
       if (!raw) {
@@ -761,8 +815,13 @@ async function startServer() {
       if (content.trim().length < 100 || content.length > 300_000) {
         return res.status(400).json({ error: 'CONTENT_INVALID', message: '리포트 본문이 비어 있거나 허용 크기를 벗어났습니다.' });
       }
+      const asOptionalInt = (v: unknown): number | null =>
+        v != null && Number.isFinite(Number(v)) ? Math.round(Number(v)) : null;
       const db = await getDb();
-      const outcome = await saveReport(db, code, orderId, content);
+      const outcome = await saveReport(db, code, orderId, content, {
+        generationCostKrw: asOptionalInt(req.body?.generationCostKrw),
+        qualityScore: asOptionalInt(req.body?.qualityScore),
+      });
       if (!outcome.ok && outcome.reason === 'order_not_found') {
         return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 코드의 주문을 찾을 수 없습니다.' });
       }
