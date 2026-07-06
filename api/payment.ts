@@ -10,6 +10,8 @@ import {
   RefundPolicyPendingError,
 } from '../db/payment.js';
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '../db/schema.js';
+import { getAdminStats } from '../db/admin.js';
+import { isAdminRequest } from './code.js';
 
 /**
  * 결제 통합 엔드포인트 (함수 12개 한도 대응 — vercel.json rewrite가
@@ -20,25 +22,44 @@ import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '.
  *   gift=true면 명식 없는 미사용 선물 코드를 발급한다.
  * - POST /api/payment/refund — 환불. x-admin-token 필요.
  *   생성 전 100% / 생성 후는 ⛔ 정책 확정 대기로 차단(501).
+ * - GET  /api/payment/stats — [관리자] 일별 매출·생성 성공률·검증 실패율·평균 원가·환불 (x-admin-token).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
-  }
-  if (!checkVercelRateLimit(req, res, paymentLimiter)) return;
+  const action = String(req.query?.action || '');
 
   if (!isDbConfigured()) {
     return res.status(503).json({ error: 'DB_NOT_CONFIGURED', message: '데이터베이스가 아직 구성되지 않았습니다.' });
   }
+
+  // [관리자] 매출·원가 대시보드 — 토스 키 없이도 동작해야 하므로 토스 검사보다 먼저
+  if (req.method === 'GET' && action === 'stats') {
+    try {
+      if (!isAdminRequest(req.headers)) {
+        return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
+      }
+      const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
+      const db = await getDb();
+      const stats = await getAdminStats(db, days);
+      return res.status(200).json({ ok: true, stats });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'stats failed';
+      console.error('[api/payment:stats] error:', error);
+      return res.status(500).json({ error: 'STATS_FAILED', message });
+    }
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
+  }
+  if (!checkVercelRateLimit(req, res, paymentLimiter)) return;
+
   if (!isTossConfigured()) {
     return res.status(503).json({
       error: 'PAYMENT_NOT_CONFIGURED',
       message: '결제 모듈이 아직 활성화되지 않았습니다 (TOSS_SECRET_KEY 미설정 — 테스트 키로 선행 개발 가능).',
     });
   }
-
-  const action = String(req.query?.action || '');
   try {
     const db = await getDb();
     const toss = createTossClient();

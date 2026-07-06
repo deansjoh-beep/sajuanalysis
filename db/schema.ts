@@ -163,6 +163,10 @@ export const reports = pgTable(
       .references(() => orders.id, { onDelete: 'cascade' }),
     product: productEnum('product').notNull(),
     content: text('content').notNull(),
+    /** 생성 원가(원, LLM 비용 추정) — 생성 파이프가 채움. 관리자 대시보드 평균 원가용 */
+    generationCostKrw: integer('generation_cost_krw'),
+    /** 품질 평가기 점수(0~100) — 80 미만 = 검증 실패로 집계 */
+    qualityScore: integer('quality_score'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -174,6 +178,30 @@ export const reports = pgTable(
     index('reports_expires_at_idx').on(table.expiresAt),
     index('reports_code_id_idx').on(table.codeId),
   ],
+);
+
+/** 검수 판정 — 일일 무작위 샘플 검수(2-5) */
+export const reviewVerdictEnum = pgEnum('review_verdict', ['approved', 'rejected']);
+
+/**
+ * 리포트 검수 이력 — 리포트가 72h 후 파기돼도 검수 통계는 남아야 하므로
+ * reports에 FK를 걸지 않는다(개인정보 없음: 판정·태그·상품뿐).
+ */
+export const reportReviews = pgTable(
+  'report_reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** 검수 당시 리포트 id (FK 아님 — 파기 후에도 이력 보존) */
+    reportId: uuid('report_id').notNull().unique(),
+    product: productEnum('product').notNull(),
+    verdict: reviewVerdictEnum('verdict').notNull(),
+    /** 반려 사유 태그 (예: 형식 오류·근거 부족·톤 부적절·금칙어) */
+    tags: jsonb('tags').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    note: text('note').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
 );
 
 export const codesRelations = relations(codes, ({ many }) => ({

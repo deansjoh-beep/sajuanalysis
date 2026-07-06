@@ -3,6 +3,7 @@ import { checkVercelRateLimit, codeLookupLimiter, purgeLimiter } from './_lib/ra
 import { getDb, isDbConfigured } from '../db/client.js';
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from '../db/purge.js';
 import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from '../db/code.js';
+import { sampleReportsForReview, saveReview } from '../db/admin.js';
 import { PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 
 /**
@@ -14,10 +15,18 @@ import { PersonalDataError, type MyeongsikParams } from '../db/schema.js';
  * - POST   /api/code/redeem              → 선물 코드 리딤 (code + myeongsik).
  * - POST   /api/code/followup            → 후속 질문 1회 차감 (code + orderId, 주문당 3회).
  * - POST   /api/code/save-report         → 생성 완료 리포트 저장 + 주문 generated 전이 (code + orderId + content).
+ * - GET    /api/code?adminSample=1       → [관리자] 오늘 생성분 미검수 무작위 10건 (x-admin-token).
+ * - POST   /api/code/review              → [관리자] 검수 판정 저장 (reportId + verdict + tags + note).
  * - DELETE /api/code?code=               → 즉시 파기 (구 /api/purge — rewrite로 경로 보존, 복구 불가).
  *   · Hobby 크론은 1일 1회 정밀도 → 읽기 경로에서도 expires_at 검사 필수(72h 논리 보장).
  */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 관리자 토큰 검사 — ADMIN_ACCESS_TOKEN 미설정 시 관리자 기능 전체 비활성 */
+export function isAdminRequest(headers: Record<string, string | string[] | undefined>): boolean {
+  const token = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
+  return Boolean(token) && String(headers['x-admin-token'] || '') === token;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isDbConfigured()) {
@@ -32,6 +41,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') {
       const raw = String(req.query.code || '').trim();
+
+      // [관리자] 오늘 생성분 검수 샘플
+      if (String(req.query.adminSample || '') === '1') {
+        if (!isAdminRequest(req.headers)) {
+          return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
+        }
+        const db = await getDb();
+        const samples = await sampleReportsForReview(db, 10);
+        return res.status(200).json({ ok: true, samples });
+      }
 
       // 코드 파라미터 없는 GET = 만료 청소 크론
       if (!raw) {
@@ -61,8 +80,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      if (!checkVercelRateLimit(req, res, codeLookupLimiter)) return;
       const body = (req.body || {}) as Record<string, unknown>;
+
+      // [관리자] 검수 판정 저장 — 코드 불필요, 토큰 인증
+      if (action === 'review') {
+        if (!isAdminRequest(req.headers)) {
+          return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
+        }
+        const reportId = String(body.reportId || '').trim();
+        const verdict = String(body.verdict || '');
+        if (!UUID_PATTERN.test(reportId) || (verdict !== 'approved' && verdict !== 'rejected')) {
+          return res.status(400).json({ error: 'INVALID_REQUEST', message: 'reportId와 verdict(approved|rejected)가 필요합니다.' });
+        }
+        const tags = Array.isArray(body.tags) ? body.tags.map(String).slice(0, 10) : [];
+        const note = String(body.note || '').slice(0, 2000);
+        const db = await getDb();
+        const outcome = await saveReview(db, { reportId, verdict, tags, note });
+        if (!outcome.ok) {
+          return res.status(404).json({ error: 'REPORT_NOT_FOUND', message: '해당 리포트를 찾을 수 없습니다 (만료·파기됐을 수 있습니다).' });
+        }
+        return res.status(200).json({ ok: true });
+      }
+
+      if (!checkVercelRateLimit(req, res, codeLookupLimiter)) return;
       const code = normalizeCode(String(body.code || ''));
       if (!CODE_PATTERN.test(code)) {
         return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
@@ -108,7 +148,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (content.trim().length < 100 || content.length > 300_000) {
           return res.status(400).json({ error: 'CONTENT_INVALID', message: '리포트 본문이 비어 있거나 허용 크기를 벗어났습니다.' });
         }
-        const outcome = await saveReport(db, code, orderId, content);
+        const asOptionalInt = (v: unknown): number | null =>
+          v != null && Number.isFinite(Number(v)) ? Math.round(Number(v)) : null;
+        const costKrw = asOptionalInt(body.generationCostKrw);
+        const qualityScore = asOptionalInt(body.qualityScore);
+        const outcome = await saveReport(db, code, orderId, content, {
+          generationCostKrw: costKrw,
+          qualityScore,
+        });
         if (!outcome.ok && outcome.reason === 'order_not_found') {
           return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 코드의 주문을 찾을 수 없습니다.' });
         }
