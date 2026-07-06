@@ -70,6 +70,8 @@ export default defineConfig(() => {
     },
     test: {
       exclude: ['e2e/**', 'test-results/**', 'node_modules/**', 'dist/**'],
+      // PGlite(WASM) 스위트 다수가 병렬 초기화될 때 10s 기본값을 넘길 수 있음
+      hookTimeout: 60_000,
       coverage: {
         // Phase 1 DoD 측정 범위: 만세력·구조 분석 계층 (90%+ 목표)
         include: ['src/lib/manseryeok/**', 'src/lib/analysis/**'],

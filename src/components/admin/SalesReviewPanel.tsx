@@ -32,6 +32,20 @@ interface ReviewSample {
   createdAt: string;
 }
 
+interface FeedbackStats {
+  count: number;
+  avgRating: number | null;
+  ratingDist: number[];
+  answerDist: Record<string, Record<string, number>>;
+  recentComments: Array<{ product: string; rating: number; comment: string; createdAt: string }>;
+}
+
+const FEEDBACK_QUESTION_LABEL: Record<string, string> = {
+  accuracy: '해석 정확도',
+  bestSection: '가장 유익한 부분',
+  recommend: '추천 의향',
+};
+
 const PRODUCT_LABEL: Record<string, string> = {
   premium: '평생 사주',
   yearly2026: '2026 일년운세',
@@ -50,6 +64,7 @@ export const SalesReviewPanel: React.FC = () => {
   const [token, setToken] = useState<string>(() => sessionStorage.getItem('adminApiToken') || '');
   const [tokenInput, setTokenInput] = useState('');
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
   const [samples, setSamples] = useState<ReviewSample[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +93,7 @@ export const SalesReviewPanel: React.FC = () => {
       if (!statsRes.ok) throw new Error(statsData?.message || '통계를 불러오지 못했습니다.');
       if (!sampleRes.ok) throw new Error(sampleData?.message || '검수 샘플을 불러오지 못했습니다.');
       setStats(statsData.stats as AdminStats);
+      setFeedbackStats((statsData.feedbackStats as FeedbackStats) ?? null);
       setSamples(sampleData.samples as ReviewSample[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오기에 실패했습니다.');
@@ -226,6 +242,77 @@ export const SalesReviewPanel: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 베타 피드백 (3-2) */}
+      {feedbackStats && (
+        <div className={CARD}>
+          <p className="text-[13px] font-bold text-zinc-800 mb-3">베타 피드백</p>
+          {feedbackStats.count === 0 ? (
+            <p className="text-[13px] text-zinc-500">아직 수집된 피드백이 없습니다.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-6">
+                <div>
+                  <p className="text-[11px] text-zinc-500">응답 수</p>
+                  <p className="text-[16px] font-bold text-zinc-900">{feedbackStats.count}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-zinc-500">평균 별점</p>
+                  <p className="text-[16px] font-bold text-zinc-900">{feedbackStats.avgRating ?? '—'} / 5</p>
+                </div>
+                <div className="flex-1 min-w-48">
+                  <p className="text-[11px] text-zinc-500 mb-1">별점 분포 (1→5점)</p>
+                  <div className="flex items-end gap-1 h-10">
+                    {feedbackStats.ratingDist.map((n, i) => {
+                      const max = Math.max(1, ...feedbackStats.ratingDist);
+                      return (
+                        <div key={i} className="flex flex-col items-center gap-0.5">
+                          <div className="w-6 bg-indigo-400 rounded-t" style={{ height: `${(n / max) * 32 + 2}px` }} />
+                          <span className="text-[11px] text-zinc-500">{n}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {Object.entries(feedbackStats.answerDist).map(([key, dist]) => (
+                  <div key={key} className="rounded-xl border border-zinc-200 bg-white/70 p-3">
+                    <p className="text-[11px] font-bold text-zinc-600 mb-2">{FEEDBACK_QUESTION_LABEL[key] ?? key}</p>
+                    {Object.keys(dist).length === 0 ? (
+                      <p className="text-[11px] text-zinc-400">응답 없음</p>
+                    ) : (
+                      Object.entries(dist).map(([opt, n]) => (
+                        <p key={opt} className="text-[11px] text-zinc-700 flex justify-between">
+                          <span>{opt}</span>
+                          <span className="font-bold">{n}</span>
+                        </p>
+                      ))
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {feedbackStats.recentComments.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-bold text-zinc-600 mb-2">최근 서술 응답</p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {feedbackStats.recentComments.map((c, i) => (
+                      <div key={i} className="rounded-lg bg-zinc-50 p-2.5">
+                        <p className="text-[11px] text-zinc-500">
+                          {PRODUCT_LABEL[c.product] ?? c.product} · {c.rating}점 · {new Date(c.createdAt).toLocaleDateString('ko-KR')}
+                        </p>
+                        <p className="text-[13px] text-zinc-700 mt-0.5 whitespace-pre-wrap">{c.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
