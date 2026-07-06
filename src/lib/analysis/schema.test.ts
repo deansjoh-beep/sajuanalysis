@@ -86,7 +86,7 @@ describe('buildSajuAnalysis — 대운·세운·월운', () => {
 describe('buildSajuAnalysis — 공망·신살·합충·격국용신', () => {
   const a = buildSajuAnalysis(baseInput);
 
-  test('공망: 己酉년 → 寅卯 공망, 원국 해당 없음', () => {
+  test('공망: 일주 기준 단일(기준서 A-6) — 辛亥일(甲辰旬) → 寅卯 공망, 원국 해당 없음', () => {
     expect(a.gongmang.branches).toEqual(['寅', '卯']);
     expect(a.gongmang.natalHits).toEqual([]);
     expect(typeof a.gongmang.seunInGongmang).toBe('boolean');
@@ -106,6 +106,14 @@ describe('buildSajuAnalysis — 공망·신살·합충·격국용신', () => {
       expect(e.between).toHaveLength(2);
       expect(e.tag.length).toBeGreaterThan(0);
     }
+  });
+
+  test('v1.5 규칙 엔진 판정(rules) — 자평 표준, provisional과 병존', () => {
+    expect(a.rules).not.toBeNull();
+    expect(a.rules!.standard).toBe('japyeong');
+    expect(['극신강', '신강', '중화', '신약', '극신약']).toContain(a.rules!.strength.class);
+    expect(a.rules!.gyeok.name.endsWith('격')).toBe(true);
+    expect(['목', '화', '토', '금', '수']).toContain(a.rules!.yongshin.primary);
   });
 
   test('격국용신은 provisional(널 허용 예약 필드에 값 채움)', () => {

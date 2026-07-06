@@ -2,13 +2,16 @@
  * SajuAnalysis — 구조 분석 JSON 스키마 (Phase 1-2, IMPLEMENTATION_PLAN 1-2)
  *
  * 리포트 생성(1-3)의 유일한 입력이 되는 결정론적 구조체다. 기존에 검증된 만세력 산출물
- * (명식·대운·월운·세운·공망·신살·합충)과 잠정(provisional) 격국·용신을 하나로 조립한다.
+ * (명식·대운·월운·세운·공망·신살·합충)과 격국·용신 판정을 하나로 조립한다.
  *
  * 원칙:
  *   - 이 객체에 **존재하는 요소만** 리포트가 언급한다(근거 없는 서술 금지 — 1-3 프롬프트 규칙).
  *   - 만세력 파생 필드(명식·대운·월운·세운·공망·신살·합충·절입경계)는 검증된 결정론 산출.
- *   - `gyeokYongshin`은 유파 의존 **잠정** 해석이라 `null` 허용 필드로 예약한다(플랜 1-2).
- *     v1은 provisional 값을 채우되 `provisional: true`가 붙는다. Phase 3 규칙엔진이 정식화(D-1-6).
+ *   - `rules`(Phase 3-1) — 명리 판단 기준서(자평명리 표준, `docs/myeongri-standard/`) 기반
+ *     규칙 엔진 판정. 2026-07-07 ⛔ OWNER A/B 벤치 병합 승인으로 **정본**이자 리포트 프롬프트
+ *     기본 엔진(§1.1.3)이 되었다. `standard: 'japyeong'`로 확신 수준을 표기한다.
+ *   - `gyeokYongshin`(Phase 1-2 v1) — 유파 의존 잠정(provisional) 휴리스틱. `rules` 도입 후
+ *     레거시 회귀 비교·디버깅용으로만 존치한다(신규 코드는 `rules`를 사용할 것).
  */
 
 import {
@@ -27,6 +30,8 @@ import {
   isPa,
   isHae,
   isWonjin,
+  isGwimun,
+  getHongyeom,
   getYukhap,
   calculateDeity,
   elementMap,
@@ -36,6 +41,7 @@ import {
 } from '../../utils/saju.js';
 import { getCurrentWolun, type WolunMonth } from '../manseryeok/wolun.js';
 import { analyzeGyeokYongshin, type GyeokYongshin } from './gyeokyongshin.js';
+import { analyzeByRules, type RulesAnalysis } from './rules/index.js';
 
 export type OhaengKey = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 export type PillarPosition = '년주' | '월주' | '일주' | '시주';
@@ -177,8 +183,14 @@ export type SajuAnalysis = {
   shinsal: ShinsalEntry[];
   nearJieqiBoundary: boolean;
   minHoursToJieqi: number | null;
-  /** ⚠️ 유파 의존 잠정 해석(검증 정답 없음). null 허용 예약(플랜 1-2). */
+  /** ⚠️ 레거시 v1 provisional 휴리스틱(유파 의존 잠정 해석). 회귀 비교·디버깅용으로만 존치. */
   gyeokYongshin: GyeokYongshin | null;
+  /**
+   * 자평 표준 규칙 엔진 판정(명리 판단 기준서 §1~§7, standard: 'japyeong') — 정본.
+   * 2026-07-07 A/B 벤치 30건 병합 승인(⛔ OWNER, bench-output/ab-30/ab-compare.md):
+   * v1은 30건 중 19건(63%)에서 용신=기신 자기모순을 냈고 v1.5는 구조상 이를 방지한다.
+   */
+  rules: RulesAnalysis | null;
   provisionalNote: string;
 };
 
@@ -270,8 +282,8 @@ export const buildSajuAnalysis = (input: BuildSajuAnalysisInput): SajuAnalysis =
   ];
   const hapChungEvents = detectHapChung(tokens);
 
-  // ── 공망 ──
-  const gongmang = buildGongmang(yearP, natalOrder, seun.branch, currentWolun.branch);
+  // ── 공망(일주 기준 단일 — 기준서 부록 A-6) ──
+  const gongmang = buildGongmang(dayP, natalOrder, seun.branch, currentWolun.branch);
 
   // ── 신살(연지 12신살 + 일간 기준 귀인/살) ──
   const shinsal = buildShinsal(natalOrder, dayStem, yearP.branch.hanja, seun, currentWolun, dayP);
@@ -282,6 +294,23 @@ export const buildSajuAnalysis = (input: BuildSajuAnalysisInput): SajuAnalysis =
 
   // ── 격국·용신(provisional) ──
   const gyeokYongshin = analyzeGyeokYongshin(saju);
+
+  // ── v1.5 자평 표준 규칙 엔진(기준서 §1.2 파이프라인) — 시간 미상은 hour=null (§8.3) ──
+  const toRulePillar = (p: any) =>
+    p?.stem?.hanja && p?.branch?.hanja && p.stem.hanja !== '?' && p.branch.hanja !== '?'
+      ? { stem: p.stem.hanja as string, branch: p.branch.hanja as string }
+      : null;
+  const ruleYear = toRulePillar(yearP);
+  const ruleMonth = toRulePillar(monthP);
+  const ruleDay = toRulePillar(dayP);
+  const rules = ruleYear && ruleMonth && ruleDay
+    ? analyzeByRules({
+        year: ruleYear,
+        month: ruleMonth,
+        day: ruleDay,
+        hour: unknownTime ? null : toRulePillar(hourP),
+      })
+    : null;
 
   return {
     meta: {
@@ -303,6 +332,7 @@ export const buildSajuAnalysis = (input: BuildSajuAnalysisInput): SajuAnalysis =
     nearJieqiBoundary,
     minHoursToJieqi,
     gyeokYongshin,
+    rules,
     provisionalNote: PROVISIONAL_NOTE,
   };
 };
@@ -379,6 +409,7 @@ const detectHapChung = (tokens: RunToken[]): HapChungEvent[] => {
       if (isPa(a.branch, b.branch)) events.push({ tag: '파', detail: '파', between: [at(a, a.branch), at(b, b.branch)] });
       if (isHae(a.branch, b.branch)) events.push({ tag: '해', detail: '해', between: [at(a, a.branch), at(b, b.branch)] });
       if (isWonjin(a.branch, b.branch)) events.push({ tag: '원진', detail: '원진', between: [at(a, a.branch), at(b, b.branch)] });
+      if (isGwimun(a.branch, b.branch)) events.push({ tag: '귀문', detail: '귀문관살', between: [at(a, a.branch), at(b, b.branch)] });
     }
   }
 
@@ -403,12 +434,12 @@ const detectHapChung = (tokens: RunToken[]): HapChungEvent[] => {
 };
 
 const buildGongmang = (
-  yearP: any,
+  dayP: any,
   natalOrder: any[],
   seunBranch: string,
   wolunBranch: string,
 ): GongmangInfo => {
-  const gm = getGongmang(yearP.stem.hanja, yearP.branch.hanja);
+  const gm = getGongmang(dayP.stem.hanja, dayP.branch.hanja);
   const natalHits = natalOrder
     .filter((p) => p.branch?.hanja && gm.includes(p.branch.hanja))
     .map((p) => p.title as PillarPosition);
@@ -449,6 +480,7 @@ const buildShinsal = (
   const munchang = getMunchang(dayStem);
   const hakdang = getHakdang(dayStem);
   const yangin = getYangin(dayStem);
+  const hongyeom = getHongyeom(dayStem);
   for (const p of natalOrder) {
     const br = p.branch?.hanja;
     if (!br || br === '?') continue;
@@ -457,6 +489,7 @@ const buildShinsal = (
     if (munchang === br) out.push({ scope: '원국', label, branch: br, name: '문창귀인' });
     if (hakdang === br) out.push({ scope: '원국', label, branch: br, name: '학당귀인' });
     if (yangin === br) out.push({ scope: '원국', label, branch: br, name: '양인살' });
+    if (hongyeom === br) out.push({ scope: '원국', label, branch: br, name: '홍염살' });
   }
 
   // 괴강살(일주)

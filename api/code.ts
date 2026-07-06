@@ -4,6 +4,8 @@ import { getDb, isDbConfigured } from '../db/client.js';
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from '../db/purge.js';
 import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from '../db/code.js';
 import { sampleReportsForReview, saveReview } from '../db/admin.js';
+import { submitFeedback } from '../db/feedback.js';
+import { isPaidProduct } from '../db/payment.js';
 import { PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 
 /**
@@ -15,6 +17,7 @@ import { PersonalDataError, type MyeongsikParams } from '../db/schema.js';
  * - POST   /api/code/redeem              → 선물 코드 리딤 (code + myeongsik).
  * - POST   /api/code/followup            → 후속 질문 1회 차감 (code + orderId, 주문당 3회).
  * - POST   /api/code/save-report         → 생성 완료 리포트 저장 + 주문 generated 전이 (code + orderId + content).
+ * - POST   /api/code/feedback            → 베타 피드백 제출 (code + product + rating + answers + comment).
  * - GET    /api/code?adminSample=1       → [관리자] 오늘 생성분 미검수 무작위 10건 (x-admin-token).
  * - POST   /api/code/review              → [관리자] 검수 판정 저장 (reportId + verdict + tags + note).
  * - DELETE /api/code?code=               → 즉시 파기 (구 /api/purge — rewrite로 경로 보존, 복구 불가).
@@ -122,6 +125,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(409).json({ error: 'ALREADY_REDEEMED', message: '이미 등록된 코드입니다.' });
         }
         return res.status(200).json({ ok: true, redeemed: true });
+      }
+
+      if (action === 'feedback') {
+        const product = String(body.product || '');
+        if (!isPaidProduct(product)) {
+          return res.status(400).json({ error: 'INVALID_PRODUCT', message: `알 수 없는 상품: ${product}` });
+        }
+        const outcome = await submitFeedback(db, {
+          code,
+          product,
+          rating: Number(body.rating),
+          answers: (body.answers && typeof body.answers === 'object' ? body.answers : {}) as Record<string, string>,
+          comment: String(body.comment || ''),
+        });
+        if (!outcome.ok && outcome.reason === 'code_not_found') {
+          return res.status(404).json({ error: 'CODE_NOT_FOUND', message: '해당 코드를 찾을 수 없습니다.' });
+        }
+        if (!outcome.ok) {
+          return res.status(400).json({ error: 'INVALID_FEEDBACK', message: '별점(1~5)과 선택지 값을 확인해 주세요.' });
+        }
+        return res.status(200).json({ ok: true });
       }
 
       if (action === 'followup') {

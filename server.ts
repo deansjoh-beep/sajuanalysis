@@ -21,6 +21,7 @@ import { getDb, isDbConfigured } from "./db/client.ts";
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from "./db/purge.ts";
 import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from "./db/code.ts";
 import { getAdminStats, sampleReportsForReview, saveReview } from "./db/admin.ts";
+import { getFeedbackStats, submitFeedback } from "./db/feedback.ts";
 import { createTossClient, isTossConfigured, TossApiError } from "./api/_lib/toss.ts";
 import {
   confirmPaymentAndPersist,
@@ -665,8 +666,8 @@ async function startServer() {
       if (!isAdminReq(req)) return res.status(401).json({ error: 'UNAUTHORIZED', message: '관리자 토큰이 필요합니다.' });
       const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
       const db = await getDb();
-      const stats = await getAdminStats(db, days);
-      return res.status(200).json({ ok: true, stats });
+      const [stats, feedbackStats] = await Promise.all([getAdminStats(db, days), getFeedbackStats(db)]);
+      return res.status(200).json({ ok: true, stats, feedbackStats });
     } catch (error: any) {
       console.error('[payment:stats] failed:', error);
       return res.status(500).json({ error: 'STATS_FAILED', message: error?.message || 'stats failed' });
@@ -795,6 +796,40 @@ async function startServer() {
     } catch (error: any) {
       console.error('[code:followup] failed:', error);
       return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'followup failed' });
+    }
+  });
+
+  app.post("/api/code/feedback", expressRateLimit(codeLookupLimiter), async (req, res) => {
+    try {
+      if (!isDbConfigured()) {
+        return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+      }
+      const code = normalizeCode(String(req.body?.code || ''));
+      if (!CODE_PATTERN.test(code)) {
+        return res.status(400).json({ error: 'CODE_INVALID', message: '코드 형식이 올바르지 않습니다. (예: HW-3F9K2A)' });
+      }
+      const product = String(req.body?.product || '');
+      if (!isPaidProduct(product)) {
+        return res.status(400).json({ error: 'INVALID_PRODUCT', message: `알 수 없는 상품: ${product}` });
+      }
+      const db = await getDb();
+      const outcome = await submitFeedback(db, {
+        code,
+        product,
+        rating: Number(req.body?.rating),
+        answers: (req.body?.answers && typeof req.body.answers === 'object' ? req.body.answers : {}) as Record<string, string>,
+        comment: String(req.body?.comment || ''),
+      });
+      if (!outcome.ok && outcome.reason === 'code_not_found') {
+        return res.status(404).json({ error: 'CODE_NOT_FOUND', message: '해당 코드를 찾을 수 없습니다.' });
+      }
+      if (!outcome.ok) {
+        return res.status(400).json({ error: 'INVALID_FEEDBACK', message: '별점(1~5)과 선택지 값을 확인해 주세요.' });
+      }
+      return res.status(200).json({ ok: true });
+    } catch (error: any) {
+      console.error('[code:feedback] failed:', error);
+      return res.status(500).json({ error: 'CODE_API_FAILED', message: error?.message || 'feedback failed' });
     }
   });
 

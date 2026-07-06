@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "standard": "japyeong",
+  "tolerances": { "score": 0.1 },
+  "note": "명리 판단 기준서 9장 골든 명식집의 기계 판독 정본. status='확정'만 테스트 대상. 점수는 반올림 전 원값 기준 ±0.1 허용(§9.1.3).",
+  "cases": [
+    {
+      "id": "GS-01",
+      "pillars": { "year": "丙戌", "month": "戊戌", "day": "戊午", "hour": "丁巳" },
+      "coverage": ["극신강", "건록격-투간", "파격경향", "억부-억제", "충없음"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 84.17, "enemy": 15.83, "ratio": 84.2, "class": "극신강", "deukryeong": true, "deukji": true, "deukse": true },
+        "johoo": { "t": 1, "status": "평온", "extreme": false },
+        "gyeok": { "name": "건록격", "basisStem": "戊", "transparent": true, "damaged": false, "seongpae": "파격 경향" },
+        "yongshin": { "method": "억부(억제)", "primary": "금", "huisin": "토", "gisin": "화", "gusin": "목", "hansin": "수", "presentInNatal": false, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-02",
+      "pillars": { "year": "庚申", "month": "乙酉", "day": "甲午", "hour": "辛未" },
+      "coverage": ["극신약", "정관격-투간-위치우선", "미성", "억부-부조"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 13.33, "enemy": 86.67, "ratio": 13.3, "class": "극신약", "deukryeong": false, "deukji": false, "deukse": false },
+        "johoo": { "t": 1, "status": "평온", "extreme": false },
+        "gyeok": { "name": "정관격", "basisStem": "辛", "transparent": true, "damaged": false, "seongpae": "미성" },
+        "yongshin": { "method": "억부(부조)", "primary": "수", "huisin": "금", "gisin": "토", "gusin": "화", "hansin": "목", "presentInNatal": false, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-03",
+      "pillars": { "year": "癸卯", "month": "丁巳", "day": "丙辰", "hour": "己丑" },
+      "coverage": ["중화", "건록격-무투간-본기취격", "성격", "격국용신", "조후상쇄"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 43.17, "enemy": 56.83, "ratio": 43.2, "class": "중화", "deukryeong": true, "deukji": false, "deukse": false },
+        "johoo": { "t": 1, "status": "평온", "extreme": false },
+        "gyeok": { "name": "건록격", "basisStem": "丙", "transparent": false, "damaged": false, "seongpae": "성격" },
+        "yongshin": { "method": "격국", "primary": "수", "huisin": "금", "gisin": "토", "gusin": "화", "hansin": "목", "presentInNatal": true, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-04",
+      "pillars": { "year": "甲子", "month": "庚午", "day": "丙申", "hour": "庚寅" },
+      "coverage": ["중화-하한경계", "양인격", "인접충2건-감쇠", "월지충-damaged", "조열-희신병기"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 26.08, "enemy": 38.92, "ratio": 40.1, "class": "중화", "deukryeong": true, "deukji": false, "deukse": false },
+        "johoo": { "t": 2, "status": "조열", "extreme": false },
+        "gyeok": { "name": "양인격", "basisStem": "丁", "transparent": false, "damaged": true, "seongpae": "미성" },
+        "yongshin": { "method": "격국", "primary": "수", "huisin": "금", "gisin": "토", "gusin": "화", "hansin": "목", "presentInNatal": true, "johooHuisin": null, "johooHuisinNote": "조후 희신(수)이 주 용신과 동일하여 병기 생략(§6.4.2)" }
+      }
+    },
+    {
+      "id": "GS-05",
+      "pillars": { "year": "辛亥", "month": "庚子", "day": "甲子", "hour": "乙丑" },
+      "coverage": ["신강", "극한랭-조후주용신", "인수격-무투간", "성격", "용신-원국부재"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 70.67, "enemy": 29.33, "ratio": 70.7, "class": "신강", "deukryeong": true, "deukji": true, "deukse": false },
+        "johoo": { "t": -3, "status": "극한랭", "extreme": true },
+        "gyeok": { "name": "정인격", "basisStem": "癸", "transparent": false, "damaged": false, "seongpae": "성격" },
+        "yongshin": { "method": "조후", "primary": "화", "huisin": "목", "gisin": "수", "gusin": "금", "hansin": "토", "presentInNatal": false, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-06",
+      "pillars": { "year": "庚申", "month": "乙酉", "day": "甲午", "hour": null },
+      "coverage": ["시간미상-3주판정", "무근천간-0.5배", "칠살격", "미성", "억부-부조"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 7.33, "enemy": 67.67, "ratio": 9.8, "class": "극신약", "deukryeong": false, "deukji": false, "deukse": false },
+        "johoo": { "t": 0, "status": "평온", "extreme": false, "note": "시지 항목 생략(§4.2.2)" },
+        "gyeok": { "name": "편관격", "basisStem": "庚", "transparent": true, "damaged": false, "seongpae": "미성" },
+        "yongshin": { "method": "억부(부조)", "primary": "수", "huisin": "금", "gisin": "토", "gusin": "화", "hansin": "목", "presentInNatal": false, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-07",
+      "pillars": { "year": "己巳", "month": "己巳", "day": "甲子", "hour": "丙寅" },
+      "coverage": ["신약-하한경계", "식신격-투간-중기", "성격", "억부-부조", "조열-희신"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 20.33, "enemy": 79.67, "ratio": 20.3, "class": "신약", "deukryeong": false, "deukji": true, "deukse": false },
+        "johoo": { "t": 2, "status": "조열", "extreme": false },
+        "gyeok": { "name": "식신격", "basisStem": "丙", "transparent": true, "damaged": false, "seongpae": "성격" },
+        "yongshin": { "method": "억부(부조)", "primary": "수", "huisin": "금", "gisin": "토", "gusin": "화", "hansin": "목", "presentInNatal": true, "johooHuisin": null, "johooHuisinNote": "조후 희신(수)이 주 용신과 동일하여 병기 생략(§6.4.2)" }
+      }
+    },
+    {
+      "id": "GS-08",
+      "pillars": { "year": "辛未", "month": "甲午", "day": "甲申", "hour": "丁卯" },
+      "coverage": ["신약", "상관격-투간", "상관견관-파격", "용신-원국부재"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 24.5, "enemy": 75.5, "ratio": 24.5, "class": "신약", "deukryeong": false, "deukji": false, "deukse": false },
+        "johoo": { "t": 2, "status": "조열", "extreme": false },
+        "gyeok": { "name": "상관격", "basisStem": "丁", "transparent": true, "damaged": false, "seongpae": "파격 경향" },
+        "yongshin": { "method": "억부(부조)", "primary": "수", "huisin": "금", "gisin": "토", "gusin": "화", "hansin": "목", "presentInNatal": false, "johooHuisin": null, "johooHuisinNote": "조후 희신(수)이 주 용신과 동일하여 병기 생략(§6.4.2)" }
+      }
+    },
+    {
+      "id": "GS-09",
+      "pillars": { "year": "丁未", "month": "丙午", "day": "壬戌", "hour": "庚子" },
+      "coverage": ["신약", "편재격-복수투간-위치우선", "미성", "조후상쇄(午·子)", "원격충-午子-태그만"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 24.5, "enemy": 75.5, "ratio": 24.5, "class": "신약", "deukryeong": false, "deukji": false, "deukse": false },
+        "johoo": { "t": 1, "status": "평온", "extreme": false },
+        "gyeok": { "name": "편재격", "basisStem": "丙", "transparent": true, "damaged": false, "seongpae": "미성" },
+        "yongshin": { "method": "억부(부조)", "primary": "금", "huisin": "토", "gisin": "화", "gusin": "목", "hansin": "수", "presentInNatal": true, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-10",
+      "pillars": { "year": "癸酉", "month": "甲寅", "day": "丙午", "hour": "辛卯" },
+      "coverage": ["신강-하한경계", "편인격-투간", "탐재괴인-파격", "억부-억제-적군최강", "무근천간", "원격충-卯酉-태그만"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 57.33, "enemy": 37.67, "ratio": 60.4, "class": "신강", "deukryeong": true, "deukji": true, "deukse": false },
+        "johoo": { "t": 0, "status": "평온", "extreme": false },
+        "gyeok": { "name": "편인격", "basisStem": "甲", "transparent": true, "damaged": false, "seongpae": "파격 경향" },
+        "yongshin": { "method": "억부(억제)", "primary": "금", "huisin": "토", "gisin": "화", "gusin": "목", "hansin": "수", "presentInNatal": true, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-11",
+      "pillars": { "year": "甲子", "month": "丙寅", "day": "庚午", "hour": "丁丑" },
+      "coverage": ["극신약-하한경계", "원격충-子午-태그만-감쇠없음", "편관격-복수투간-위치우선", "재생살-파격"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 19.67, "enemy": 80.33, "ratio": 19.7, "class": "극신약", "deukryeong": false, "deukji": false, "deukse": false },
+        "johoo": { "t": -1, "status": "평온", "extreme": false },
+        "gyeok": { "name": "편관격", "basisStem": "丙", "transparent": true, "damaged": false, "seongpae": "파격 경향" },
+        "yongshin": { "method": "억부(부조)", "primary": "토", "huisin": "화", "gisin": "목", "gusin": "수", "hansin": "금", "presentInNatal": true, "johooHuisin": null }
+      }
+    },
+    {
+      "id": "GS-12",
+      "pillars": { "year": "壬寅", "month": "壬寅", "day": "戊午", "hour": "癸丑" },
+      "coverage": ["중화", "편관격-무투간-본기취격", "재생살-파격", "격국용신-상신부재"],
+      "status": "확정",
+      "expected": {
+        "strength": { "ally": 42.0, "enemy": 58.0, "ratio": 42.0, "class": "중화", "deukryeong": false, "deukji": true, "deukse": false },
+        "johoo": { "t": -1, "status": "평온", "extreme": false },
+        "gyeok": { "name": "편관격", "basisStem": "甲", "transparent": false, "damaged": false, "seongpae": "파격 경향" },
+        "yongshin": { "method": "격국", "primary": "금", "huisin": "토", "gisin": "화", "gusin": "목", "hansin": "수", "presentInNatal": false, "johooHuisin": null, "note": "상신(식신 庚·인성 丙丁) 원국 천간 부재 → ①식신 오행을 용신으로, 운에서 보충 서술(§6.2.4)" }
+      }
+    }
+  ]
+}

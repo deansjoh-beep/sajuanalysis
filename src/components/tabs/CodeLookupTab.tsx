@@ -276,6 +276,116 @@ function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: () => 
   );
 }
 
+// ─── 베타 피드백 폼 (리포트 말미) ────────────────────────────────────────────
+
+/** ⛔ 문항·선택지는 OWNER 확정 전 임시안 — 서버(db/feedback.ts)의 허용값과 동일하게 유지할 것 */
+const FEEDBACK_QUESTIONS: Array<{ key: string; label: string; options: string[] }> = [
+  { key: 'accuracy', label: '해석이 실제와 얼마나 맞았나요?', options: ['잘 맞았다', '보통이다', '잘 맞지 않았다'] },
+  { key: 'bestSection', label: '가장 유익했던 부분은?', options: ['총운·큰 흐름', '월별·시기 조언', '실행 체크리스트', '기타'] },
+  { key: 'recommend', label: '주변에 추천할 의향이 있나요?', options: ['추천하겠다', '보통이다', '추천하지 않겠다'] },
+];
+
+function FeedbackForm({ code, product }: { code: string; product: string }) {
+  const [rating, setRating] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (rating < 1) {
+      setError('별점을 선택해 주세요.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/code/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, product, rating, answers, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || '제출에 실패했습니다.');
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '제출에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <section className={`${PAPER_CARD} p-6`}>
+        <p className="text-[14px] text-ink-700">소중한 의견 감사합니다. 더 나은 풀이로 보답하겠습니다.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className={`${PAPER_CARD} p-6 space-y-5`}>
+      <div>
+        <h3 className="font-serif text-[18px] font-bold text-ink-900">리포트는 어떠셨나요?</h3>
+        <p className="text-[12px] text-ink-500 mt-1">
+          응답은 코드 기준으로 익명 수집되며, 풀이 품질 개선에만 사용됩니다. 서술란에 개인정보는 적지 말아 주세요.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            onClick={() => setRating(n)}
+            aria-label={`${n}점`}
+            className={`text-[22px] leading-none ${n <= rating ? 'text-seal' : 'text-ink-300/50'}`}
+          >
+            ★
+          </button>
+        ))}
+        {rating > 0 && <span className="ml-2 text-[12px] text-ink-500">{rating}점</span>}
+      </div>
+
+      {FEEDBACK_QUESTIONS.map((q) => (
+        <div key={q.key} className="space-y-2">
+          <p className="text-[14px] text-ink-900">{q.label}</p>
+          <div className="flex flex-wrap gap-2">
+            {q.options.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setAnswers((prev) => ({ ...prev, [q.key]: opt }))}
+                className={`px-3 py-1.5 rounded-xl text-[13px] font-bold transition-all ${
+                  answers[q.key] === opt ? 'bg-ink-900 text-paper-50' : 'border border-ink-300/40 text-ink-700'
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="자유롭게 남기고 싶은 말이 있다면 적어주세요 (선택)"
+        rows={3}
+        className="w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900"
+      />
+
+      {error && <p className="text-[12px] text-red-600">{error}</p>}
+      <button
+        onClick={submit}
+        disabled={busy}
+        className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
+      >
+        {busy ? '제출 중...' : '의견 보내기'}
+      </button>
+    </section>
+  );
+}
+
 // ─── PDF ────────────────────────────────────────────────────────────────────
 
 function buildPdfHtml(code: string, myeongsik: MyeongsikParams | null, report: LookupReport, sections: ReportSection[]): string {
@@ -583,6 +693,11 @@ export default function CodeLookupTab() {
                 </section>
               )}
             </>
+          )}
+
+          {/* 리포트 말미 피드백 (베타) */}
+          {result && !result.giftPending && activeReport && (
+            <FeedbackForm code={code} product={activeReport.product} />
           )}
 
           {/* 절입 달력 — 코드 없이도 받을 수 있는 공용 달력 */}

@@ -1,6 +1,36 @@
 import { describe, test, expect } from 'vitest';
-import { calculateGyeok, getCareerFocus, getSajuData, getAdjustedTime, hiddenStems } from './saju';
+import { calculateGyeok, getCareerFocus, getSajuData, getAdjustedTime, hiddenStems, getHongyeom, isGwimun, getGongmang } from './saju';
 import { getKstNormalizationOffsetMinutes, SEOUL_LONGITUDE } from '../lib/manseryeok/policy';
+
+describe('신살 조견표 (기준서 부록 A-6)', () => {
+  test('홍염살: 일간 10간 전체 조견표 일치', () => {
+    const expected: Record<string, string> = {
+      '甲': '午', '乙': '申', '丙': '寅', '丁': '未', '戊': '辰',
+      '己': '辰', '庚': '戌', '辛': '酉', '壬': '子', '癸': '申',
+    };
+    for (const [stem, branch] of Object.entries(expected)) {
+      expect(getHongyeom(stem)).toBe(branch);
+    }
+    expect(getHongyeom('?')).toBe('');
+  });
+
+  test('귀문관살: 6쌍 대칭 성립, 비관계 쌍 불성립', () => {
+    const pairs: [string, string][] = [
+      ['子', '酉'], ['丑', '午'], ['寅', '未'], ['卯', '申'], ['辰', '亥'], ['巳', '戌'],
+    ];
+    for (const [a, b] of pairs) {
+      expect(isGwimun(a, b)).toBe(true);
+      expect(isGwimun(b, a)).toBe(true);
+    }
+    expect(isGwimun('子', '未')).toBe(false); // 원진이지 귀문 아님
+    expect(isGwimun('子', '午')).toBe(false); // 충이지 귀문 아님
+  });
+
+  test('공망: 순중 공망 산출 — 甲子旬 戌亥, 甲辰旬 寅卯', () => {
+    expect(getGongmang('甲', '子')).toEqual(['戌', '亥']);
+    expect(getGongmang('辛', '亥')).toEqual(['寅', '卯']); // 일주 기준 정본 사용례
+  });
+});
 
 describe('saju utils', () => {
   test('getCareerFocus returns English fallback text for empty data when locale is en', () => {

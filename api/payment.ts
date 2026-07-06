@@ -11,6 +11,7 @@ import {
 } from '../db/payment.js';
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 import { getAdminStats } from '../db/admin.js';
+import { getFeedbackStats } from '../db/feedback.js';
 import { isAdminRequest } from './code.js';
 
 /**
@@ -39,8 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
       const db = await getDb();
-      const stats = await getAdminStats(db, days);
-      return res.status(200).json({ ok: true, stats });
+      const [stats, feedbackStats] = await Promise.all([getAdminStats(db, days), getFeedbackStats(db)]);
+      return res.status(200).json({ ok: true, stats, feedbackStats });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'stats failed';
       console.error('[api/payment:stats] error:', error);

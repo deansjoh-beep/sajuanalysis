@@ -108,6 +108,38 @@ const buildYongshinContext = (analysis: SajuAnalysis): string => {
   );
 };
 
+/**
+ * v1.5 — 자평 표준 규칙 엔진(SajuAnalysis.rules) 기반 용신 컨텍스트.
+ * 판정마다 「명리 판단 기준서」 근거 조항(§)을 병기해 LLM이 조항 밖 판정을 지어내지
+ * 못하게 한다(플랜 3-1 "프롬프트에 근거 조항으로 주입").
+ * ⛔ v1 vs v1.5 A/B 벤치의 OWNER 병합 판정 전까지 기본 경로는 v1을 유지한다.
+ */
+export const buildRulesYongshinContext = (analysis: SajuAnalysis): string => {
+  const r = analysis.rules;
+  if (!r) return buildYongshinContext(analysis); // 규칙 엔진 입력 불충분 시 v1 폴백
+  const s = r.strength;
+  const flags = [s.deukryeong ? '득령' : '실령', s.deukji ? '득지' : '실지', s.deukse ? '득세' : '실세'].join('·');
+  const gyeokPurity = [
+    r.gyeok.transparent ? '투간' : '무투간 본기 취격(§5.1.3)',
+    ...(r.gyeok.damaged ? ['월지 충 순도 하락(§5.1.4)'] : []),
+  ].join(', ');
+  const yong = r.yongshin;
+  const extras = [
+    ...(yong.johooHuisin ? [`조후 희신 병기: ${yong.johooHuisin}(§6.4.2)`] : []),
+    ...(yong.presentInNatal ? [] : ['용신 오행이 원국 표면에 없음 — 운에서 보충하는 흐름으로 서술(§6.4.1)']),
+    ...(yong.sangsinAbsent ? ['상신이 원국 천간에 없음(§6.2.4)'] : []),
+  ];
+  return [
+    `[자평 표준 판정 — 명리 판단 기준서(docs/myeongri-standard) 조항 근거]`,
+    `강약: ${s.class} (아군 세력 ${s.ratio.toFixed(1)}%, ${flags} — §2.7·§3.2.1)`,
+    `조후: ${r.johoo.status} (온도 점수 ${r.johoo.t} — §4.2~§4.3)`,
+    `격국: ${r.gyeok.name} (취격 ${r.gyeok.basisStem}, ${gyeokPurity} — §5.1~§5.2) | 성패: ${r.gyeok.seongpae}(§5.4.1)`,
+    `용신: ${yong.primary} (${yong.method} — §6.2) | 희신 ${yong.huisin} · 기신 ${yong.gisin} · 구신 ${yong.gusin} · 한신 ${yong.hansin}(§6.3.1)` +
+      (extras.length ? ` | ${extras.join(' | ')}` : ''),
+    `※ 본 판정은 자평명리 기준의 결정론 산출입니다(§1.1). 위 판정과 조항 근거 안에서만 서술하고, 다른 유파 판정을 병기하지 말 것.`,
+  ].join('\n');
+};
+
 /** getHapChungSummary와 동일 규칙·표기(원국 한정, 합/충만). */
 const buildHapchungContext = (analysis: SajuAnalysis): string => {
   const valid = toLegacyOrder(analysis.myeongsik)
@@ -185,11 +217,27 @@ const buildSipseungContext = (analysis: SajuAnalysis): string =>
     .filter(Boolean)
     .join(', ');
 
-/** SajuAnalysis → 프리미엄 리포트 프롬프트 문자열 계약(옵션 B, 단일 소스). */
-export const sajuAnalysisToPromptContext = (analysis: SajuAnalysis): PremiumPromptContext => ({
+export type YongshinEngine = 'v1' | 'v1.5';
+
+/**
+ * SajuAnalysis → 프리미엄 리포트 프롬프트 문자열 계약(옵션 B, 단일 소스).
+ * yongshinEngine: 'v1.5'(기본 — 자평 표준 규칙 엔진 + §조항 주입) | 'v1'(레거시 provisional).
+ *
+ * 2026-07-07 ⛔ OWNER 병합 승인(플랜 3-1 A/B 벤치 30건, bench-output/ab-30/ab-compare.md):
+ * v1은 30건 중 19건(63%)에서 "용신 X / 기신 X"처럼 동일 오행을 용신·기신으로 동시 표기하는
+ * 자기모순을 냈다(eokbuYongshin 표기 오류). v1.5는 §6.3.1 생극 기계 도출 구조상 이 결함이
+ * 원천적으로 발생하지 않는다(실측 0/30). score·비용·소요 전부 v1과 동급 또는 우위.
+ * v1 옵션은 회귀 비교·디버깅용으로만 존치한다.
+ */
+export const sajuAnalysisToPromptContext = (
+  analysis: SajuAnalysis,
+  opts?: { yongshinEngine?: YongshinEngine },
+): PremiumPromptContext => ({
   sajuContext: buildSajuContext(analysis),
   daeunContext: buildDaeunContext(analysis),
-  yongshinContext: buildYongshinContext(analysis),
+  yongshinContext: (opts?.yongshinEngine ?? 'v1.5') === 'v1'
+    ? buildYongshinContext(analysis)
+    : buildRulesYongshinContext(analysis),
   hapchungContext: buildHapchungContext(analysis),
   shinsalContext: buildShinsalContext(analysis),
   sipseungContext: buildSipseungContext(analysis),

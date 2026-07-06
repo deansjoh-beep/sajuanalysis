@@ -18,6 +18,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -202,6 +203,33 @@ export const reportReviews = pgTable(
       .notNull()
       .defaultNow(),
   },
+);
+
+/**
+ * 베타 피드백 (Phase 3-2) — 리포트 말미 폼(별점 + 객관식 3문항 + 자유 서술).
+ * 코드 기준 익명 수집: code_id에 FK를 걸지 않아 코드 파기 후에도 익명 통계가 남는다.
+ * (별점·선택지·서술만 저장 — 개인 식별 정보 없음. 서술의 PII는 수집 화면에서 입력 자제 안내)
+ */
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** 수집 당시 코드 id (FK 아님 — 파기 후에도 익명 통계 보존) */
+    codeId: uuid('code_id').notNull(),
+    product: productEnum('product').notNull(),
+    /** 별점 1~5 */
+    rating: integer('rating').notNull(),
+    /** 객관식 3문항 응답 { accuracy, bestSection, recommend } — 허용값은 db/feedback.ts에서 검증 */
+    answers: jsonb('answers').$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+    comment: text('comment').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // 코드당 상품별 1회 (재제출은 덮어쓰기)
+    uniqueIndex('feedback_code_product_idx').on(table.codeId, table.product),
+  ],
 );
 
 export const codesRelations = relations(codes, ({ many }) => ({

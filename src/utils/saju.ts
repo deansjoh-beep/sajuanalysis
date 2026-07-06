@@ -764,7 +764,11 @@ export const getSipseung = (dayMaster: string, branch: string): string => {
 
 // ===== 공망(空亡) =====
 
-/** 년주 천간·지지를 받아 공망에 해당하는 지지 2개를 반환합니다. */
+/**
+ * 임의 주(柱)의 천간·지지를 받아 순중(旬中) 공망 지지 2개를 반환합니다.
+ * 정본 기준은 **일주**입니다(기준서 부록 A-6 — 리포트·SajuAnalysis는 일주 기준 단일).
+ * 만세력 탭의 연·월·일 3중 표시는 참고용으로만 유지합니다.
+ */
 export const getGongmang = (yearStem: string, yearBranch: string): string[] => {
   const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
   const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
@@ -1037,4 +1041,23 @@ export const getHakdang = (dayStem: string): string => {
     '壬': '申', '癸': '卯',
   };
   return table[dayStem] ?? '';
+};
+
+/** 홍염살(紅艶殺): 일간 기준, 해당 지지 반환 (기준서 부록 A-6) */
+export const getHongyeom = (dayStem: string): string => {
+  const table: Record<string, string> = {
+    '甲': '午', '乙': '申', '丙': '寅', '丁': '未',
+    '戊': '辰', '己': '辰', '庚': '戌', '辛': '酉',
+    '壬': '子', '癸': '申',
+  };
+  return table[dayStem] ?? '';
+};
+
+/** 귀문관살(鬼門關殺): 두 지지가 귀문 관계인지 확인 (기준서 부록 A-6) */
+export const isGwimun = (branch1: string, branch2: string): boolean => {
+  const pairs = new Set([
+    '子-酉', '酉-子', '丑-午', '午-丑', '寅-未', '未-寅',
+    '卯-申', '申-卯', '辰-亥', '亥-辰', '巳-戌', '戌-巳',
+  ]);
+  return pairs.has(`${branch1}-${branch2}`);
 };
