@@ -2,7 +2,11 @@
  * 컨텍스트 diff 하네스 (Phase 1-3, docs/phase-1-3-plan.md §4-2·§4-3)
  *
  * 기준선 = buildLegacyPromptContext(종전 generateLifeNavReport 조립의 무변경 추출).
- * 대상   = sajuAnalysisToPromptContext(SajuAnalysis 단독 파생, 옵션 B).
+ * 대상   = sajuAnalysisToPromptContext(SajuAnalysis 단독 파생, 옵션 B) — **v1(레거시) 엔진 고정**.
+ *
+ * 2026-07-07 병합 승인 이후 앱 기본 엔진은 v1.5이지만, 이 하네스는 Phase 1-3 당시의
+ * 목적(v1 gyeokYongshin 어댑터가 종전 인라인 계산과 일치하는지)을 그대로 유지하기 위해
+ * `{ yongshinEngine: 'v1' }`을 명시한다. 기본 엔진(v1.5) 스펙은 promptContext.rules.test.ts.
  *
  * 검증 정책:
  *   - sajuContext·daeunContext·hapchungContext·shinsalContext → **바이트 동일** 요구.
@@ -59,7 +63,7 @@ const buildBoth = (f: Fixture) => {
     unknownTime: f.unknownTime,
     asOfDate: AS_OF,
   });
-  const adapted = sajuAnalysisToPromptContext(analysis);
+  const adapted = sajuAnalysisToPromptContext(analysis, { yongshinEngine: 'v1' });
 
   return { saju, legacy, adapted };
 };

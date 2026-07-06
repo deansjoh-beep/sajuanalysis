@@ -8,6 +8,9 @@
 
 ## 확정 (Confirmed Decisions)
 
+### 2026-07-07
+- **v1.5 규칙 엔진 병합 승인 (Phase 3-1 A/B 벤치 판정)** — v1(레거시 provisional) vs v1.5(자평 표준 규칙 엔진, `docs/myeongri-standard/`) 30건 A/B 벤치 결과(`bench-output/ab-30/ab-compare.md`): 통과율 100% 동일, v1.5 평균 score 우위(100 vs 99.2), 원가·소요 +1~2%(미미). 핵심 근거 — v1은 30건 중 19건(63%)에서 "용신=기신" 자기모순 표기를 냈고(레거시 eokbuYongshin 표기 오류), v1.5는 §6.3.1 생극 기계 도출 구조상 이 결함이 원천적으로 발생하지 않음(실측 0/30). **`sajuAnalysisToPromptContext` 기본 엔진을 v1.5로 전환**, provisional 경고문을 자평 표준 확신 표기로 대체(기준서 §1.1.3·§1.1.4). v1은 회귀 비교·디버깅용으로만 존치.
+
 ### 2026-07-03
 - **D-0-1** 프레임워크 → **Vite SPA + Express 유지**. Next.js 이관 비용 대비 이득 없음. 결제·리포트 신규 라우팅은 Vercel Functions(`api/*`)로 붙인다.
 - **D-0-2** DB → **Vercel Postgres(Neon) 이관**. Phase 2에서 `codes`+`orders`+`reports` 3테이블 스키마 + `expires_at` 자동 파기(Vercel Cron)를 관계형에서 구현. Firestore는 블로그·관리자 기존 데이터에 한해 유지, 신규 사주 데이터는 Postgres.

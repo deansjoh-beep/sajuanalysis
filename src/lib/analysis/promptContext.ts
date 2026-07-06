@@ -221,8 +221,13 @@ export type YongshinEngine = 'v1' | 'v1.5';
 
 /**
  * SajuAnalysis → 프리미엄 리포트 프롬프트 문자열 계약(옵션 B, 단일 소스).
- * yongshinEngine: 'v1'(기본 — provisional) | 'v1.5'(자평 표준 규칙 엔진 + §조항 주입).
- * 기본값 변경은 A/B 벤치 감수 후 ⛔ OWNER 병합 판정 사항(플랜 3-1).
+ * yongshinEngine: 'v1.5'(기본 — 자평 표준 규칙 엔진 + §조항 주입) | 'v1'(레거시 provisional).
+ *
+ * 2026-07-07 ⛔ OWNER 병합 승인(플랜 3-1 A/B 벤치 30건, bench-output/ab-30/ab-compare.md):
+ * v1은 30건 중 19건(63%)에서 "용신 X / 기신 X"처럼 동일 오행을 용신·기신으로 동시 표기하는
+ * 자기모순을 냈다(eokbuYongshin 표기 오류). v1.5는 §6.3.1 생극 기계 도출 구조상 이 결함이
+ * 원천적으로 발생하지 않는다(실측 0/30). score·비용·소요 전부 v1과 동급 또는 우위.
+ * v1 옵션은 회귀 비교·디버깅용으로만 존치한다.
  */
 export const sajuAnalysisToPromptContext = (
   analysis: SajuAnalysis,
@@ -230,9 +235,9 @@ export const sajuAnalysisToPromptContext = (
 ): PremiumPromptContext => ({
   sajuContext: buildSajuContext(analysis),
   daeunContext: buildDaeunContext(analysis),
-  yongshinContext: (opts?.yongshinEngine ?? 'v1') === 'v1.5'
-    ? buildRulesYongshinContext(analysis)
-    : buildYongshinContext(analysis),
+  yongshinContext: (opts?.yongshinEngine ?? 'v1.5') === 'v1'
+    ? buildYongshinContext(analysis)
+    : buildRulesYongshinContext(analysis),
   hapchungContext: buildHapchungContext(analysis),
   shinsalContext: buildShinsalContext(analysis),
   sipseungContext: buildSipseungContext(analysis),

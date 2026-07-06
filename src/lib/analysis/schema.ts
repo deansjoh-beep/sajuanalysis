@@ -2,13 +2,16 @@
  * SajuAnalysis — 구조 분석 JSON 스키마 (Phase 1-2, IMPLEMENTATION_PLAN 1-2)
  *
  * 리포트 생성(1-3)의 유일한 입력이 되는 결정론적 구조체다. 기존에 검증된 만세력 산출물
- * (명식·대운·월운·세운·공망·신살·합충)과 잠정(provisional) 격국·용신을 하나로 조립한다.
+ * (명식·대운·월운·세운·공망·신살·합충)과 격국·용신 판정을 하나로 조립한다.
  *
  * 원칙:
  *   - 이 객체에 **존재하는 요소만** 리포트가 언급한다(근거 없는 서술 금지 — 1-3 프롬프트 규칙).
  *   - 만세력 파생 필드(명식·대운·월운·세운·공망·신살·합충·절입경계)는 검증된 결정론 산출.
- *   - `gyeokYongshin`은 유파 의존 **잠정** 해석이라 `null` 허용 필드로 예약한다(플랜 1-2).
- *     v1은 provisional 값을 채우되 `provisional: true`가 붙는다. Phase 3 규칙엔진이 정식화(D-1-6).
+ *   - `rules`(Phase 3-1) — 명리 판단 기준서(자평명리 표준, `docs/myeongri-standard/`) 기반
+ *     규칙 엔진 판정. 2026-07-07 ⛔ OWNER A/B 벤치 병합 승인으로 **정본**이자 리포트 프롬프트
+ *     기본 엔진(§1.1.3)이 되었다. `standard: 'japyeong'`로 확신 수준을 표기한다.
+ *   - `gyeokYongshin`(Phase 1-2 v1) — 유파 의존 잠정(provisional) 휴리스틱. `rules` 도입 후
+ *     레거시 회귀 비교·디버깅용으로만 존치한다(신규 코드는 `rules`를 사용할 것).
  */
 
 import {
@@ -180,11 +183,12 @@ export type SajuAnalysis = {
   shinsal: ShinsalEntry[];
   nearJieqiBoundary: boolean;
   minHoursToJieqi: number | null;
-  /** ⚠️ 유파 의존 잠정 해석(검증 정답 없음). null 허용 예약(플랜 1-2). */
+  /** ⚠️ 레거시 v1 provisional 휴리스틱(유파 의존 잠정 해석). 회귀 비교·디버깅용으로만 존치. */
   gyeokYongshin: GyeokYongshin | null;
   /**
-   * v1.5 자평 표준 규칙 엔진 판정(명리 판단 기준서 §1~§7, standard: 'japyeong').
-   * v1 vs v1.5 A/B 벤치(⛔ OWNER 병합 판정) 전까지 gyeokYongshin과 병존한다 — 플랜 3-1.
+   * 자평 표준 규칙 엔진 판정(명리 판단 기준서 §1~§7, standard: 'japyeong') — 정본.
+   * 2026-07-07 A/B 벤치 30건 병합 승인(⛔ OWNER, bench-output/ab-30/ab-compare.md):
+   * v1은 30건 중 19건(63%)에서 용신=기신 자기모순을 냈고 v1.5는 구조상 이를 방지한다.
    */
   rules: RulesAnalysis | null;
   provisionalNote: string;
