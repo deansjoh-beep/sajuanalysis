@@ -108,6 +108,14 @@ describe('buildSajuAnalysis — 공망·신살·합충·격국용신', () => {
     }
   });
 
+  test('v1.5 규칙 엔진 판정(rules) — 자평 표준, provisional과 병존', () => {
+    expect(a.rules).not.toBeNull();
+    expect(a.rules!.standard).toBe('japyeong');
+    expect(['극신강', '신강', '중화', '신약', '극신약']).toContain(a.rules!.strength.class);
+    expect(a.rules!.gyeok.name.endsWith('격')).toBe(true);
+    expect(['목', '화', '토', '금', '수']).toContain(a.rules!.yongshin.primary);
+  });
+
   test('격국용신은 provisional(널 허용 예약 필드에 값 채움)', () => {
     expect(a.gyeokYongshin).not.toBeNull();
     expect(a.gyeokYongshin!.provisional).toBe(true);

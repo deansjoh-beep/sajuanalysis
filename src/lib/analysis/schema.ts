@@ -38,6 +38,7 @@ import {
 } from '../../utils/saju.js';
 import { getCurrentWolun, type WolunMonth } from '../manseryeok/wolun.js';
 import { analyzeGyeokYongshin, type GyeokYongshin } from './gyeokyongshin.js';
+import { analyzeByRules, type RulesAnalysis } from './rules/index.js';
 
 export type OhaengKey = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 export type PillarPosition = '년주' | '월주' | '일주' | '시주';
@@ -181,6 +182,11 @@ export type SajuAnalysis = {
   minHoursToJieqi: number | null;
   /** ⚠️ 유파 의존 잠정 해석(검증 정답 없음). null 허용 예약(플랜 1-2). */
   gyeokYongshin: GyeokYongshin | null;
+  /**
+   * v1.5 자평 표준 규칙 엔진 판정(명리 판단 기준서 §1~§7, standard: 'japyeong').
+   * v1 vs v1.5 A/B 벤치(⛔ OWNER 병합 판정) 전까지 gyeokYongshin과 병존한다 — 플랜 3-1.
+   */
+  rules: RulesAnalysis | null;
   provisionalNote: string;
 };
 
@@ -285,6 +291,23 @@ export const buildSajuAnalysis = (input: BuildSajuAnalysisInput): SajuAnalysis =
   // ── 격국·용신(provisional) ──
   const gyeokYongshin = analyzeGyeokYongshin(saju);
 
+  // ── v1.5 자평 표준 규칙 엔진(기준서 §1.2 파이프라인) — 시간 미상은 hour=null (§8.3) ──
+  const toRulePillar = (p: any) =>
+    p?.stem?.hanja && p?.branch?.hanja && p.stem.hanja !== '?' && p.branch.hanja !== '?'
+      ? { stem: p.stem.hanja as string, branch: p.branch.hanja as string }
+      : null;
+  const ruleYear = toRulePillar(yearP);
+  const ruleMonth = toRulePillar(monthP);
+  const ruleDay = toRulePillar(dayP);
+  const rules = ruleYear && ruleMonth && ruleDay
+    ? analyzeByRules({
+        year: ruleYear,
+        month: ruleMonth,
+        day: ruleDay,
+        hour: unknownTime ? null : toRulePillar(hourP),
+      })
+    : null;
+
   return {
     meta: {
       asOfISO: new Date(asOfDate.getTime()).toISOString(),
@@ -305,6 +328,7 @@ export const buildSajuAnalysis = (input: BuildSajuAnalysisInput): SajuAnalysis =
     nearJieqiBoundary,
     minHoursToJieqi,
     gyeokYongshin,
+    rules,
     provisionalNote: PROVISIONAL_NOTE,
   };
 };
