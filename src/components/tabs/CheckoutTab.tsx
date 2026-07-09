@@ -11,13 +11,13 @@ const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerati
 
 const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
 
-// ⛔ 가격은 서버 db/payment.ts PRODUCT_PRICES와 반드시 동기화(임시가). 서버가 amount를 재검증하므로
-//    불일치 시 결제는 거부되지만, 표시 금액이 어긋나면 UX가 깨지므로 값 변경 시 양쪽을 같이 고칠 것.
+// ⚠️ 가격은 서버 db/payment.ts PRODUCT_PRICES와 반드시 동기화(OWNER 확정 2026-07-09). 서버가 amount를
+//    재검증하므로 불일치 시 결제는 거부되지만, 표시 금액이 어긋나면 UX가 깨지므로 값 변경 시 양쪽을 같이 고칠 것.
 const PRODUCT_CATALOG: Array<{ id: ProductType; label: string; price: number; desc: string }> = [
-  { id: 'yearly2026', label: '2026 일년운세 리포트', price: 49000, desc: '2026년 열두 달의 흐름과 시기별 조언' },
-  { id: 'premium', label: '평생 사주 리포트', price: 99000, desc: '대운 전체를 관통하는 평생 인생 네비게이션' },
-  { id: 'jobCareer', label: '직업·재물운 리포트', price: 39000, desc: '적성·전직·재물의 때를 짚는 진로 가이드' },
-  { id: 'loveMarriage', label: '연애·결혼운 리포트', price: 39000, desc: '인연의 결과 시기, 3년 흐름을 담은 가이드' },
+  { id: 'yearly2026', label: '2026 일년운세 리포트', price: 4900, desc: '2026년 열두 달의 흐름과 시기별 조언' },
+  { id: 'premium', label: '평생 사주 리포트', price: 9900, desc: '대운 전체를 관통하는 평생 인생 네비게이션' },
+  { id: 'jobCareer', label: '직업·재물운 리포트', price: 4900, desc: '적성·전직·재물의 때를 짚는 진로 가이드' },
+  { id: 'loveMarriage', label: '연애·결혼운 리포트', price: 4900, desc: '인연의 결과 시기, 3년 흐름을 담은 가이드' },
 ];
 
 const SESSION_KEY = 'sj_checkout_pending';

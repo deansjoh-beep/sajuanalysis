@@ -111,12 +111,12 @@ describe('결제 — 승인·멱등·자동취소·환불 (PGlite)', () => {
     expect(result.alreadyProcessed).toBe(false);
     expect(result.code).toMatch(/^[A-Z2-9]{2}-[A-Z2-9]{6}$/);
     expect(calls.confirm).toHaveLength(1);
-    expect(calls.confirm[0]).toEqual({ paymentKey: 'pk-1', orderId: 'toss-order-1', amount: 49000 });
+    expect(calls.confirm[0]).toEqual({ paymentKey: 'pk-1', orderId: 'toss-order-1', amount: PRODUCT_PRICES.yearly2026 });
 
     const [order] = await db.select().from(orders).where(eq(orders.orderNo, 'toss-order-1'));
     expect(order.status).toBe('paid');
     expect(order.paymentKey).toBe('pk-1');
-    expect(order.amount).toBe(49000);
+    expect(order.amount).toBe(PRODUCT_PRICES.yearly2026);
   });
 
   it('금액 불일치: 토스 호출 없이 거부한다', async () => {
@@ -218,7 +218,7 @@ describe('결제 — 승인·멱등·자동취소·환불 (PGlite)', () => {
     });
 
     const outcome = await refundOrder(db, toss, 'toss-order-6', '단순 변심');
-    expect(outcome).toEqual({ found: true, alreadyRefunded: false, amount: 49000 });
+    expect(outcome).toEqual({ found: true, alreadyRefunded: false, amount: PRODUCT_PRICES.yearly2026 });
     expect(calls.cancel).toHaveLength(1);
     expect((calls.cancel[0] as { paymentKey: string }).paymentKey).toBe('pk-6');
 
