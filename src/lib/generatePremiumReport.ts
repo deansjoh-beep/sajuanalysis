@@ -12,7 +12,16 @@ import { ReportInputData, ReportSection } from "./premiumOrderStore";
 export const generateLifeNavReport = async (
   inputData: ReportInputData,
   signal?: AbortSignal
-): Promise<{ sections: ReportSection[]; saju: any; daeun: any; yongshin: any }> => {
+): Promise<{
+  sections: ReportSection[];
+  saju: any;
+  daeun: any;
+  yongshin: any;
+  /** 저장·재파싱용 원문(마커 보존). parseLifeNavSections로 sections를 복원할 수 있다. */
+  content: string;
+  /** 품질 점수(0–100). save-report의 qualityScore로 사용. */
+  qualityScore: number;
+}> => {
   // 1. 프롬프트 조립 — SajuAnalysis 단일 소스(코어 모듈, 벤치 하네스와 동일 경로).
   const { system, user, analysis } = assemblePremiumReportPrompt(inputData);
 
@@ -175,6 +184,6 @@ export const generateLifeNavReport = async (
     });
   }
 
-  return { sections, saju, daeun, yongshin };
+  return { sections, saju, daeun, yongshin, content: quality.normalizedText, qualityScore: quality.score };
 };
 

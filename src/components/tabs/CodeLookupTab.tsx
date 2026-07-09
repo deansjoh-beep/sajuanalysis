@@ -1,12 +1,16 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
 import { parseLifeNavSections } from '../../lib/premiumReportCore';
-import type { ReportSection } from '../../lib/premiumOrderStore';
-import { buildSajuAnalysis } from '../../lib/analysis/schema';
+import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
+import type { BirthFormInput } from '../../lib/runReportGeneration';
+import { buildMyeongsikFromBirth, type MyeongsikParams } from '../../lib/buildMyeongsik';
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
+
+// 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
+const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
 
 /**
  * 사주 코드 열람 탭 (Phase 2-4).
@@ -17,15 +21,6 @@ import { buildJeolipIcs } from '../../lib/jeolipIcs';
 const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
 
 // ─── API 응답 타입 (api/code.ts lookupCode와 동일 형상) ─────────────────────
-
-interface MyeongsikParams {
-  pillars: { year: string; month: string; day: string; hour: string | null };
-  gender: 'male' | 'female';
-  daeunsu: number;
-  daeunDirection: 'forward' | 'backward';
-  birthYear: number;
-  timeUnknown: boolean;
-}
 
 interface LookupOrder {
   orderId: string;
@@ -167,38 +162,7 @@ function MonthCalendar({ content, sajuYear }: { content: string; sajuYear: numbe
 
 // ─── 선물 코드 등록 폼 ──────────────────────────────────────────────────────
 
-const YANG_STEMS = ['甲', '丙', '戊', '庚', '壬'];
-
-function buildMyeongsikFromBirth(input: {
-  dateStr: string;
-  timeStr: string;
-  isLunar: boolean;
-  gender: 'M' | 'F';
-  unknownTime: boolean;
-}): MyeongsikParams {
-  const analysis = buildSajuAnalysis({
-    dateStr: input.dateStr,
-    timeStr: input.unknownTime ? '12:00' : input.timeStr,
-    isLunar: input.isLunar,
-    isLeap: false,
-    gender: input.gender,
-    unknownTime: input.unknownTime,
-  });
-  const [year, month, day, hour] = analysis.myeongsik.map((p) => p.ganzhi);
-  const yearStem = year.charAt(0);
-  const isYang = YANG_STEMS.includes(yearStem);
-  const forward = (isYang && input.gender === 'M') || (!isYang && input.gender === 'F');
-  return {
-    pillars: { year, month, day, hour: input.unknownTime || hour === '??' ? null : hour },
-    gender: input.gender === 'M' ? 'male' : 'female',
-    daeunsu: analysis.daeun[0]?.startAge ?? 0,
-    daeunDirection: forward ? 'forward' : 'backward',
-    birthYear: Number(input.dateStr.slice(0, 4)),
-    timeUnknown: input.unknownTime,
-  };
-}
-
-function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: () => void }) {
+function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth: BirthFormInput) => void }) {
   const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('12:00');
   const [gender, setGender] = useState<'M' | 'F'>('M');
@@ -223,7 +187,8 @@ function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: () => 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || '등록에 실패했습니다.');
-      onRedeemed();
+      // 생년월일이 메모리에 있는 유일한 시점 — 생성 파이프로 그대로 넘긴다.
+      onRedeemed({ dateStr, timeStr, isLunar, gender, unknownTime });
     } catch (e) {
       setError(e instanceof Error ? e.message : '등록에 실패했습니다.');
     } finally {
@@ -439,10 +404,12 @@ export default function CodeLookupTab() {
   const [activeReportIdx, setActiveReportIdx] = useState(0);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // 리딤 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
+  const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType } | null>(null);
 
   const normalized = codeInput.trim().toUpperCase().replace(/^([A-Z0-9]{2})([A-Z0-9]{6})$/, '$1-$2');
 
-  const lookup = async (target: string) => {
+  const lookup = async (target: string): Promise<LookupResult | null> => {
     setLoading(true);
     setError(null);
     setResult(null);
@@ -454,11 +421,29 @@ export default function CodeLookupTab() {
       setResult(data as LookupResult);
       setActiveReportIdx(0);
       setActiveSectionIdx(0);
+      return data as LookupResult;
     } catch (e) {
       setError(e instanceof Error ? e.message : '조회에 실패했습니다.');
+      return null;
     } finally {
       setLoading(false);
     }
+  };
+
+  // 리딤 성공 → 재조회로 주문 확보 → 리포트 없는 주문이면 생성 단계로 진입.
+  const handleRedeemed = async (birth: BirthFormInput) => {
+    const data = await lookup(code);
+    if (!data) return;
+    const hasReport = (product: string) => data.reports.some((r) => r.product === product);
+    const target = data.orders.find((o) => o.status !== 'refunded' && !hasReport(o.product));
+    if (target) {
+      setPendingGen({ birth, orderId: target.orderId, product: target.product as ProductType });
+    }
+  };
+
+  const handleGenerated = () => {
+    setPendingGen(null);
+    void lookup(code);
   };
 
   const submit = () => {
@@ -561,7 +546,25 @@ export default function CodeLookupTab() {
             {error && <p className="mt-3 text-[12px] text-red-600">{error}</p>}
           </section>
 
-          {result && result.giftPending && <GiftRedeemForm code={code} onRedeemed={() => lookup(code)} />}
+          {result && result.giftPending && <GiftRedeemForm code={code} onRedeemed={handleRedeemed} />}
+
+          {pendingGen && (
+            <Suspense
+              fallback={
+                <section className={`${PAPER_CARD} p-6`}>
+                  <p className="text-[14px] text-ink-500">생성 도구를 불러오는 중...</p>
+                </section>
+              }
+            >
+              <LazyReportGenerationProgress
+                code={code}
+                orderId={pendingGen.orderId}
+                product={pendingGen.product}
+                birth={pendingGen.birth}
+                onComplete={handleGenerated}
+              />
+            </Suspense>
+          )}
 
           {result && !result.giftPending && (
             <>
