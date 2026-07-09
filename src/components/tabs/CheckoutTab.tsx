@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { loadTossPayments, ANONYMOUS } from '@tosspayments/tosspayments-sdk';
 import { TAB_TRANSITION } from '../../constants/styles';
@@ -104,10 +104,8 @@ export default function CheckoutTab() {
     unknownTime: false,
   });
   const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
   const [done, setDone] = useState<{ code: string; orderId: string; product: ProductType; birth: BirthFormInput } | null>(null);
-
-  const widgetsRef = useRef<any>(null);
-  const rendered = useRef(false);
 
   const catalogItem = PRODUCT_CATALOG.find((p) => p.id === product) ?? null;
 
@@ -175,44 +173,33 @@ export default function CheckoutTab() {
     }
   };
 
-  // 결제 단계 진입 시 위젯 렌더.
-  useEffect(() => {
-    if (step !== 'pay' || !clientKey || !catalogItem || rendered.current) return;
-    rendered.current = true;
-    (async () => {
-      try {
-        const toss = await loadTossPayments(clientKey);
-        const widgets = toss.widgets({ customerKey: ANONYMOUS });
-        widgetsRef.current = widgets;
-        await widgets.setAmount({ currency: 'KRW', value: catalogItem.price });
-        await Promise.all([
-          widgets.renderPaymentMethods({ selector: '#toss-payment-methods', variantKey: 'DEFAULT' }),
-          widgets.renderAgreement({ selector: '#toss-agreement', variantKey: 'AGREEMENT' }),
-        ]);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '결제창을 불러오지 못했습니다.');
-        setStep('error');
-      }
-    })();
-  }, [step, clientKey, catalogItem]);
-
   const requestPay = async () => {
-    if (!widgetsRef.current || !product) return;
+    if (!clientKey || !product || !catalogItem || paying) return;
+    setError(null);
+    setPaying(true);
     // orderNo: Toss orderId 규칙(영숫자+-,_ 6~64자) 충족. DB orders.orderNo로 저장됨.
     const orderNo = `sj-${crypto.randomUUID()}`;
     const pending: PendingCheckout = { birth, product };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(pending));
     try {
-      await widgetsRef.current.requestPayment({
+      // 결제창(개별 연동) 방식 — API 개별 연동 키(test_ck_/test_sk_)와 호환.
+      // (전자결제 승인 후 결제위젯(gck/gsk)으로 바꾸려면 toss.widgets() 방식으로 복귀.)
+      const toss = await loadTossPayments(clientKey);
+      const payment = toss.payment({ customerKey: ANONYMOUS });
+      await payment.requestPayment({
+        method: 'CARD',
+        amount: { currency: 'KRW', value: catalogItem.price },
         orderId: orderNo,
-        orderName: catalogItem?.label ?? '사주 리포트',
+        orderName: catalogItem.label,
         successUrl: `${window.location.origin}${window.location.pathname}?checkout=return`,
         failUrl: `${window.location.origin}${window.location.pathname}?checkout=fail`,
+        card: { useEscrow: false, flowMode: 'DEFAULT', useCardPoint: false, useAppCardOnly: false },
       });
     } catch (e) {
       // 사용자가 결제창을 닫은 경우 등 — 세션 정리 후 결제 단계 유지.
       sessionStorage.removeItem(SESSION_KEY);
       setError(e instanceof Error ? e.message : '결제 요청이 중단되었습니다.');
+      setPaying(false);
     }
   };
 
@@ -222,7 +209,6 @@ export default function CheckoutTab() {
       return;
     }
     setError(null);
-    rendered.current = false;
     setStep('pay');
   };
 
@@ -335,20 +321,23 @@ export default function CheckoutTab() {
             </section>
           )}
 
-          {/* 3) 결제 위젯 */}
+          {/* 3) 결제 */}
           {clientKey && step === 'pay' && catalogItem && (
             <section className={`${PAPER_CARD} p-6 space-y-4`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-serif text-[18px] font-bold text-ink-900">{catalogItem.label}</h3>
                 <span className="text-[14px] font-bold text-ink-900">{won(catalogItem.price)}</span>
               </div>
-              <div id="toss-payment-methods" />
-              <div id="toss-agreement" />
+              <p className="text-[14px] text-ink-500 leading-relaxed">
+                아래 버튼을 누르면 토스페이먼츠 결제창이 열립니다. 결제가 끝나면 리포트 코드가 발급되고
+                생성이 시작됩니다.
+              </p>
               <button
                 onClick={() => void requestPay()}
-                className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
+                disabled={paying}
+                className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
               >
-                {won(catalogItem.price)} 결제하기
+                {paying ? '결제창 여는 중...' : `${won(catalogItem.price)} 결제하기`}
               </button>
               <button onClick={() => setStep('birth')} className="text-[12px] text-ink-500 underline">
                 이전으로
