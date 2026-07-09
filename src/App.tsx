@@ -76,6 +76,7 @@ const FiveElementsPieChart = React.lazy(() => import("./components/FiveElementsP
 const LazyBlogTab = React.lazy(() => import("./components/tabs/BlogTab").then((mod) => ({ default: mod.BlogTab })));
 const LazyDailyFortuneTab = React.lazy(() => import("./components/tabs/DailyFortuneTab"));
 const LazyCodeLookupTab = React.lazy(() => import("./components/tabs/CodeLookupTab"));
+const LazyCheckoutTab = React.lazy(() => import("./components/tabs/CheckoutTab"));
 
 // 라우트/Gemini/관리자/Firestore 에러/블로그 헬퍼/타입/renderChatPlainText
 // 는 모두 전용 모듈로 분리됨. (App.tsx 슬림화)
@@ -119,7 +120,10 @@ const App: React.FC = () => {
   const [showReportMakerPage] = useState(isReportMakerRoute);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order" | "daily" | "lookup">("welcome");
+  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order" | "daily" | "lookup" | "checkout">(
+    // 토스 결제 후 successUrl/failUrl로 복귀하면 결제 탭에서 승인 처리를 이어받는다.
+    typeof window !== "undefined" && /[?&]checkout=(return|fail)/.test(window.location.search) ? "checkout" : "welcome"
+  );
   const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('premium');
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
@@ -1113,6 +1117,7 @@ const App: React.FC = () => {
               { id: "daily", label: "오늘의 운세" },
               { id: "chat", label: "상담" },
               { id: "report", label: "프리미엄리포트" },
+              { id: "checkout", label: "리포트 구매" },
               { id: "lookup", label: "리포트 조회" },
               ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),
               { id: "blog", label: "블로그" },
@@ -1242,6 +1247,12 @@ const App: React.FC = () => {
           {activeTab === "lookup" && (
             <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
               <LazyCodeLookupTab />
+            </Suspense>
+          )}
+
+          {activeTab === "checkout" && (
+            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
+              <LazyCheckoutTab />
             </Suspense>
           )}
 
@@ -1660,6 +1671,7 @@ const App: React.FC = () => {
             { id: "daily", label: "오늘" },
             { id: "chat", label: "상담" },
             { id: "report", label: "리포트" },
+            { id: "checkout", label: "구매" },
             { id: "lookup", label: "조회" },
             ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),
             { id: "blog", label: "블로그" },
