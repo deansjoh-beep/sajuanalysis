@@ -71,12 +71,15 @@ import {
   getDoc
 } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import ComingSoon from "./components/ComingSoon";
 
 const FiveElementsPieChart = React.lazy(() => import("./components/FiveElementsPieChart"));
 const LazyBlogTab = React.lazy(() => import("./components/tabs/BlogTab").then((mod) => ({ default: mod.BlogTab })));
-const LazyDailyFortuneTab = React.lazy(() => import("./components/tabs/DailyFortuneTab"));
 const LazyCodeLookupTab = React.lazy(() => import("./components/tabs/CodeLookupTab"));
 const LazyCheckoutTab = React.lazy(() => import("./components/tabs/CheckoutTab"));
+
+// 정식 오픈 전: 리포트 구매·조회 탭을 "준비 중"으로 표시한다. 오픈 시 false로 바꾸면 실제 탭이 뜬다.
+const REPORTS_COMING_SOON = true;
 
 // 라우트/Gemini/관리자/Firestore 에러/블로그 헬퍼/타입/renderChatPlainText
 // 는 모두 전용 모듈로 분리됨. (App.tsx 슬림화)
@@ -292,7 +295,7 @@ const App: React.FC = () => {
 
       // 푸시 알림 딥링크
       const tab = params.get('tab');
-      const allowed = ['welcome', 'dashboard', 'daily', 'chat', 'report', 'guide', 'blog'];
+      const allowed = ['welcome', 'dashboard', 'chat', 'report', 'guide', 'blog'];
       if (tab && allowed.includes(tab)) {
         setActiveTab(tab as any);
       }
@@ -1114,7 +1117,6 @@ const App: React.FC = () => {
             {[
               { id: "welcome", label: "HOME" },
               { id: "dashboard", label: "만세력" },
-              { id: "daily", label: "오늘의 운세" },
               { id: "chat", label: "상담" },
               { id: "report", label: "프리미엄리포트" },
               { id: "checkout", label: "리포트 구매" },
@@ -1233,27 +1235,24 @@ const App: React.FC = () => {
             />
           )}
 
-          {activeTab === "daily" && (
-            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-              <LazyDailyFortuneTab
-                user={user}
-                onLoginClick={() => setLoginModalOpen(true)}
-                setActiveTab={setActiveTab}
-                setOrderProductType={setOrderProductType}
-              />
-            </Suspense>
-          )}
-
           {activeTab === "lookup" && (
-            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-              <LazyCodeLookupTab />
-            </Suspense>
+            REPORTS_COMING_SOON ? (
+              <ComingSoon title="리포트 조회" />
+            ) : (
+              <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
+                <LazyCodeLookupTab />
+              </Suspense>
+            )
           )}
 
           {activeTab === "checkout" && (
-            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-              <LazyCheckoutTab />
-            </Suspense>
+            REPORTS_COMING_SOON ? (
+              <ComingSoon title="리포트 구매" />
+            ) : (
+              <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
+                <LazyCheckoutTab />
+              </Suspense>
+            )
           )}
 
           {activeTab === "taekil" && (
@@ -1668,7 +1667,6 @@ const App: React.FC = () => {
           {[
             { id: "welcome", label: "HOME" },
             { id: "dashboard", label: "만세력" },
-            { id: "daily", label: "오늘" },
             { id: "chat", label: "상담" },
             { id: "report", label: "리포트" },
             { id: "checkout", label: "구매" },
