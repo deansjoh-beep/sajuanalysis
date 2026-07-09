@@ -14,14 +14,14 @@ import { issueCode, type IssueCodeOptions } from './code.js';
 import { codes, orders, type MyeongsikParams } from './schema.js';
 
 /**
- * ⛔ 임시 가격표 — OWNER 상품 구성·가격 1차 확정(7월 2주 예정) 시 교체할 것.
- * 서버가 항상 이 표 기준으로 결제 금액을 검증한다(클라이언트 금액 신뢰 금지).
+ * OWNER 확정 가격 (2026-07-09). 서버가 항상 이 표 기준으로 결제 금액을 검증한다
+ * (클라이언트 금액 신뢰 금지). ⚠️ 프론트 CheckoutTab.tsx PRODUCT_CATALOG와 동기화 유지.
  */
 export const PRODUCT_PRICES = {
-  premium: 99000,
-  yearly2026: 49000,
-  jobCareer: 39000,
-  loveMarriage: 39000,
+  premium: 9900,
+  yearly2026: 4900,
+  jobCareer: 4900,
+  loveMarriage: 4900,
 } as const;
 
 export type PaidProduct = keyof typeof PRODUCT_PRICES;

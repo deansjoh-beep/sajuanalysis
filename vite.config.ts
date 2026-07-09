@@ -34,6 +34,9 @@ export default defineConfig(() => {
     if (id.includes('lunar-javascript') || id.includes('luxon') || id.includes('tz-lookup')) {
       return 'saju-vendor';
     }
+    if (id.includes('@tosspayments')) {
+      return 'toss-vendor';
+    }
     if (id.includes('framer-motion')) {
       return 'motion-vendor';
     }
