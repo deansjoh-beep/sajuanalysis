@@ -90,18 +90,11 @@ export default function WelcomeTab({
 }: WelcomeTabProps) {
   // 첫 섹션 다음으로 스크롤할 때 사용
   const philosophyRef = useRef<HTMLDivElement>(null);
+  const productsRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleScrollDown = () => {
     philosophyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const handleStartClick = () => {
-    setShowInputForm(true);
-    // 입력폼이 위에 보이도록 스크롤 리셋
-    requestAnimationFrame(() => {
-      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-    });
   };
 
   // 정식 오픈 후엔 체크아웃 탭으로, 그 전엔 기존 주문 폼 유지 — 오픈 시 플래그만 뒤집으면 전환된다.
@@ -114,7 +107,15 @@ export default function WelcomeTab({
     setActiveTab('order');
   };
 
-  const handleOpenCheckout = () => handleProductClick('yearly2026');
+  // 티저 [리포트로 깊이 보기] — 오픈 전엔 기존 유료 프리미엄리포트 4종 섹션으로 연결,
+  // 오픈 후엔 새 체크아웃으로. (⚠️ 신규 리포트 전환 시 종전 유료 리포트 제거 예정 — OWNER)
+  const handleOpenCheckout = () => {
+    if (!reportsComingSoon) {
+      setActiveTab('checkout');
+      return;
+    }
+    productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const scrollToHero = () => {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -142,10 +143,8 @@ export default function WelcomeTab({
         {!showInputForm ? (
           <div className="relative">
             <HeroSection
-              onStartClick={handleStartClick}
               onScrollClick={handleScrollDown}
               currentSeoulYear={currentSeoulYear}
-              reportsComingSoon={reportsComingSoon}
               onOpenManse={onTeaserManse}
               onOpenCheckout={handleOpenCheckout}
             />
@@ -160,7 +159,9 @@ export default function WelcomeTab({
 
             <DifferentiationTable />
 
-            <PremiumProductsSection onProductClick={handleProductClick} />
+            <div ref={productsRef}>
+              <PremiumProductsSection onProductClick={handleProductClick} />
+            </div>
 
             <PreparationChecklist />
 

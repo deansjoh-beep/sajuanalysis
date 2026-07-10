@@ -6,19 +6,15 @@ import { HeroSajuTeaser } from './HeroSajuTeaser';
 import type { TeaserInput } from '../../lib/landingTeaser';
 
 interface HeroSectionProps {
-  onStartClick: () => void;
   onScrollClick: () => void;
   currentSeoulYear: number;
-  reportsComingSoon: boolean;
   onOpenManse: (input: TeaserInput) => void;
   onOpenCheckout: () => void;
 }
 
 export function HeroSection({
-  onStartClick,
   onScrollClick,
   currentSeoulYear,
-  reportsComingSoon,
   onOpenManse,
   onOpenCheckout,
 }: HeroSectionProps) {
@@ -61,17 +57,9 @@ export function HeroSection({
         >
           <HeroSajuTeaser
             currentSeoulYear={currentSeoulYear}
-            reportsComingSoon={reportsComingSoon}
             onOpenManse={onOpenManse}
             onOpenCheckout={onOpenCheckout}
           />
-
-          <button
-            onClick={onStartClick}
-            className="text-[13px] font-bold text-ink-500 hover:text-ink-900 underline underline-offset-4 transition-colors"
-          >
-            이름까지 입력해 정식으로 시작하기 →
-          </button>
 
           <button
             onClick={onScrollClick}

@@ -13,7 +13,6 @@ const FiveElementsPieChart = React.lazy(() => import('../FiveElementsPieChart'))
 
 export interface HeroSajuTeaserProps {
   currentSeoulYear: number;
-  reportsComingSoon: boolean;
   onOpenManse: (input: TeaserInput) => void;
   onOpenCheckout: () => void;
 }
@@ -24,8 +23,9 @@ const FIELD =
 const SEG_ON = 'bg-ink-900 text-paper-50 shadow-md';
 const SEG_OFF = 'text-ink-500';
 
-export function HeroSajuTeaser({ currentSeoulYear, reportsComingSoon, onOpenManse, onOpenCheckout }: HeroSajuTeaserProps) {
+export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }: HeroSajuTeaserProps) {
   const [input, setInput] = useState<TeaserInput>({
+    name: '',
     birthYear: '1990',
     birthMonth: '1',
     birthDay: '1',
@@ -82,6 +82,15 @@ export function HeroSajuTeaser({ currentSeoulYear, reportsComingSoon, onOpenMans
             <p className="text-[14px] text-ink-700 leading-relaxed">
               생년월일시를 입력하면 사주 요약을 무료로 바로 보여드립니다.
             </p>
+
+            <input
+              type="text"
+              value={input.name}
+              onChange={(e) => set('name', e.target.value)}
+              placeholder="이름 (선택)"
+              className="w-full px-3 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
+              aria-label="이름"
+            />
 
             <div className="grid grid-cols-3 gap-2">
               <select value={input.birthYear} onChange={(e) => set('birthYear', e.target.value)} className={FIELD} aria-label="년도">
@@ -225,6 +234,10 @@ export function HeroSajuTeaser({ currentSeoulYear, reportsComingSoon, onOpenMans
               </div>
             )}
 
+            <p className="text-[14px] font-bold text-ink-900 leading-relaxed border-t border-ink-300/20 pt-3">
+              더 자세한 당신의 운세는 만세력(FREE)과 유료 리포트에서 확인하세요.
+            </p>
+
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
               <button
                 onClick={() => onOpenManse(input)}
@@ -232,24 +245,12 @@ export function HeroSajuTeaser({ currentSeoulYear, reportsComingSoon, onOpenMans
               >
                 만세력 자세히 보기
               </button>
-              {reportsComingSoon ? (
-                <div className="flex-1 text-center">
-                  <button
-                    disabled
-                    className="w-full py-3 min-h-[44px] rounded-full bg-ink-900/40 text-paper-50 font-bold text-[14px] cursor-not-allowed"
-                  >
-                    리포트로 깊이 보기
-                  </button>
-                  <p className="text-[12px] text-ink-500 mt-1">리포트는 곧 오픈합니다.</p>
-                </div>
-              ) : (
-                <button
-                  onClick={onOpenCheckout}
-                  className="flex-1 py-3 min-h-[44px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold text-[14px] shadow-lg shadow-ink-700/20 transition-all"
-                >
-                  리포트로 깊이 보기 · 4,900원부터
-                </button>
-              )}
+              <button
+                onClick={onOpenCheckout}
+                className="flex-1 py-3 min-h-[44px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold text-[14px] shadow-lg shadow-ink-700/20 transition-all"
+              >
+                리포트로 깊이 보기
+              </button>
             </div>
 
             <button

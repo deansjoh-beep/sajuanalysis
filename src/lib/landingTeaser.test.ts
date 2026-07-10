@@ -2,6 +2,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { buildTeaserSummary, fetchTeaserComment, teaserInputToDateStrings, type TeaserInput } from './landingTeaser';
 
 const BASE_INPUT: TeaserInput = {
+  name: '홍길동',
   birthYear: '1990',
   birthMonth: '5',
   birthDay: '20',
@@ -52,10 +53,11 @@ describe('buildTeaserSummary', () => {
     expect(s.ganzhiContext).toContain('시간 미상');
   });
 
-  it('PII 불변식: ganzhiContext에 생년월일 원문이 없다', () => {
+  it('PII 불변식: ganzhiContext에 이름·생년월일 원문이 없다', () => {
     const s = buildTeaserSummary(BASE_INPUT);
     expect(s.ganzhiContext).not.toContain('1990-05-20');
     expect(s.ganzhiContext).not.toContain('1990');
+    expect(s.ganzhiContext).not.toContain('홍길동');
   });
 });
 

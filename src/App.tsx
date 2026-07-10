@@ -543,10 +543,11 @@ const App: React.FC = () => {
 
   const handleStart = () => runAnalysis(userData);
 
-  // 랜딩 티저 → 만세력 직행 (State B 폼 생략, 이름 없이도 진행)
+  // 랜딩 티저 → 만세력 직행 (이름은 선택 입력 — 비어 있으면 기존 값 유지)
   const handleTeaserToManse = (t: TeaserInput) => {
     const merged: UserData = {
       ...userData,
+      name: t.name.trim() || userData.name,
       birthYear: t.birthYear,
       birthMonth: t.birthMonth,
       birthDay: t.birthDay,
