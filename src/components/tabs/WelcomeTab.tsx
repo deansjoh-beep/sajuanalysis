@@ -13,6 +13,7 @@ import { PreparationChecklist } from '../welcome/PreparationChecklist';
 import { FinalCTASection } from '../welcome/FinalCTASection';
 import { WelcomeFooter } from '../welcome/WelcomeFooter';
 import { ReviewsSection } from '../ReviewsSection';
+import type { TeaserInput } from '../../lib/landingTeaser';
 
 type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 type ActiveTab =
@@ -24,7 +25,8 @@ type ActiveTab =
   | 'guide'
   | 'blog'
   | 'premium'
-  | 'order';
+  | 'order'
+  | 'checkout';
 
 interface UserData {
   name: string;
@@ -62,6 +64,10 @@ interface WelcomeTabProps {
   onPostClick: (post: BlogPostLite) => void;
   currentSeoulYear: number;
   handleStart: () => void;
+  /** 랜딩 티저 → 만세력 직행 (이름 없이) */
+  onTeaserManse: (input: TeaserInput) => void;
+  /** 정식 오픈 전 리포트 구매 게이트 (App.tsx REPORTS_COMING_SOON) */
+  reportsComingSoon: boolean;
 }
 
 export default function WelcomeTab({
@@ -79,26 +85,40 @@ export default function WelcomeTab({
   onPostClick,
   currentSeoulYear,
   handleStart,
+  onTeaserManse,
+  reportsComingSoon,
 }: WelcomeTabProps) {
   // 첫 섹션 다음으로 스크롤할 때 사용
   const philosophyRef = useRef<HTMLDivElement>(null);
+  const productsRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleScrollDown = () => {
     philosophyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleStartClick = () => {
-    setShowInputForm(true);
-    // 입력폼이 위에 보이도록 스크롤 리셋
-    requestAnimationFrame(() => {
-      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-    });
-  };
-
+  // 정식 오픈 후엔 체크아웃 탭으로, 그 전엔 기존 주문 폼 유지 — 오픈 시 플래그만 뒤집으면 전환된다.
   const handleProductClick = (type: ProductType) => {
+    if (!reportsComingSoon) {
+      setActiveTab('checkout');
+      return;
+    }
     setOrderProductType(type);
     setActiveTab('order');
+  };
+
+  // 티저 [리포트로 깊이 보기] — 오픈 전엔 기존 유료 프리미엄리포트 4종 섹션으로 연결,
+  // 오픈 후엔 새 체크아웃으로. (⚠️ 신규 리포트 전환 시 종전 유료 리포트 제거 예정 — OWNER)
+  const handleOpenCheckout = () => {
+    if (!reportsComingSoon) {
+      setActiveTab('checkout');
+      return;
+    }
+    productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToHero = () => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -122,7 +142,12 @@ export default function WelcomeTab({
 
         {!showInputForm ? (
           <div className="relative">
-            <HeroSection onStartClick={handleStartClick} onScrollClick={handleScrollDown} />
+            <HeroSection
+              onScrollClick={handleScrollDown}
+              currentSeoulYear={currentSeoulYear}
+              onOpenManse={onTeaserManse}
+              onOpenCheckout={handleOpenCheckout}
+            />
 
             <div ref={philosophyRef}>
               <PhilosophySection />
@@ -134,7 +159,9 @@ export default function WelcomeTab({
 
             <DifferentiationTable />
 
-            <PremiumProductsSection onProductClick={handleProductClick} />
+            <div ref={productsRef}>
+              <PremiumProductsSection onProductClick={handleProductClick} />
+            </div>
 
             <PreparationChecklist />
 
@@ -149,7 +176,7 @@ export default function WelcomeTab({
             </section>
 
             <FinalCTASection
-              onStartFree={handleStartClick}
+              onStartFree={scrollToHero}
               onStartPremium={() => handleProductClick('premium')}
             />
 

@@ -22,6 +22,7 @@ import {
   getYukhap,
 } from '../../utils/saju';
 import { PaperBackground } from '../welcome/PaperBackground';
+import { toOhaengChartData } from '../../constants/ohaengColors';
 import { HanjaBox } from '../manse/HanjaBox';
 import { InsightPanel } from '../manse/InsightPanel';
 import { AIReportSection, ReportModeToggle } from '../manse/AIReportSection';
@@ -151,6 +152,9 @@ export default function ManseTab({
   setReportContent,
   consultationModeRef,
 }: ManseTabProps) {
+  // 랜딩 티저 경유(이름 미입력) 방문자 표시용 fallback
+  const displayName = userData.name || '방문자';
+
   // ──────────────────────────────────────────────────────────
   // 오행 차트 데이터
   // ──────────────────────────────────────────────────────────
@@ -168,13 +172,7 @@ export default function ManseTab({
         counts[p.stem.element]++;
         counts[p.branch.element]++;
       });
-    return [
-      { name: '목(木)', value: counts.wood, color: '#10b981' },
-      { name: '화(火)', value: counts.fire, color: '#b8392e' },
-      { name: '토(土)', value: counts.earth, color: '#a88a4a' },
-      { name: '금(金)', value: counts.metal, color: '#9c8e7e' },
-      { name: '수(水)', value: counts.water, color: '#1a1a1a' },
-    ].filter((d) => d.value > 0);
+    return toOhaengChartData(counts);
   }, [sajuResult, userData.unknownTime]);
 
   const hiddenStemExposureText = useMemo(() => {
@@ -260,7 +258,7 @@ export default function ManseTab({
               </div>
               <div className="text-center space-y-4 pt-14 md:pt-12">
                 <h2 className="font-serif text-[28px] md:text-[40px] font-bold text-ink-900 leading-tight">
-                  {userData.name}님의 사주 분석
+                  {displayName}님의 사주 분석
                 </h2>
                 <p className="text-[14px] text-ink-500 leading-relaxed max-w-2xl mx-auto">
                   태어난 시점의 천간·지지가 그리는 당신만의 지도입니다.<br className="hidden md:block" />
@@ -274,7 +272,7 @@ export default function ManseTab({
               <SectionHeader title="사주팔자" hanja="四柱八字" />
               <InsightPanel
                 general={SAJU_GENERAL}
-                personal={dayStem ? sajuPersonalInsight(userData.name, dayStem) : undefined}
+                personal={dayStem ? sajuPersonalInsight(displayName, dayStem) : undefined}
               />
               <div className="grid grid-cols-4 gap-1 md:gap-4">
                 {sajuResult.map((p, i) => {
@@ -310,7 +308,7 @@ export default function ManseTab({
                 <InsightPanel general={GYEOK_GENERAL} />
                 <div className={`${PAPER_CARD} p-6 md:p-8`} style={PAPER_CARD_SHADOW}>
                   <p className="text-[14px] leading-[1.85] text-ink-900 font-medium">
-                    {userData.name}님의 사주는{' '}
+                    {displayName}님의 사주는{' '}
                     <span className="text-seal font-bold">{gyeokResult.composition}</span>로
                     구성되어 있으며,{' '}
                     <span className="text-seal font-bold">[{gyeokResult.gyeok}]</span>의
@@ -341,7 +339,7 @@ export default function ManseTab({
                   style={PAPER_CARD_SHADOW}
                 >
                   <p className="text-[14px] leading-[1.85] text-ink-900 font-medium">
-                    {userData.name}님의 오행 분포는{' '}
+                    {displayName}님의 오행 분포는{' '}
                     <br className="hidden md:block" />
                     {chartData.map((d) => `${d.name} ${d.value}개`).join(', ')}으로
                     구성되어 있습니다.
@@ -559,7 +557,7 @@ export default function ManseTab({
 
             {/* ─────────── 11. 용신 ─────────── */}
             {yongshinResult && (
-              <YongshinSection name={userData.name} yongshin={yongshinResult} />
+              <YongshinSection name={displayName} yongshin={yongshinResult} />
             )}
 
             {/* ─────────── [AI] SECTION 5: 용신과 지혜의 길 ─────────── */}

@@ -42,13 +42,13 @@ export function FinalCTASection({ onStartFree, onStartPremium }: FinalCTASection
             onClick={onStartFree}
             className="inline-flex items-center justify-center gap-2 px-8 py-4 min-h-[52px] rounded-full border-[1.5px] border-ink-900 text-ink-900 font-bold text-[15px] hover:bg-ink-900 hover:text-paper-50 transition-all"
           >
-            <span>사주 입력하고 기본 분석</span>
+            <span>사주 입력하고 무료 요약 보기</span>
           </button>
           <button
             onClick={onStartPremium}
             className="inline-flex items-center justify-center gap-2 px-8 py-4 min-h-[52px] rounded-full bg-ink-900 text-paper-50 font-bold text-[15px] shadow-lg shadow-ink-700/20 hover:bg-ink-700 hover:-translate-y-0.5 active:scale-95 transition-all"
           >
-            <span>프리미엄 보고서로 깊이 보기</span>
+            <span>리포트로 깊이 보기</span>
             <span>→</span>
           </button>
         </motion.div>

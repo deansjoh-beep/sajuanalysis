@@ -8,20 +8,24 @@ interface RowData {
 
 const ROWS: RowData[] = [
   {
-    problem: '"당신 사주는 안 좋다"는 공포 마케팅',
-    solution: '절대적 길흉 대신, 기질의 양면성을 설명합니다',
+    problem: '이름·생년월일을 서버에 쌓아두는 운영',
+    solution: '개인정보 무저장 — 원문은 저장하지 않고, 코드 하나로만 리포트를 다시 엽니다',
   },
   {
-    problem: '부적·굿 같은 추가 결제 유도',
-    solution: 'PDF 보고서 1회 결제로 끝, 추가 권유는 없습니다',
+    problem: '근거를 알 수 없는 즉흥 풀이',
+    solution: '자평 명리 기준서 기반 규칙 엔진 — 판정 근거가 표준 규칙으로 남습니다',
   },
   {
-    problem: '한 번 보고 끝나는 단발성 상담',
-    solution: '시기별로 다시 읽는 활용 가이드를 함께 드립니다',
+    problem: '표준시 그대로 계산한 대략의 만세력',
+    solution: '진태양시 보정·역사적 시간대까지 반영한 정밀 만세력',
   },
   {
-    problem: '단정적 예언으로 의존성을 만드는 해석',
-    solution: '가능성의 폭을 보여주고, 선택은 본인에게 남깁니다',
+    problem: '수만 원대 상담에 부적·굿 같은 추가 결제 유도',
+    solution: '일년운세·직업·연애 4,900원, 평생 리포트 9,900원 — 1회 결제로 끝',
+  },
+  {
+    problem: '한 번 보고 끝나는 결과지',
+    solution: '리포트 구매 시 제공되는 코드는 꼭 저장해 두세요. 다음에 활용하면 리포트 재구매 시 30% 할인 및 추가 혜택을 제공합니다',
   },
 ];
 
@@ -38,7 +42,7 @@ export function DifferentiationTable() {
             왜 유아이인가요.
           </InkRevealText>
           <p className="text-[13px] md:text-[14px] text-ink-500 max-w-xl mx-auto leading-relaxed">
-            함정을 피하는 방식이 곧 차별점입니다.
+            다섯 가지가 다릅니다.
           </p>
         </div>
 

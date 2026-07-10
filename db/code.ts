@@ -80,8 +80,8 @@ function isUniqueViolation(error: unknown): boolean {
 /** 후속 질문 한도 — 리포트 구매(주문)당 3회 (OWNER 확정안) */
 export const FOLLOWUP_LIMIT = 3;
 
-/** 재구매(새해 리포트) 할인율 — 구매 이력 보유 코드에 적용 */
-export const NEW_YEAR_DISCOUNT_PERCENT = 10;
+/** 재구매(새해 리포트) 할인율 — 구매 이력 보유 코드에 적용 (OWNER 확정 2026-07-10: 10→30) */
+export const NEW_YEAR_DISCOUNT_PERCENT = 30;
 
 export interface CodeLookupResult {
   found: boolean;
