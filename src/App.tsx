@@ -102,6 +102,7 @@ import type {
   UserData,
   SuggestionSource,
 } from "./types/app";
+import type { TeaserInput } from "./lib/landingTeaser";
 import { renderChatPlainText } from "./components/chat/renderChatPlainText";
 
 const LazyPremiumReportMakerPage = React.lazy(() => import("./components/admin/PremiumReportMakerPage").then((mod) => ({ default: mod.PremiumReportMakerPage })));
@@ -453,8 +454,8 @@ const App: React.FC = () => {
     setShowInlineSuggestions(false);
   }, [messages.length]);
 
-  // Saju Calculation Trigger
-  const handleStart = async () => {
+  // Saju Calculation Trigger — 입력 폼(handleStart)과 랜딩 티저(handleTeaserToManse)가 공유
+  const runAnalysis = async (data: UserData) => {
     setIsAnalyzing(true);
     setAnalysisStep(0);
 
@@ -471,21 +472,21 @@ const App: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 800));
       }
 
-      const dateStr = `${userData.birthYear}-${userData.birthMonth.padStart(2, '0')}-${userData.birthDay.padStart(2, '0')}`;
-      const timeStr = `${userData.birthHour.padStart(2, '0')}:${userData.birthMinute.padStart(2, '0')}`;
-      const isLunar = userData.calendarType !== 'solar';
-      const isLeap = userData.calendarType === 'leap';
-      
-      const result = getSajuData(dateStr, timeStr, isLunar, isLeap, userData.unknownTime);
-      const daeun = getDaeunData(dateStr, timeStr, isLunar, isLeap, userData.gender, userData.unknownTime);
+      const dateStr = `${data.birthYear}-${data.birthMonth.padStart(2, '0')}-${data.birthDay.padStart(2, '0')}`;
+      const timeStr = `${data.birthHour.padStart(2, '0')}:${data.birthMinute.padStart(2, '0')}`;
+      const isLunar = data.calendarType !== 'solar';
+      const isLeap = data.calendarType === 'leap';
+
+      const result = getSajuData(dateStr, timeStr, isLunar, isLeap, data.unknownTime);
+      const daeun = getDaeunData(dateStr, timeStr, isLunar, isLeap, data.gender, data.unknownTime);
       const yongshin = calculateYongshin(result);
       const gyeok = calculateGyeok(result);
-      
+
       setSajuResult(result);
       setDaeunResult(daeun);
       // 현재 대운 자동 선택
       {
-        const age = currentSeoulYear - parseInt(userData.birthYear); // 만 나이 기준
+        const age = currentSeoulYear - parseInt(data.birthYear); // 만 나이 기준
         const idx = daeun.findIndex((dy: any, i: number) =>
           age >= dy.startAge && (i === daeun.length - 1 || age < daeun[i + 1].startAge)
         );
@@ -494,18 +495,18 @@ const App: React.FC = () => {
       setYongshinResult(yongshin);
       setGyeokResult(gyeok);
 
-      // 로그인한 회원이면 사주 프로필을 저장 → 오늘의 운세 개인화에 사용
+      // 로그인한 회원이면 사주 프로필을 저장 → 개인화에 사용
       if (user) {
         saveMemberSaju(user.uid, {
-          name: userData.name,
-          birthYear: userData.birthYear,
-          birthMonth: userData.birthMonth,
-          birthDay: userData.birthDay,
-          birthHour: userData.birthHour,
-          birthMinute: userData.birthMinute,
-          calendarType: userData.calendarType,
-          gender: userData.gender,
-          unknownTime: userData.unknownTime,
+          name: data.name,
+          birthYear: data.birthYear,
+          birthMonth: data.birthMonth,
+          birthDay: data.birthDay,
+          birthHour: data.birthHour,
+          birthMinute: data.birthMinute,
+          calendarType: data.calendarType,
+          gender: data.gender,
+          unknownTime: data.unknownTime,
         }).catch((e) => console.warn('[member] saju save skipped:', e?.message || e));
       }
 
@@ -538,6 +539,25 @@ const App: React.FC = () => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleStart = () => runAnalysis(userData);
+
+  // 랜딩 티저 → 만세력 직행 (State B 폼 생략, 이름 없이도 진행)
+  const handleTeaserToManse = (t: TeaserInput) => {
+    const merged: UserData = {
+      ...userData,
+      birthYear: t.birthYear,
+      birthMonth: t.birthMonth,
+      birthDay: t.birthDay,
+      birthHour: t.unknownTime ? userData.birthHour : t.birthHour,
+      birthMinute: '0',
+      calendarType: t.calendarType,
+      gender: t.gender,
+      unknownTime: t.unknownTime,
+    };
+    setUserData(merged);
+    void runAnalysis(merged);
   };
 
   const pickRandomQuestions = (source: string[], count: number, exclude: string[] = []) => {
@@ -1211,6 +1231,8 @@ const App: React.FC = () => {
               onPostClick={blogTab.handlePostClick}
               currentSeoulYear={currentSeoulYear}
               handleStart={handleStart}
+              onTeaserManse={handleTeaserToManse}
+              reportsComingSoon={REPORTS_COMING_SOON}
             />
           )}
 
