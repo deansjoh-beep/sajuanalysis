@@ -166,29 +166,31 @@ export interface PremiumOrderFormProps {
   initialUserData?: PrefillUserData;
 }
 
+// ⚠️ 가격은 랜딩(PremiumProductsSection)·체크아웃(PRODUCT_CATALOG)·서버(db/payment.ts PRODUCT_PRICES)와 동기화 유지.
+//    네이버 스마트스토어 판매가는 별도 — OWNER가 스토어에서 직접 변경.
 const PRODUCT_META: Record<OrderProductType, { title: string; price: number; priceLabel: string; description: string }> = {
   premium: {
     title: '인생가이드북 신청',
-    price: 5000,
-    priceLabel: '5,000원',
+    price: 9900,
+    priceLabel: '9,900원',
     description: '인생가이드북 주문 안내',
   },
   yearly2026: {
     title: '프리미엄 일년운세 2026 신청',
-    price: 5000,
-    priceLabel: '5,000원',
+    price: 4900,
+    priceLabel: '4,900원',
     description: '프리미엄 일년운세 2026 주문 안내',
   },
   jobCareer: {
     title: '직업운 리포트 신청',
-    price: 5000,
-    priceLabel: '5,000원',
+    price: 4900,
+    priceLabel: '4,900원',
     description: '직업운 리포트 주문 안내',
   },
   loveMarriage: {
     title: '연애·결혼운 가이드북 신청',
-    price: 5000,
-    priceLabel: '5,000원',
+    price: 4900,
+    priceLabel: '4,900원',
     description: '연애·결혼운 가이드북 주문 안내',
   },
 };
