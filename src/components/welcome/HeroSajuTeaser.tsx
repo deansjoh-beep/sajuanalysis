@@ -194,12 +194,33 @@ export function HeroSajuTeaser({ currentSeoulYear, reportsComingSoon, onOpenMans
             </div>
 
             {(aiLoading || aiComment) && (
-              <div className="border-t border-ink-300/20 pt-3 space-y-1">
-                <p className="text-[12px] text-ink-500">AI 한 줄 풀이</p>
+              <div className="border-t border-ink-300/20 pt-3 space-y-2">
+                <p className="text-[12px] text-ink-500">AI 핵심 요약</p>
                 {aiComment ? (
-                  <p className="text-[14px] text-ink-700 leading-relaxed">{aiComment}</p>
+                  <div className="space-y-1.5">
+                    {aiComment
+                      .split('\n')
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line, i) => {
+                        const dash = line.indexOf('—');
+                        const topic = dash > 0 ? line.slice(0, dash).trim() : null;
+                        const body = dash > 0 ? line.slice(dash + 1).trim() : line;
+                        return (
+                          <p key={i} className="text-[14px] text-ink-700 leading-relaxed">
+                            {topic && <strong className="font-bold text-ink-900">{topic}</strong>}
+                            {topic && ' — '}
+                            {body}
+                          </p>
+                        );
+                      })}
+                  </div>
                 ) : (
-                  <div className="h-4 w-3/4 rounded bg-ink-300/20 animate-pulse" />
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-3/4 rounded bg-ink-300/20 animate-pulse" />
+                    <div className="h-4 w-2/3 rounded bg-ink-300/20 animate-pulse" />
+                    <div className="h-4 w-4/5 rounded bg-ink-300/20 animate-pulse" />
+                  </div>
                 )}
               </div>
             )}

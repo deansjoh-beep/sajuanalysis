@@ -88,11 +88,17 @@ export function buildTeaserSummary(input: TeaserInput): TeaserSummary {
 // ─── AI 한 줄 풀이 ───────────────────────────────────────────────────────────
 
 const TEASER_SYSTEM_PROMPT = [
-  '당신은 정통 자평명리 상담가입니다. 아래 명식 요약을 보고 이 사람의 타고난 기질과 올해의 흐름을 존댓말 2~3문장으로 짧게 풀어 주세요.',
+  '당신은 정통 자평명리 상담가입니다. 아래 명식 요약을 보고 이 사람의 핵심 키메시지를 정확히 4~5줄로 요약해 주세요.',
+  '',
+  '[형식 — 반드시 지킬 것]',
+  '- 각 줄은 "타고난 기질 — ..." 처럼 "주제 — 내용" 형태의 완결된 존댓말 한 문장.',
+  '- 줄 주제는 다음에서 4~5개 선택: 타고난 기질 / 강점 / 주의할 점 / 올해의 흐름 / 관계·재물 중 두드러진 것.',
+  '- 줄바꿈(\\n)으로만 구분. 머리기호·번호·마크다운·빈 줄 금지.',
+  '- 마지막 줄은 올해의 흐름으로 끝내되, 자세한 시기별 흐름은 만세력과 리포트에서 볼 수 있다는 뉘앙스를 담으세요.',
+  '',
+  '[내용 원칙]',
   '- 단정적 예언·길흉 판정·공포 조장 금지. 가능성과 경향으로 말합니다.',
   '- 이름을 부르지 말고 "당신"이라고 지칭하세요.',
-  '- 마지막 문장은 자세한 흐름을 만세력과 리포트에서 확인할 수 있다는 뉘앙스로 부드럽게 마무리하세요.',
-  '- 문장 외 다른 출력(머리말·목록·마크다운) 금지.',
 ].join('\n');
 
 /** flash 전용 폴백 체인 — 유료 리포트(2.5-pro)와 분리해 저비용·저지연 유지 */
@@ -112,6 +118,12 @@ export async function fetchTeaserComment(ganzhiContext: string, signal?: AbortSi
     let lastError: unknown = null;
     for (const model of TEASER_MODELS) {
       try {
+        // 2.5 계열은 thinking이 기본 활성 — thinking 토큰이 maxOutputTokens를 잠식해
+        // 본문이 중간에 잘리므로 비활성화한다(다른 모델은 필드 미지원 → 생략).
+        const generationConfig: Record<string, unknown> = { temperature: 0.7, maxOutputTokens: 1024 };
+        if (model.startsWith('gemini-2.5')) {
+          generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
         const res = await fetch('/api/gemini/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -120,7 +132,7 @@ export async function fetchTeaserComment(ganzhiContext: string, signal?: AbortSi
             model,
             systemInstruction: { parts: [{ text: TEASER_SYSTEM_PROMPT }] },
             contents: [{ role: 'user', parts: [{ text: ganzhiContext }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 300 },
+            generationConfig,
           }),
         });
         if (!res.ok) {
