@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { CONSULTING_GUIDELINE, BASIC_CONSULTING_GUIDELINE, ADVANCED_CONSULTING_GUIDELINE } from '../constants/guidelines';
+import { CONSULTING_GUIDELINE, BASIC_CONSULTING_GUIDELINE, ADVANCED_CONSULTING_GUIDELINE, CONSULTING_SCENARIO_GUIDELINE } from '../constants/guidelines';
 import { getTodayDayPillarKST, getCurrentYearPillarKST, getCurrentMonthPillarKST, getNearbyDayPillarsKST, getYearPillarsForRange } from '../lib/seoulDateGanji';
 import { buildConsultingSystemInstruction } from '../lib/promptBuilders';
 import { recordModelTelemetry } from '../lib/modelTelemetry';
@@ -8,7 +8,11 @@ import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, r
 import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
 import { proxyGenerateContent } from '../lib/geminiClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
-import { ChatMessage } from './useChatTabState';
+import { buildYearlyCard, buildWealthCard, buildDaeunCard, summarizeCard } from '../lib/chatDataSelectors';
+import type { SajuCardPayload } from '../lib/chatDataSelectors';
+import { CHAT_SCENARIOS } from '../constants/chatScenarios';
+import type { ChatScenario } from '../constants/chatScenarios';
+import { ChatMessage, ChatOption, isTextMessage } from './useChatTabState';
 
 interface UseChatSendActionParams {
   input: string;
@@ -125,6 +129,328 @@ export const useChatSendAction = ({
     return result;
   };
 
+  /**
+   * 만세력 엔진 출력을 상담 프롬프트가 쓰는 컨텍스트 문자열/값으로 조립한다.
+   * handleSend(자유질문)와 handleScenarioSelect(시나리오)가 공유한다.
+   */
+  const gatherChatContext = () => {
+    const currentYearPillar = getCurrentYearPillarKST();
+    const seunStem = currentYearPillar.yearPillarHanja.charAt(0);
+    const seunBranch = currentYearPillar.yearPillarHanja.charAt(1);
+    const dayMasterHanja = sajuResult.length >= 2 ? sajuResult[1].stem.hanja : '';
+    const seunSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, seunStem) ?? '') : '';
+    const seunBranchSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, seunBranch, true) ?? '') : '';
+    const seunSipseung = dayMasterHanja ? getSipseung(dayMasterHanja, seunBranch) : '';
+
+    // 월운 산출
+    const currentMonthPillar = getCurrentMonthPillarKST();
+    const wolunStem = currentMonthPillar.monthPillarHanja.charAt(0);
+    const wolunBranch = currentMonthPillar.monthPillarHanja.charAt(1);
+    const wolunSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, wolunStem) ?? '') : '';
+    const wolunBranchSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, wolunBranch, true) ?? '') : '';
+    const wolunSipseung = dayMasterHanja ? getSipseung(dayMasterHanja, wolunBranch) : '';
+
+    // 합·충·공망·신살·원국운성
+    const hapChungStr = sajuResult.length >= 2 ? getHapChungSummary(sajuResult) : '';
+    const dayStemHanja = sajuResult.length >= 2 ? sajuResult[1].stem.hanja : '';
+    const dayBranchHanja = sajuResult.length >= 2 ? sajuResult[1].branch.hanja : '';
+    const gongmangStr = (dayStemHanja && dayBranchHanja && dayBranchHanja !== '?')
+      ? getGongmangSummary(dayStemHanja, dayBranchHanja, sajuResult)
+      : '';
+    const shinsalStr = getShinsalSummary(sajuResult);
+    const originalSipseungStr = dayMasterHanja ? getOriginalSipseungSummary(dayMasterHanja, sajuResult) : '';
+
+    const sajuContext = [
+      ...sajuResult.map((p) => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`),
+      yongshinResult
+        ? `용신: ${yongshinResult.yongshin} | 일간강약: ${yongshinResult.strength}(${yongshinResult.score}점) | 억부용신: ${yongshinResult.eokbuYongshin} | 조후용신: ${yongshinResult.johooYongshin}`
+        : null,
+      gyeokResult
+        ? `격국: ${gyeokResult.gyeok} | 구성: ${gyeokResult.composition}`
+        : null,
+      dayMasterHanja
+        ? `세운(${currentYearPillar.year}): ${currentYearPillar.yearPillarHangul} | 천간십성: ${seunSipseong} | 지지십성: ${seunBranchSipseong} | 지지운성: ${seunSipseung}`
+        : null,
+      dayMasterHanja
+        ? `월운(${currentMonthPillar.year}-${String(currentMonthPillar.month).padStart(2, '0')}): ${currentMonthPillar.monthPillarHangul} | 천간십성: ${wolunSipseong} | 지지십성: ${wolunBranchSipseong} | 지지운성: ${wolunSipseung}`
+        : null,
+      hapChungStr || null,
+      gongmangStr ? `공망: ${gongmangStr}` : null,
+      shinsalStr ? `신살: ${shinsalStr}` : null,
+      originalSipseungStr ? `원국운성: ${originalSipseungStr}` : null,
+    ].filter(Boolean).join('\n');
+
+    const birthYearInt = parseInt(birthYear, 10);
+    const currentYear = new Date().getFullYear();
+    const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt; // 만 나이 기준
+    const daeunContext = daeunResult
+      .map((d, i) => {
+        const stemHangul = hanjaToHangul[d.stem] || d.stem;
+        const branchHangul = hanjaToHangul[d.branch] || d.branch;
+        const stemDeity = dayMasterHanja ? (calculateDeity(dayMasterHanja, d.stem) ?? '') : '';
+        const branchDeity = dayMasterHanja ? (calculateDeity(dayMasterHanja, d.branch, true) ?? '') : '';
+        const isCurrent = currentAge >= d.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i + 1].startAge);
+        return `${d.startAge}세 대운: ${stemHangul}${branchHangul}(천간:${stemDeity}/지지:${branchDeity})${isCurrent ? ' (현재 대운)' : ''}`;
+      })
+      .join(', ');
+
+    const todayDayPillar = getTodayDayPillarKST();
+    const nearbyDayPillars = getNearbyDayPillarsKST();
+    // 전년 1년 + 올해 + 미래 5년 = 총 7년치 세운.
+    const nearbyYearPillars = getYearPillarsForRange(currentYearPillar.year - 1, currentYearPillar.year + 5);
+
+    return {
+      sajuContext,
+      daeunContext,
+      dayMasterHanja,
+      currentAge,
+      todayDayPillar,
+      nearbyDayPillars,
+      currentYearPillar,
+      nearbyYearPillars,
+    };
+  };
+
+  /** 시나리오 카드 종류 → 결정론적 카드 payload. */
+  const buildScenarioCard = (
+    scenario: ChatScenario,
+    ctx: ReturnType<typeof gatherChatContext>
+  ): SajuCardPayload => {
+    switch (scenario.cardKind) {
+      case 'yearly':
+        return buildYearlyCard(ctx.dayMasterHanja, ctx.currentYearPillar);
+      case 'wealth':
+        return buildWealthCard(sajuResult, yongshinResult);
+      case 'daeun':
+        return buildDaeunCard(daeunResult, ctx.dayMasterHanja, ctx.currentAge);
+    }
+  };
+
+  /**
+   * contents + systemInstruction을 받아 최종 응답 텍스트를 생성한다.
+   * Gemini 모델 폴백 → Claude 텍스트 폴백 → tool-use 루프를 캡슐화한다.
+   * 요청이 취소/추월되면(requestId 불일치) null을 반환한다.
+   */
+  const runGeneration = async (args: {
+    contents: any[];
+    systemInstruction: string;
+    requestId: number;
+    telemetryRequestId: string;
+  }): Promise<string | null> => {
+    const { contents, systemInstruction, requestId, telemetryRequestId } = args;
+
+    const modelCandidates = preferredModels.length > 0
+      ? preferredModels
+      : ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+
+    let activeModel = modelCandidates[0];
+
+    const generateWithModelFallback = async () => {
+      let lastError: any = null;
+      for (const model of modelCandidates) {
+        const startedAt = Date.now();
+        try {
+          // 503(서버 과부하) 발생 시 즉시 다음 모델로 이동.
+          // 마지막 모델은 최후 보루로 2회 재시도(이후 Claude 폴백).
+          const isLastModel = model === modelCandidates[modelCandidates.length - 1];
+          const maxAttempts = isLastModel ? 2 : 1;
+          const result = await runWithModelRetry<any>(
+            () => proxyGenerateContent({
+              model,
+              contents,
+              config: {
+                systemInstruction,
+                tools: [{ functionDeclarations: [sajuToolDeclaration] }]
+              }
+            }),
+            maxAttempts
+          );
+          activeModel = model;
+          recordModelTelemetry({
+            feature: 'chat',
+            phase: 'success',
+            model,
+            requestId: telemetryRequestId,
+            durationMs: Date.now() - startedAt
+          });
+          recordModelRequestSuccess('chat');
+          return result;
+        } catch (err: any) {
+          lastError = err;
+          const payload = parseModelErrorPayload(err);
+          const retryable = isRetryableModelError(err);
+          const modelSelectionError = isModelSelectionError(err);
+          recordModelTelemetry({
+            feature: 'chat',
+            phase: 'failure',
+            model,
+            requestId: telemetryRequestId,
+            durationMs: Date.now() - startedAt,
+            errorCode: payload.code,
+            errorStatus: payload.status
+          });
+          if (!retryable && !modelSelectionError) {
+            throw err;
+          }
+          const cooldownMs = retryable ? recordRetryableModelFailure('chat') : 0;
+          if (cooldownMs > 0) {
+            console.warn(`[MODEL_COOLDOWN] chat cooldown armed for ${cooldownMs}ms.`);
+          }
+          recordModelTelemetry({
+            feature: 'chat',
+            phase: 'fallback',
+            model,
+            requestId: telemetryRequestId,
+            errorCode: payload.code,
+            errorStatus: payload.status
+          });
+          console.warn(`[MODEL_FALLBACK] chat generateContent failed on ${model}, trying next model.`);
+        }
+      }
+      throw lastError;
+    };
+
+    let response: any;
+    try {
+      response = await generateWithModelFallback();
+    } catch (geminiErr: any) {
+      // Gemini 전체 실패 시 Claude 텍스트 폴백 (tool use 미지원)
+      if (!getClaudeApiKey()) throw geminiErr;
+      console.info('[MODEL_FALLBACK] All Gemini models failed for chat, trying Claude fallback...');
+      let claudeText = '';
+      for (const model of DEFAULT_CLAUDE_MODELS) {
+        try {
+          const userText = typeof contents[contents.length - 1]?.parts?.[0]?.text === 'string'
+            ? contents[contents.length - 1].parts[0].text
+            : '질문에 답변해 주세요.';
+          const claudeResult = await claudeGenerateContent({
+            model,
+            systemInstruction,
+            userMessage: userText,
+            maxTokens: 4096,
+            temperature: 0.7,
+          });
+          claudeText = claudeResult.text;
+          console.info(`[MODEL_FALLBACK] Claude chat fallback succeeded: ${model}`);
+          break;
+        } catch (claudeErr: any) {
+          console.warn(`[MODEL_FALLBACK] Claude chat ${model} failed:`, claudeErr?.message);
+        }
+      }
+      if (!claudeText) throw geminiErr;
+      response = { text: claudeText, functionCalls: undefined };
+    }
+
+    let functionCalls = response.functionCalls;
+    while (Array.isArray(functionCalls) && functionCalls.length > 0) {
+      if (requestId !== activeChatRequestIdRef.current) {
+        return null;
+      }
+
+      const functionResponses = [];
+      for (const call of functionCalls) {
+        if (call.name === 'calculateSajuForPerson') {
+          const result = calculateSajuForPerson(call.args);
+          functionResponses.push({
+            name: call.name,
+            response: result,
+            id: call.id
+          });
+        }
+      }
+
+      if (functionResponses.length === 0) {
+        break;
+      }
+
+      const candidateContent = response?.candidates?.[0]?.content;
+      if (!candidateContent) {
+        break;
+      }
+
+      contents.push(candidateContent);
+      contents.push({
+        role: 'user',
+        parts: functionResponses.map((r) => ({ functionResponse: r }))
+      });
+
+      try {
+        const startedAt = Date.now();
+        response = await proxyGenerateContent({
+          model: activeModel,
+          contents,
+          config: {
+            systemInstruction,
+            tools: [{ functionDeclarations: [sajuToolDeclaration] }]
+          }
+        });
+        recordModelTelemetry({
+          feature: 'chat',
+          phase: 'success',
+          model: activeModel,
+          requestId: telemetryRequestId,
+          durationMs: Date.now() - startedAt
+        });
+        recordModelRequestSuccess('chat');
+      } catch (err: any) {
+        const payload = parseModelErrorPayload(err);
+        const retryable = isRetryableModelError(err);
+        const modelSelectionError = isModelSelectionError(err);
+        recordModelTelemetry({
+          feature: 'chat',
+          phase: 'failure',
+          model: activeModel,
+          requestId: telemetryRequestId,
+          errorCode: payload.code,
+          errorStatus: payload.status
+        });
+        if (!retryable && !modelSelectionError) {
+          throw err;
+        }
+        const cooldownMs = retryable ? recordRetryableModelFailure('chat') : 0;
+        recordModelTelemetry({
+          feature: 'chat',
+          phase: 'fallback',
+          model: activeModel,
+          requestId: telemetryRequestId,
+          errorCode: payload.code,
+          errorStatus: payload.status
+        });
+        if (cooldownMs > 0) {
+          console.warn(`[MODEL_COOLDOWN] chat cooldown armed for ${cooldownMs}ms.`);
+        }
+        response = await generateWithModelFallback();
+      }
+
+      if (requestId !== activeChatRequestIdRef.current) {
+        return null;
+      }
+
+      functionCalls = response.functionCalls;
+    }
+
+    if (requestId !== activeChatRequestIdRef.current) {
+      return null;
+    }
+
+    return response.text || '상담 중 오류가 발생했습니다.';
+  };
+
+  const reportChatError = (err: any, requestId: number) => {
+    if (requestId !== activeChatRequestIdRef.current) {
+      return;
+    }
+    console.error('Chat error:', err);
+    const parsed = parseModelErrorPayload(err);
+    const isTransient = isRetryableModelError(err);
+    const debugInfo = formatRawError(parsed);
+    const baseMessage = isTransient
+      ? '현재 AI 서버가 일시적으로 혼잡합니다. 잠시 후 다시 시도해 주세요.'
+      : '상담 중 오류가 발생했습니다.';
+    const userFacingMessage = debugInfo ? `${baseMessage}\n\n${debugInfo}` : baseMessage;
+    setMessages((prev) => [...prev, { role: 'model', text: userFacingMessage }]);
+  };
+
   const handleSend = useCallback(async (overrideInput?: string) => {
     const userMessage = (overrideInput || input).trim();
     if (!userMessage || loading) return;
@@ -153,96 +479,28 @@ export const useChatSendAction = ({
         console.warn(`[MODEL_COOLDOWN] chat request delayed ${waitedMs}ms due to recent retryable errors.`);
       }
 
-      const currentYearPillarForContext = getCurrentYearPillarKST();
-      const seunStem = currentYearPillarForContext.yearPillarHanja.charAt(0);
-      const seunBranch = currentYearPillarForContext.yearPillarHanja.charAt(1);
-      const dayMasterHanja = sajuResult.length >= 2 ? sajuResult[1].stem.hanja : '';
-      const seunSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, seunStem) ?? '') : '';
-      const seunBranchSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, seunBranch, true) ?? '') : '';
-      const seunSipseung = dayMasterHanja ? getSipseung(dayMasterHanja, seunBranch) : '';
-
-      // 6순위: 월운 산출
-      const currentMonthPillar = getCurrentMonthPillarKST();
-      const wolunStem = currentMonthPillar.monthPillarHanja.charAt(0);
-      const wolunBranch = currentMonthPillar.monthPillarHanja.charAt(1);
-      const wolunSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, wolunStem) ?? '') : '';
-      const wolunBranchSipseong = dayMasterHanja ? (calculateDeity(dayMasterHanja, wolunBranch, true) ?? '') : '';
-      const wolunSipseung = dayMasterHanja ? getSipseung(dayMasterHanja, wolunBranch) : '';
-
-      // 7순위: 합·충·공망·신살·원국운성
-      const hapChungStr = sajuResult.length >= 2 ? getHapChungSummary(sajuResult) : '';
-      // 공망은 일주 기준 단일(기준서 부록 A-6)
-      const dayStemHanja = sajuResult.length >= 2 ? sajuResult[1].stem.hanja : '';
-      const dayBranchHanja = sajuResult.length >= 2 ? sajuResult[1].branch.hanja : '';
-      const gongmangStr = (dayStemHanja && dayBranchHanja && dayBranchHanja !== '?')
-        ? getGongmangSummary(dayStemHanja, dayBranchHanja, sajuResult)
-        : '';
-      const shinsalStr = getShinsalSummary(sajuResult);
-      const originalSipseungStr = dayMasterHanja ? getOriginalSipseungSummary(dayMasterHanja, sajuResult) : '';
-
-      const sajuContext = [
-        ...sajuResult.map((p) => `${p.title}: ${p.stem.hangul}(${p.stem.hanja}) ${p.branch.hangul}(${p.branch.hanja}) - 십성: ${p.stem.deity}/${p.branch.deity}`),
-        yongshinResult
-          ? `용신: ${yongshinResult.yongshin} | 일간강약: ${yongshinResult.strength}(${yongshinResult.score}점) | 억부용신: ${yongshinResult.eokbuYongshin} | 조후용신: ${yongshinResult.johooYongshin}`
-          : null,
-        gyeokResult
-          ? `격국: ${gyeokResult.gyeok} | 구성: ${gyeokResult.composition}`
-          : null,
-        dayMasterHanja
-          ? `세운(${currentYearPillarForContext.year}): ${currentYearPillarForContext.yearPillarHangul} | 천간십성: ${seunSipseong} | 지지십성: ${seunBranchSipseong} | 지지운성: ${seunSipseung}`
-          : null,
-        dayMasterHanja
-          ? `월운(${currentMonthPillar.year}-${String(currentMonthPillar.month).padStart(2, '0')}): ${currentMonthPillar.monthPillarHangul} | 천간십성: ${wolunSipseong} | 지지십성: ${wolunBranchSipseong} | 지지운성: ${wolunSipseung}`
-          : null,
-        hapChungStr || null,
-        gongmangStr ? `공망: ${gongmangStr}` : null,
-        shinsalStr ? `신살: ${shinsalStr}` : null,
-        originalSipseungStr ? `원국운성: ${originalSipseungStr}` : null,
-      ].filter(Boolean).join('\n');
-      const daeunContext = (() => {
-        const birthYearInt = parseInt(birthYear, 10);
-        const currentYear = new Date().getFullYear();
-        const currentAge = isNaN(birthYearInt) ? 0 : currentYear - birthYearInt; // 만 나이 기준
-        return daeunResult
-          .map((d, i) => {
-            const stemHangul = hanjaToHangul[d.stem] || d.stem;
-            const branchHangul = hanjaToHangul[d.branch] || d.branch;
-            const stemDeity = dayMasterHanja ? (calculateDeity(dayMasterHanja, d.stem) ?? '') : '';
-            const branchDeity = dayMasterHanja ? (calculateDeity(dayMasterHanja, d.branch, true) ?? '') : '';
-            const isCurrent = currentAge >= d.startAge && (i === daeunResult.length - 1 || currentAge < daeunResult[i + 1].startAge);
-            return `${d.startAge}세 대운: ${stemHangul}${branchHangul}(천간:${stemDeity}/지지:${branchDeity})${isCurrent ? ' (현재 대운)' : ''}`;
-          })
-          .join(', ');
-      })();
+      const ctx = gatherChatContext();
 
       const isFirstMessage = messages.length === 0;
       const modeOnlyGuideline = modeAtRequest === 'basic'
         ? BASIC_CONSULTING_GUIDELINE
         : ADVANCED_CONSULTING_GUIDELINE;
       const modeSpecificGuideline = `${CONSULTING_GUIDELINE}\n\n${modeOnlyGuideline}`;
-      const todayDayPillar = getTodayDayPillarKST();
-      const nearbyDayPillars = getNearbyDayPillarsKST();
-      const currentYearPillar = currentYearPillarForContext;
-      // 전년 1년 + 올해 + 미래 5년 = 총 7년치 세운. 내년/2~3년 후 질문 대응용.
-      const nearbyYearPillars = getYearPillarsForRange(
-        currentYearPillar.year - 1,
-        currentYearPillar.year + 5
-      );
       const systemInstruction = buildConsultingSystemInstruction({
         mode: modeAtRequest,
         isFirstMessage,
         latestUserMessage: userMessage,
         userName,
-        sajuContext,
-        daeunContext,
+        sajuContext: ctx.sajuContext,
+        daeunContext: ctx.daeunContext,
         modeSpecificGuideline,
-        todayDayPillar,
-        currentYearPillar,
-        nearbyDayPillars,
-        nearbyYearPillars
+        todayDayPillar: ctx.todayDayPillar,
+        currentYearPillar: ctx.currentYearPillar,
+        nearbyDayPillars: ctx.nearbyDayPillars,
+        nearbyYearPillars: ctx.nearbyYearPillars
       });
 
-      const contextMessages = [...preservedChatContextRef.current, ...messages];
+      const contextMessages = [...preservedChatContextRef.current, ...messages].filter(isTextMessage);
       const lockedRelationship = detectLockedRelationship([
         ...contextMessages.filter(m => m.role === 'user').map(m => m.text),
         userMessage
@@ -253,205 +511,11 @@ export const useChatSendAction = ({
       }));
       contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
-      const modelCandidates = preferredModels.length > 0
-        ? preferredModels
-        : ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
-
-      let activeModel = modelCandidates[0];
       const telemetryRequestId = `chat-${requestId}-${Date.now()}`;
+      const rawText = await runGeneration({ contents, systemInstruction, requestId, telemetryRequestId });
+      if (rawText === null) return;
 
-      const generateWithModelFallback = async () => {
-        let lastError: any = null;
-        for (const model of modelCandidates) {
-          const startedAt = Date.now();
-          try {
-            // 503(서버 과부하) 발생 시 즉시 다음 모델로 이동.
-            // 마지막 모델은 최후 보루로 2회 재시도(이후 Claude 폴백).
-            const isLastModel = model === modelCandidates[modelCandidates.length - 1];
-            const maxAttempts = isLastModel ? 2 : 1;
-            const result = await runWithModelRetry<any>(
-              () => proxyGenerateContent({
-                model,
-                contents,
-                config: {
-                  systemInstruction,
-                  tools: [{ functionDeclarations: [sajuToolDeclaration] }]
-                }
-              }),
-              maxAttempts
-            );
-            activeModel = model;
-            recordModelTelemetry({
-              feature: 'chat',
-              phase: 'success',
-              model,
-              requestId: telemetryRequestId,
-              durationMs: Date.now() - startedAt
-            });
-            recordModelRequestSuccess('chat');
-            return result;
-          } catch (err: any) {
-            lastError = err;
-            const payload = parseModelErrorPayload(err);
-            const retryable = isRetryableModelError(err);
-            const modelSelectionError = isModelSelectionError(err);
-            recordModelTelemetry({
-              feature: 'chat',
-              phase: 'failure',
-              model,
-              requestId: telemetryRequestId,
-              durationMs: Date.now() - startedAt,
-              errorCode: payload.code,
-              errorStatus: payload.status
-            });
-            if (!retryable && !modelSelectionError) {
-              throw err;
-            }
-            const cooldownMs = retryable ? recordRetryableModelFailure('chat') : 0;
-            if (cooldownMs > 0) {
-              console.warn(`[MODEL_COOLDOWN] chat cooldown armed for ${cooldownMs}ms.`);
-            }
-            recordModelTelemetry({
-              feature: 'chat',
-              phase: 'fallback',
-              model,
-              requestId: telemetryRequestId,
-              errorCode: payload.code,
-              errorStatus: payload.status
-            });
-            console.warn(`[MODEL_FALLBACK] chat generateContent failed on ${model}, trying next model.`);
-          }
-        }
-        throw lastError;
-      };
-
-      let response: any;
-      try {
-        response = await generateWithModelFallback();
-      } catch (geminiErr: any) {
-        // Gemini 전체 실패 시 Claude 텍스트 폴백 (tool use 미지원)
-        if (!getClaudeApiKey()) throw geminiErr;
-        console.info('[MODEL_FALLBACK] All Gemini models failed for chat, trying Claude fallback...');
-        let claudeText = '';
-        for (const model of DEFAULT_CLAUDE_MODELS) {
-          try {
-            const userText = typeof contents[contents.length - 1]?.parts?.[0]?.text === 'string'
-              ? contents[contents.length - 1].parts[0].text
-              : '질문에 답변해 주세요.';
-            const claudeResult = await claudeGenerateContent({
-              model,
-              systemInstruction,
-              userMessage: userText,
-              maxTokens: 4096,
-              temperature: 0.7,
-            });
-            claudeText = claudeResult.text;
-            console.info(`[MODEL_FALLBACK] Claude chat fallback succeeded: ${model}`);
-            break;
-          } catch (claudeErr: any) {
-            console.warn(`[MODEL_FALLBACK] Claude chat ${model} failed:`, claudeErr?.message);
-          }
-        }
-        if (!claudeText) throw geminiErr;
-        response = { text: claudeText, functionCalls: undefined };
-      }
-
-      let functionCalls = response.functionCalls;
-      while (Array.isArray(functionCalls) && functionCalls.length > 0) {
-        if (requestId !== activeChatRequestIdRef.current) {
-          return;
-        }
-
-        const functionResponses = [];
-        for (const call of functionCalls) {
-          if (call.name === 'calculateSajuForPerson') {
-            const result = calculateSajuForPerson(call.args);
-            functionResponses.push({
-              name: call.name,
-              response: result,
-              id: call.id
-            });
-          }
-        }
-
-        if (functionResponses.length === 0) {
-          break;
-        }
-
-        const candidateContent = response?.candidates?.[0]?.content;
-        if (!candidateContent) {
-          break;
-        }
-
-        contents.push(candidateContent);
-        contents.push({
-          role: 'user',
-          parts: functionResponses.map((r) => ({ functionResponse: r }))
-        });
-
-        try {
-          const startedAt = Date.now();
-          response = await proxyGenerateContent({
-            model: activeModel,
-            contents,
-            config: {
-              systemInstruction,
-              tools: [{ functionDeclarations: [sajuToolDeclaration] }]
-            }
-          });
-          recordModelTelemetry({
-            feature: 'chat',
-            phase: 'success',
-            model: activeModel,
-            requestId: telemetryRequestId,
-            durationMs: Date.now() - startedAt
-          });
-          recordModelRequestSuccess('chat');
-        } catch (err: any) {
-          const payload = parseModelErrorPayload(err);
-          const retryable = isRetryableModelError(err);
-          const modelSelectionError = isModelSelectionError(err);
-          recordModelTelemetry({
-            feature: 'chat',
-            phase: 'failure',
-            model: activeModel,
-            requestId: telemetryRequestId,
-            errorCode: payload.code,
-            errorStatus: payload.status
-          });
-          if (!retryable && !modelSelectionError) {
-            throw err;
-          }
-          const cooldownMs = retryable ? recordRetryableModelFailure('chat') : 0;
-          recordModelTelemetry({
-            feature: 'chat',
-            phase: 'fallback',
-            model: activeModel,
-            requestId: telemetryRequestId,
-            errorCode: payload.code,
-            errorStatus: payload.status
-          });
-          if (cooldownMs > 0) {
-            console.warn(`[MODEL_COOLDOWN] chat cooldown armed for ${cooldownMs}ms.`);
-          }
-          response = await generateWithModelFallback();
-        }
-
-        if (requestId !== activeChatRequestIdRef.current) {
-          return;
-        }
-
-        functionCalls = response.functionCalls;
-      }
-
-      if (requestId !== activeChatRequestIdRef.current) {
-        return;
-      }
-
-      const finalResponseText = enforceRelationshipLabel(
-        response.text || '상담 중 오류가 발생했습니다.',
-        lockedRelationship
-      );
+      const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);
       setMessages((prev) => [...prev, { role: 'model', text: finalResponseText }]);
       if (modeAtRequest === 'basic') {
         setBasicAskedByCategory((prev) => {
@@ -464,20 +528,7 @@ export const useChatSendAction = ({
         });
       }
     } catch (err: any) {
-      if (requestId !== activeChatRequestIdRef.current) {
-        return;
-      }
-
-      console.error('Chat error:', err);
-      const parsed = parseModelErrorPayload(err);
-      const isTransient = isRetryableModelError(err);
-      const debugInfo = formatRawError(parsed);
-      const baseMessage = isTransient
-        ? '현재 AI 서버가 일시적으로 혼잡합니다. 잠시 후 다시 시도해 주세요.'
-        : '상담 중 오류가 발생했습니다.';
-      const userFacingMessage = debugInfo ? `${baseMessage}\n\n${debugInfo}` : baseMessage;
-
-      setMessages((prev) => [...prev, { role: 'model', text: userFacingMessage }]);
+      reportChatError(err, requestId);
     } finally {
       if (requestId === activeChatRequestIdRef.current) {
         setLoading(false);
@@ -490,8 +541,12 @@ export const useChatSendAction = ({
     guidelinesError,
     sajuResult,
     daeunResult,
+    yongshinResult,
+    gyeokResult,
     messages,
     basicSelectedCategory,
+    birthYear,
+    userName,
     setActiveTab,
     setInput,
     setRefreshKey,
@@ -507,5 +562,126 @@ export const useChatSendAction = ({
     calculateSajuForPerson
   ]);
 
-  return { handleSend };
+  /**
+   * 시나리오 버튼 진입: 사용자 말풍선 → 결정론적 카드 → LLM 해석 → 후속 선택지.
+   * 카드는 LLM을 거치지 않고 엔진 값을 그대로 렌더한다.
+   */
+  const handleScenarioSelect = useCallback(async (scenarioId: string) => {
+    if (loading) return;
+    const scenario = CHAT_SCENARIOS.find((s) => s.id === scenarioId);
+    if (!scenario) return;
+    const requestId = ++activeChatRequestIdRef.current;
+    const modeAtRequest = consultationModeRef.current;
+
+    if (!guidelines) {
+      alert(guidelinesError || '지침 파일을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+
+    if (sajuResult.length === 0) {
+      alert('먼저 사주 분석을 완료해 주세요.');
+      setActiveTab('welcome');
+      return;
+    }
+
+    const ctx = gatherChatContext();
+    const card = buildScenarioCard(scenario, ctx);
+
+    // 사용자 말풍선 + 결정론적 카드를 먼저 표시(LLM 응답 전).
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text: scenario.seedQuestion },
+      { role: 'model', kind: 'card', card },
+    ]);
+    setLoading(true);
+
+    try {
+      const waitedMs = await waitForModelCooldownIfNeeded('chat');
+      if (waitedMs > 0) {
+        console.warn(`[MODEL_COOLDOWN] chat request delayed ${waitedMs}ms due to recent retryable errors.`);
+      }
+
+      const modeOnlyGuideline = modeAtRequest === 'basic'
+        ? BASIC_CONSULTING_GUIDELINE
+        : ADVANCED_CONSULTING_GUIDELINE;
+      const modeSpecificGuideline = [
+        CONSULTING_GUIDELINE,
+        modeOnlyGuideline,
+        CONSULTING_SCENARIO_GUIDELINE,
+        `[이번 주제 초점]\n${scenario.promptFocus}`,
+        `[사용자에게 이미 표시된 카드]\n${summarizeCard(card)}`,
+      ].join('\n\n');
+
+      const systemInstruction = buildConsultingSystemInstruction({
+        mode: modeAtRequest,
+        isFirstMessage: false, // 오프닝에서 이미 인사했으므로 첫마디 반복 방지
+        latestUserMessage: scenario.seedQuestion,
+        userName,
+        sajuContext: ctx.sajuContext,
+        daeunContext: ctx.daeunContext,
+        modeSpecificGuideline,
+        todayDayPillar: ctx.todayDayPillar,
+        currentYearPillar: ctx.currentYearPillar,
+        nearbyDayPillars: ctx.nearbyDayPillars,
+        nearbyYearPillars: ctx.nearbyYearPillars
+      });
+
+      const contextMessages = [...preservedChatContextRef.current, ...messages].filter(isTextMessage);
+      const lockedRelationship = detectLockedRelationship(
+        contextMessages.filter(m => m.role === 'user').map(m => m.text)
+      );
+      const contents: any[] = contextMessages.map((m) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text }]
+      }));
+      contents.push({ role: 'user', parts: [{ text: scenario.seedQuestion }] });
+
+      const telemetryRequestId = `chat-scenario-${requestId}-${Date.now()}`;
+      const rawText = await runGeneration({ contents, systemInstruction, requestId, telemetryRequestId });
+      if (rawText === null) return;
+
+      const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);
+
+      // 후속 선택지: 이 주제 심화 질문 + 다른 주제 진입.
+      const followupOptions: ChatOption[] = scenario.followups.map((q) => ({ label: q, query: q }));
+      const otherScenarioOptions: ChatOption[] = CHAT_SCENARIOS
+        .filter((s) => s.id !== scenario.id)
+        .map((s) => ({ label: `${s.label} 보기`, scenarioId: s.id }));
+
+      setMessages((prev) => [
+        ...prev,
+        { role: 'model', text: finalResponseText },
+        { role: 'model', kind: 'options', title: '이어서 물어볼까요?', options: [...followupOptions, ...otherScenarioOptions] },
+      ]);
+    } catch (err: any) {
+      reportChatError(err, requestId);
+    } finally {
+      if (requestId === activeChatRequestIdRef.current) {
+        setLoading(false);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    loading,
+    guidelines,
+    guidelinesError,
+    sajuResult,
+    daeunResult,
+    yongshinResult,
+    gyeokResult,
+    messages,
+    birthYear,
+    userName,
+    setActiveTab,
+    setMessages,
+    setLoading,
+    activeChatRequestIdRef,
+    consultationModeRef,
+    preservedChatContextRef,
+    preferredModels,
+    sajuToolDeclaration,
+    calculateSajuForPerson
+  ]);
+
+  return { handleSend, handleScenarioSelect };
 };
