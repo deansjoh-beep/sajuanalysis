@@ -15,6 +15,7 @@ import {
   CONSULTING_GUIDELINE,
   BASIC_CONSULTING_GUIDELINE,
   ADVANCED_CONSULTING_GUIDELINE,
+  CONSULTING_SCENARIO_GUIDELINE,
   REPORT_GUIDELINE,
   BASIC_REPORT_GUIDELINE,
   ADVANCED_REPORT_GUIDELINE,
@@ -68,6 +69,10 @@ describe('guidelines barrel export', () => {
     expect(ADVANCED_CONSULTING_GUIDELINE.length).toBeGreaterThan(50);
   });
 
+  test('CONSULTING_SCENARIO_GUIDELINE: 비어있지 않음', () => {
+    expect(CONSULTING_SCENARIO_GUIDELINE.length).toBeGreaterThan(50);
+  });
+
   test('REPORT_GUIDELINE: 비어있지 않음', () => {
     expect(REPORT_GUIDELINE.length).toBeGreaterThan(100);
   });
@@ -111,6 +116,13 @@ describe('지침 핵심 규칙 내용 검증', () => {
 
   test('BASIC_CONSULTING_GUIDELINE: 응답 포인트 제한 규칙 포함', () => {
     expect(BASIC_CONSULTING_GUIDELINE).toContain('1~2개로 제한');
+  });
+
+  // CONSULTING_SCENARIO_GUIDELINE — 시나리오 응답 규칙
+  test('CONSULTING_SCENARIO_GUIDELINE: 카드 근거 한정·이모지/마크다운 금지 규칙 포함', () => {
+    expect(CONSULTING_SCENARIO_GUIDELINE).toContain('카드');
+    expect(CONSULTING_SCENARIO_GUIDELINE).toContain('이모지');
+    expect(CONSULTING_SCENARIO_GUIDELINE).toContain('마크다운');
   });
 
   // ADVANCED_CONSULTING_GUIDELINE

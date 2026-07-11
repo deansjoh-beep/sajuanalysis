@@ -4,10 +4,13 @@ import { ChatTab } from './ChatTab';
 import { TAB_TRANSITION, GLASS_TAB_BG_CLASS } from '../../constants/styles';
 import { BASIC_CHAT_CATEGORIES, CATEGORIES } from '../../constants/questions';
 import { renderChatPlainText } from '../chat/renderChatPlainText';
-import { SajuCard, ChatOptionsBlock } from '../chat/SajuCards';
+import { SajuCard, ChatOptionsBlock, ChatGate } from '../chat/SajuCards';
 import { buildMyeongsikCard } from '../../lib/chatDataSelectors';
 import { CHAT_SCENARIOS } from '../../constants/chatScenarios';
 import type { ChatMessage } from '../../hooks/useChatTabState';
+import type { ChatCodeInfo } from '../../lib/chatCodeClient';
+import { totalFollowupRemaining } from '../../lib/chatCodeClient';
+import { FREE_DAILY_LIMIT } from '../../lib/chatUsage';
 
 type SuggestionSource = 'static' | 'dynamic' | 'fallback' | null;
 
@@ -27,6 +30,9 @@ interface ChatTabContentProps {
   handleSend: (overrideInput?: string) => void;
   handleSuggestionClick: (suggestion: string) => void;
   handleScenarioSelect: (scenarioId: string) => void;
+  applyCode: (code: string) => Promise<boolean>;
+  freeTurnsRemaining: number;
+  activeCode: ChatCodeInfo | null;
   // 기간/주제 단축칩
   selectedTopics: string[];
   setSelectedTopics: React.Dispatch<React.SetStateAction<string[]>>;
@@ -68,6 +74,9 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
   handleSend,
   handleSuggestionClick,
   handleScenarioSelect,
+  applyCode,
+  freeTurnsRemaining,
+  activeCode,
   selectedTopics,
   setSelectedTopics,
   handleVoiceInput,
@@ -93,6 +102,11 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
     () => (sajuResult.length > 0 ? buildMyeongsikCard(sajuResult, yongshinResult) : null),
     [sajuResult, yongshinResult]
   );
+
+  const onGoToOrder = () => {
+    setOrderProductType('premium');
+    setActiveTab('order');
+  };
 
   return (
     <ChatTab tabTransition={TAB_TRANSITION} glassTabBgClass={GLASS_TAB_BG_CLASS}>
@@ -136,8 +150,15 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
 
           {/* Order CTA + Privacy Notice (Desktop) */}
           <div className="mt-auto space-y-3">
+            <div className="text-[12px] text-ink-500 text-center">
+              {activeCode ? (
+                <>코드 {activeCode.code} · 후속 질문 {totalFollowupRemaining(activeCode)}회 남음</>
+              ) : (
+                <>오늘 무료 상담 {freeTurnsRemaining}/{FREE_DAILY_LIMIT}회 남음</>
+              )}
+            </div>
             <button
-              onClick={() => { setOrderProductType('premium'); setActiveTab('order'); }}
+              onClick={onGoToOrder}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl text-[13px] font-bold bg-ink-900 text-paper-50 hover:bg-ink-700 transition-all"
             >
               <Ticket className="w-4 h-4" />
@@ -218,6 +239,18 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
                       disabled={loading}
                       onSelectScenario={handleScenarioSelect}
                       onSelectQuery={handleSuggestionClick}
+                    />
+                  </div>
+                );
+              }
+              if (msg.kind === 'gate') {
+                return (
+                  <div key={i} className="flex flex-col items-start">
+                    <ChatGate
+                      gate={msg.gate}
+                      disabled={loading}
+                      onGoToOrder={onGoToOrder}
+                      onApplyCode={applyCode}
                     />
                   </div>
                 );

@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type {
   SajuCardPayload,
   MyeongsikCardPayload,
   WealthCardPayload,
   DaeunCardPayload,
-  YearlyCardPayload,
+  PeriodCardPayload,
+  CareerCardPayload,
+  LoveCardPayload,
+  HealthCardPayload,
+  RelationsCardPayload,
+  DeityPlacement,
 } from '../../lib/chatDataSelectors';
-import type { ChatOption } from '../../hooks/useChatTabState';
+import type { ChatOption, GatePayload } from '../../hooks/useChatTabState';
 
 /**
  * 챗봇 카드 렌더러.
@@ -17,6 +22,29 @@ import type { ChatOption } from '../../hooks/useChatTabState';
 const CARD_SHELL =
   'w-full max-w-[96%] md:max-w-[92%] rounded-2xl rounded-tl-none border border-ink-300/30 bg-paper-50/80 p-4 md:p-5 shadow-sm';
 const CARD_TITLE = 'text-[12px] font-bold text-ink-500 mb-3';
+
+/** 십성 배치 목록(관성/인성/재성/비겁 등)을 공통 렌더. */
+const PlacementList: React.FC<{ label: string; items: DeityPlacement[]; emptyText?: string }> = ({
+  label,
+  items,
+  emptyText = '드러난 자리 없음',
+}) => (
+  <div>
+    <div className="text-[12px] text-ink-500 mb-1">{label}</div>
+    {items.length > 0 ? (
+      <ul className="space-y-1">
+        {items.map((s, i) => (
+          <li key={`${s.label}-${i}`} className="flex items-baseline gap-2 text-[14px] text-ink-800">
+            <span className="font-bold text-ink-900">{s.label}</span>
+            <span className="text-[12px] text-ink-500">{s.position}</span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-[14px] text-ink-700">{emptyText}</p>
+    )}
+  </div>
+);
 
 const MyeongsikCard: React.FC<{ card: MyeongsikCardPayload }> = ({ card }) => (
   <div className={CARD_SHELL}>
@@ -81,9 +109,7 @@ const DaeunCard: React.FC<{ card: DaeunCardPayload }> = ({ card }) => (
         <div
           key={s.startAge}
           className={`shrink-0 w-[72px] rounded-xl border px-2 py-2 text-center ${
-            s.isCurrent
-              ? 'border-ink-700/50 bg-paper-100/80'
-              : 'border-ink-300/30 bg-transparent'
+            s.isCurrent ? 'border-ink-700/50 bg-paper-100/80' : 'border-ink-300/30 bg-transparent'
           }`}
         >
           <div className="text-[12px] text-ink-400">{s.startAge}세</div>
@@ -100,9 +126,9 @@ const DaeunCard: React.FC<{ card: DaeunCardPayload }> = ({ card }) => (
   </div>
 );
 
-const YearlyCard: React.FC<{ card: YearlyCardPayload }> = ({ card }) => (
+const PeriodCard: React.FC<{ card: PeriodCardPayload }> = ({ card }) => (
   <div className={CARD_SHELL}>
-    <div className={CARD_TITLE}>{card.year}년 세운</div>
+    <div className={CARD_TITLE}>{card.periodLabel}</div>
     <div className="text-[14px] font-bold text-ink-900">
       {card.ganjiHangul}
       <span className="text-ink-400">({card.ganjiHanja})</span>
@@ -124,6 +150,80 @@ const YearlyCard: React.FC<{ card: YearlyCardPayload }> = ({ card }) => (
   </div>
 );
 
+const CareerCard: React.FC<{ card: CareerCardPayload }> = ({ card }) => (
+  <div className={CARD_SHELL}>
+    <div className={CARD_TITLE}>직업 구조</div>
+    <div className="text-[14px] text-ink-800">
+      격국 <span className="font-bold text-ink-900">{card.gyeok || '미상'}</span>
+    </div>
+    {card.composition && (
+      <div className="mt-1 text-[12px] text-ink-500">십성 분포 · {card.composition}</div>
+    )}
+    <div className="mt-3 pt-3 border-t border-ink-300/25 space-y-2.5">
+      <PlacementList label="관성 (직업·조직)" items={card.officers} />
+      <PlacementList label="인성 (자격·학문)" items={card.seals} />
+    </div>
+  </div>
+);
+
+const LoveCard: React.FC<{ card: LoveCardPayload }> = ({ card }) => (
+  <div className={CARD_SHELL}>
+    <div className={CARD_TITLE}>연애·결혼</div>
+    <div className="text-[14px] text-ink-800">
+      배우자궁(일지){' '}
+      <span className="font-bold text-ink-900">
+        {card.spousePalaceHangul}
+        {card.spousePalaceHanja ? `(${card.spousePalaceHanja})` : ''}
+      </span>
+      {card.spouseDeity ? <span className="text-[12px] text-ink-500"> · {card.spouseDeity}</span> : null}
+    </div>
+    {card.hiddenStems && (
+      <div className="mt-1 text-[12px] text-ink-500">지장간 · {card.hiddenStems}</div>
+    )}
+    <div className="mt-3 pt-3 border-t border-ink-300/25">
+      <PlacementList label="관계 신살 (도화·홍염)" items={card.romanceStars} emptyText="드러난 도화·홍염 없음" />
+    </div>
+  </div>
+);
+
+const HealthCard: React.FC<{ card: HealthCardPayload }> = ({ card }) => {
+  const max = Math.max(1, ...card.elements.map((e) => e.count));
+  return (
+    <div className={CARD_SHELL}>
+      <div className={CARD_TITLE}>건강 · 오행 분포</div>
+      <div className="space-y-1.5">
+        {card.elements.map((e) => (
+          <div key={e.label} className="flex items-center gap-2">
+            <span className="text-[12px] text-ink-500 w-12 shrink-0">{e.label}</span>
+            <span className="flex-1 h-2 rounded-full bg-ink-300/20 overflow-hidden">
+              <span
+                className="block h-full bg-ink-700/60 rounded-full"
+                style={{ width: `${(e.count / max) * 100}%` }}
+              />
+            </span>
+            <span className="text-[12px] text-ink-600 w-5 text-right">{e.count}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 pt-3 border-t border-ink-300/25 text-[14px] text-ink-700">
+        {card.lacking.length > 0 ? `부족한 오행 ${card.lacking.join('·')}` : '오행 분포 비교적 고름'}
+        {card.johooStatus ? ` · 조후 ${card.johooStatus}` : ''}
+      </div>
+    </div>
+  );
+};
+
+const RelationsCard: React.FC<{ card: RelationsCardPayload }> = ({ card }) => (
+  <div className={CARD_SHELL}>
+    <div className={CARD_TITLE}>대인관계</div>
+    <div className="space-y-2.5">
+      <PlacementList label="비겁 (형제·동료·경쟁)" items={card.peers} />
+      <PlacementList label="관성 (윗사람·조직)" items={card.authorities} />
+      <PlacementList label="인성 (조력자·어른)" items={card.supporters} />
+    </div>
+  </div>
+);
+
 export const SajuCard: React.FC<{ card: SajuCardPayload }> = ({ card }) => {
   switch (card.kind) {
     case 'myeongsik':
@@ -132,11 +232,91 @@ export const SajuCard: React.FC<{ card: SajuCardPayload }> = ({ card }) => {
       return <WealthCard card={card} />;
     case 'daeun':
       return <DaeunCard card={card} />;
-    case 'yearly':
-      return <YearlyCard card={card} />;
+    case 'period':
+      return <PeriodCard card={card} />;
+    case 'career':
+      return <CareerCard card={card} />;
+    case 'love':
+      return <LoveCard card={card} />;
+    case 'health':
+      return <HealthCard card={card} />;
+    case 'relations':
+      return <RelationsCard card={card} />;
     default:
       return null;
   }
+};
+
+/**
+ * 게이트: 무료 소진(리포트 CTA + 코드 입력) 또는 후속질문 소진(재구매 CTA).
+ */
+export const ChatGate: React.FC<{
+  gate: GatePayload;
+  disabled?: boolean;
+  onGoToOrder: () => void;
+  onApplyCode: (code: string) => Promise<boolean>;
+}> = ({ gate, disabled, onGoToOrder, onApplyCode }) => {
+  const [code, setCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isFree = gate.variant === 'free_exhausted';
+  const discount = gate.discountPercent ?? null;
+
+  const submit = async () => {
+    if (!code.trim() || submitting || disabled) return;
+    setSubmitting(true);
+    setError(null);
+    const ok = await onApplyCode(code.trim());
+    setSubmitting(false);
+    if (ok) setCode('');
+    else setError('코드를 확인해 주세요. (예: HW-3F9K2A)');
+  };
+
+  return (
+    <div className={CARD_SHELL}>
+      <div className={CARD_TITLE}>
+        {isFree ? '오늘의 무료 상담을 모두 사용했어요' : '후속 질문을 모두 사용했어요'}
+      </div>
+      <p className="text-[14px] text-ink-700 leading-relaxed">
+        {isFree
+          ? '더 깊은 풀이는 정밀 리포트에서 이어집니다. 내일 다시 무료 상담을 이용하실 수도 있어요.'
+          : '구매하신 후속 질문 3회를 모두 사용하셨어요. 리포트를 재구매하면 이어서 상담할 수 있습니다.'}
+      </p>
+      <button
+        onClick={onGoToOrder}
+        className="mt-3 w-full min-h-[44px] rounded-xl text-[14px] font-bold bg-ink-900 text-paper-50 hover:bg-ink-700 transition-all"
+      >
+        {isFree
+          ? '리포트 보러 가기'
+          : discount
+            ? `재구매 ${discount}% 할인 리포트 보기`
+            : '리포트 재구매하기'}
+      </button>
+
+      {isFree && (
+        <div className="mt-3 pt-3 border-t border-ink-300/25">
+          <div className="text-[12px] text-ink-500 mb-1.5">이미 코드가 있으신가요?</div>
+          <div className="flex gap-2">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="예: HW-3F9K2A"
+              className="flex-1 min-h-[40px] rounded-xl border border-ink-300/35 bg-paper-50/80 px-3 text-[14px] text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brush-gold/40"
+            />
+            <button
+              onClick={submit}
+              disabled={submitting || disabled}
+              className="shrink-0 min-h-[40px] px-4 rounded-xl text-[13px] font-semibold border border-ink-300/40 bg-paper-50/70 text-ink-700 hover:bg-paper-50 disabled:opacity-50"
+            >
+              {submitting ? '확인 중...' : '코드 입력'}
+            </button>
+          </div>
+          {error && <p className="mt-1 text-[12px] text-rose-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
 };
 
 /** 후속 선택지 버튼 묶음. scenarioId면 시나리오 진입, query면 자유질문 전송. */

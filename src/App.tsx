@@ -201,6 +201,10 @@ const App: React.FC = () => {
     setIsListening,
     voiceStatusMessage,
     setVoiceStatusMessage,
+    freeTurnsRemaining,
+    setFreeTurnsRemaining,
+    activeCode,
+    setActiveCode,
     activeChatRequestIdRef,
     consultationModeRef,
     preservedChatContextRef,
@@ -824,7 +828,7 @@ const App: React.FC = () => {
     });
   }, [user, isAdmin]);
 
-  const { handleSend, handleScenarioSelect } = useChatSendAction({
+  const { handleSend, handleScenarioSelect, applyCode } = useChatSendAction({
     input,
     loading,
     guidelines,
@@ -849,7 +853,10 @@ const App: React.FC = () => {
     isAdmin,
     preferredModels: getPreferredGeminiModels(),
     sajuToolDeclaration,
-    calculateSajuForPerson
+    calculateSajuForPerson,
+    activeCode,
+    setActiveCode,
+    setFreeTurnsRemaining
   });
 
   const { handleGenerateReport } = useReportGenerationAction({
@@ -1294,6 +1301,9 @@ const App: React.FC = () => {
               handleSend={handleSend}
               handleSuggestionClick={handleSuggestionClick}
               handleScenarioSelect={handleScenarioSelect}
+              applyCode={applyCode}
+              freeTurnsRemaining={freeTurnsRemaining}
+              activeCode={activeCode}
               selectedTopics={selectedTopics}
               setSelectedTopics={setSelectedTopics}
               handleVoiceInput={handleVoiceInput}
