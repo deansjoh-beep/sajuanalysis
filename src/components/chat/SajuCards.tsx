@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type {
   SajuCardPayload,
   MyeongsikCardPayload,
@@ -11,7 +11,7 @@ import type {
   RelationsCardPayload,
   DeityPlacement,
 } from '../../lib/chatDataSelectors';
-import type { ChatOption } from '../../hooks/useChatTabState';
+import type { ChatOption, GatePayload } from '../../hooks/useChatTabState';
 
 /**
  * 챗봇 카드 렌더러.
@@ -245,6 +245,78 @@ export const SajuCard: React.FC<{ card: SajuCardPayload }> = ({ card }) => {
     default:
       return null;
   }
+};
+
+/**
+ * 게이트: 무료 소진(리포트 CTA + 코드 입력) 또는 후속질문 소진(재구매 CTA).
+ */
+export const ChatGate: React.FC<{
+  gate: GatePayload;
+  disabled?: boolean;
+  onGoToOrder: () => void;
+  onApplyCode: (code: string) => Promise<boolean>;
+}> = ({ gate, disabled, onGoToOrder, onApplyCode }) => {
+  const [code, setCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isFree = gate.variant === 'free_exhausted';
+  const discount = gate.discountPercent ?? null;
+
+  const submit = async () => {
+    if (!code.trim() || submitting || disabled) return;
+    setSubmitting(true);
+    setError(null);
+    const ok = await onApplyCode(code.trim());
+    setSubmitting(false);
+    if (ok) setCode('');
+    else setError('코드를 확인해 주세요. (예: HW-3F9K2A)');
+  };
+
+  return (
+    <div className={CARD_SHELL}>
+      <div className={CARD_TITLE}>
+        {isFree ? '오늘의 무료 상담을 모두 사용했어요' : '후속 질문을 모두 사용했어요'}
+      </div>
+      <p className="text-[14px] text-ink-700 leading-relaxed">
+        {isFree
+          ? '더 깊은 풀이는 정밀 리포트에서 이어집니다. 내일 다시 무료 상담을 이용하실 수도 있어요.'
+          : '구매하신 후속 질문 3회를 모두 사용하셨어요. 리포트를 재구매하면 이어서 상담할 수 있습니다.'}
+      </p>
+      <button
+        onClick={onGoToOrder}
+        className="mt-3 w-full min-h-[44px] rounded-xl text-[14px] font-bold bg-ink-900 text-paper-50 hover:bg-ink-700 transition-all"
+      >
+        {isFree
+          ? '리포트 보러 가기'
+          : discount
+            ? `재구매 ${discount}% 할인 리포트 보기`
+            : '리포트 재구매하기'}
+      </button>
+
+      {isFree && (
+        <div className="mt-3 pt-3 border-t border-ink-300/25">
+          <div className="text-[12px] text-ink-500 mb-1.5">이미 코드가 있으신가요?</div>
+          <div className="flex gap-2">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="예: HW-3F9K2A"
+              className="flex-1 min-h-[40px] rounded-xl border border-ink-300/35 bg-paper-50/80 px-3 text-[14px] text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brush-gold/40"
+            />
+            <button
+              onClick={submit}
+              disabled={submitting || disabled}
+              className="shrink-0 min-h-[40px] px-4 rounded-xl text-[13px] font-semibold border border-ink-300/40 bg-paper-50/70 text-ink-700 hover:bg-paper-50 disabled:opacity-50"
+            >
+              {submitting ? '확인 중...' : '코드 입력'}
+            </button>
+          </div>
+          {error && <p className="mt-1 text-[12px] text-rose-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
 };
 
 /** 후속 선택지 버튼 묶음. scenarioId면 시나리오 진입, query면 자유질문 전송. */

@@ -12,7 +12,10 @@ import { buildYearlyCard, buildPeriodCard, buildWealthCard, buildDaeunCard, buil
 import type { SajuCardPayload } from '../lib/chatDataSelectors';
 import { CHAT_SCENARIOS } from '../constants/chatScenarios';
 import type { ChatScenario } from '../constants/chatScenarios';
-import { ChatMessage, ChatOption, isTextMessage } from './useChatTabState';
+import { ChatMessage, ChatOption, GatePayload, isTextMessage } from './useChatTabState';
+import { getFreeTurnsRemaining, consumeFreeTurn } from '../lib/chatUsage';
+import { lookupCodeClient, consumeFollowupClient, pickConsumableOrder, totalFollowupRemaining } from '../lib/chatCodeClient';
+import type { ChatCodeInfo } from '../lib/chatCodeClient';
 
 interface UseChatSendActionParams {
   input: string;
@@ -40,6 +43,10 @@ interface UseChatSendActionParams {
   preferredModels: string[];
   sajuToolDeclaration: any;
   calculateSajuForPerson: (args: any) => any;
+  // Phase C: 게이팅 + 코드 followup
+  activeCode: ChatCodeInfo | null;
+  setActiveCode: React.Dispatch<React.SetStateAction<ChatCodeInfo | null>>;
+  setFreeTurnsRemaining: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export const useChatSendAction = ({
@@ -67,8 +74,42 @@ export const useChatSendAction = ({
   isAdmin,
   preferredModels,
   sajuToolDeclaration,
-  calculateSajuForPerson
+  calculateSajuForPerson,
+  activeCode,
+  setActiveCode,
+  setFreeTurnsRemaining
 }: UseChatSendActionParams) => {
+  const makeGate = (variant: GatePayload['variant']): ChatMessage => ({
+    role: 'model',
+    kind: 'gate',
+    gate: { variant, discountPercent: activeCode?.newYearDiscountPercent ?? null },
+  });
+
+  /** 코드 followup 1회 차감(자유 질문 전용). ok면 활성 코드 상태를 갱신. */
+  const chargeFollowup = async (): Promise<{ ok: boolean; gate?: boolean; message?: string }> => {
+    if (!activeCode) return { ok: false };
+    const order = pickConsumableOrder(activeCode);
+    if (!order) return { ok: false, gate: true };
+    const outcome = await consumeFollowupClient(activeCode.code, order.orderId);
+    if (!outcome.ok) {
+      if (outcome.error === 'FOLLOWUP_EXHAUSTED') return { ok: false, gate: true };
+      if (outcome.error === 'TOO_MANY_REQUESTS')
+        return { ok: false, message: '요청이 잠시 많습니다. 잠시 후 다시 시도해 주세요.' };
+      return { ok: false, message: outcome.message };
+    }
+    const remaining = outcome.remaining;
+    setActiveCode((prev) =>
+      prev
+        ? {
+            ...prev,
+            orders: prev.orders.map((o) =>
+              o.orderId === order.orderId ? { ...o, followupRemaining: remaining } : o
+            ),
+          }
+        : prev
+    );
+    return { ok: true };
+  };
   const formatRawError = (parsed: { code: number | null; status: string | null; message: string }) => {
     if (!isAdmin) return '';
     const codeText = parsed.code ?? 'N/A';
@@ -491,12 +532,30 @@ export const useChatSendAction = ({
       return;
     }
 
+    // Phase C 게이팅: 무료 사용자는 일일 한도, 코드 보유자는 자유 질문당 followup 1회.
+    const isCodeHolder = !!activeCode;
+    if (!isCodeHolder && getFreeTurnsRemaining() <= 0) {
+      setInput('');
+      setMessages((prev) => [...prev, { role: 'user', text: userMessage }, makeGate('free_exhausted')]);
+      return;
+    }
+
     setInput('');
     setRefreshKey((prev) => prev + 1);
     setMessages((prev) => [...prev, { role: 'user', text: userMessage }]);
     setLoading(true);
 
     try {
+      // 코드 보유자: 자유 질문은 followup 1회 차감(시나리오 버튼은 무료).
+      if (isCodeHolder) {
+        const charge = await chargeFollowup();
+        if (!charge.ok) {
+          if (charge.gate) setMessages((prev) => [...prev, makeGate('followup_exhausted')]);
+          else if (charge.message) setMessages((prev) => [...prev, { role: 'model', text: charge.message! }]);
+          return;
+        }
+      }
+
       const waitedMs = await waitForModelCooldownIfNeeded('chat');
       if (waitedMs > 0) {
         console.warn(`[MODEL_COOLDOWN] chat request delayed ${waitedMs}ms due to recent retryable errors.`);
@@ -540,6 +599,9 @@ export const useChatSendAction = ({
 
       const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);
       setMessages((prev) => [...prev, { role: 'model', text: finalResponseText }]);
+      if (!isCodeHolder) {
+        setFreeTurnsRemaining(consumeFreeTurn());
+      }
       if (modeAtRequest === 'basic') {
         setBasicAskedByCategory((prev) => {
           const currentAsked = prev[basicSelectedCategory] || [];
@@ -582,12 +644,17 @@ export const useChatSendAction = ({
     isAdmin,
     preferredModels,
     sajuToolDeclaration,
-    calculateSajuForPerson
+    calculateSajuForPerson,
+    activeCode,
+    setActiveCode,
+    setFreeTurnsRemaining
   ]);
 
   /**
    * 시나리오 버튼 진입: 사용자 말풍선 → 결정론적 카드 → LLM 해석 → 후속 선택지.
    * 카드는 LLM을 거치지 않고 엔진 값을 그대로 렌더한다.
+   *
+   * 게이팅: 코드 보유자는 시나리오 턴 무료·무제한. 무료 사용자는 일일 한도에 포함.
    */
   const handleScenarioSelect = useCallback(async (scenarioId: string) => {
     if (loading) return;
@@ -604,6 +671,12 @@ export const useChatSendAction = ({
     if (sajuResult.length === 0) {
       alert('먼저 사주 분석을 완료해 주세요.');
       setActiveTab('welcome');
+      return;
+    }
+
+    const isCodeHolder = !!activeCode;
+    if (!isCodeHolder && getFreeTurnsRemaining() <= 0) {
+      setMessages((prev) => [...prev, makeGate('free_exhausted')]);
       return;
     }
 
@@ -677,6 +750,9 @@ export const useChatSendAction = ({
         { role: 'model', text: finalResponseText },
         { role: 'model', kind: 'options', title: '이어서 물어볼까요?', options: [...followupOptions, ...relatedOptions] },
       ]);
+      if (!isCodeHolder) {
+        setFreeTurnsRemaining(consumeFreeTurn());
+      }
     } catch (err: any) {
       reportChatError(err, requestId);
     } finally {
@@ -704,8 +780,30 @@ export const useChatSendAction = ({
     preservedChatContextRef,
     preferredModels,
     sajuToolDeclaration,
-    calculateSajuForPerson
+    calculateSajuForPerson,
+    activeCode,
+    setFreeTurnsRemaining
   ]);
 
-  return { handleSend, handleScenarioSelect };
+  /**
+   * 코드 입력 적용: 조회 성공 시 활성 코드로 설정하고 안내 메시지를 남긴다.
+   * 이후 자유 질문은 followup 1회씩 차감되고, 시나리오 버튼은 무료가 된다.
+   */
+  const applyCode = useCallback(async (rawCode: string): Promise<boolean> => {
+    const result = await lookupCodeClient(rawCode);
+    if (!result.ok || !result.info) {
+      setMessages((prev) => [...prev, { role: 'model', text: result.message ?? '코드를 확인해 주세요.' }]);
+      return false;
+    }
+    setActiveCode(result.info);
+    const total = totalFollowupRemaining(result.info);
+    const msg =
+      total > 0
+        ? `코드가 확인되었습니다. 남은 후속 질문 ${total}회를 사용하실 수 있어요. 시나리오 버튼은 제한 없이 이용 가능합니다.`
+        : '코드가 확인되었습니다. 다만 남은 후속 질문이 없어요. 시나리오 버튼은 제한 없이 이용하실 수 있습니다.';
+    setMessages((prev) => [...prev, { role: 'model', text: msg }]);
+    return true;
+  }, [setActiveCode, setMessages]);
+
+  return { handleSend, handleScenarioSelect, applyCode };
 };

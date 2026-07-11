@@ -157,10 +157,12 @@ type ChatMessage =
 |---|---|---|---|
 | **A. 메시지 타입 + 시나리오 골격** | ChatMessage 유니언 확장, chatScenarios 3종(올해운·재물·대운)만 우선, 선택지 버튼 흐름, ChatTabContent 추출 | 버튼 3회 왕복 대화가 엔진 값 그대로 카드에 표시. vitest: dataSelector 스냅샷 | ✅ 완료(PR #10) |
 | **B. 전 주제 + 그라운딩 강화** | 9개 주제(자유질문=입력창) 전부, 시나리오 지침, 카드 완성(명식/기간/재물/대운/직업/연애/건강/대인관계) | 주제별 카드 값 = 엔진 값 일치 테스트. guidelines.test.ts 스펙 추가 | ✅ 완료 |
-| **C. 게이팅 + followup 배선** | 무료 5회/일, gate 메시지, 코드 입력 → followup 차감, 재구매 CTA | E2E: 무료 소진→gate, 코드 입력→차감→`remaining` 감소 확인 | ⏳ OWNER 가격/한도 대기 |
+| **C. 게이팅 + followup 배선** | 무료 5회/일, gate 메시지, 코드 입력 → followup 차감, 재구매 CTA | E2E: 무료 소진→gate, 코드 입력→차감→`remaining` 감소 확인 | ✅ 완료(무료 한도=5, 자유질문만 followup 1회 차감) |
 | **D. 다듬기** | 자유질문 스트리밍, 간지 후처리 검증, AI 추천 질문을 시나리오 selector 기반으로 교체 | 성능·오답률 지표 측정 | ⏳ |
 
 A→B→C 순차, 각 Phase 별도 브랜치+PR. C는 OWNER 가격/한도 확정에 의존하므로 A·B와 병렬로 결정 대기 가능.
+
+**Phase C 확정 정책(OWNER 2026-07-11)**: 무료 사용자는 하루 **5회**의 LLM 턴(시나리오 버튼 + 자유 질문 모두 포함, localStorage `chat_free_usage_v1`, KST 자정 리셋). 소진 시 gate(리포트 CTA + 코드 입력). 코드 보유자는 **자유 질문 1건당 followup 1회 차감**(구매당 3회, `POST /api/code/followup`), **시나리오 버튼 턴은 무료·무제한**. followup 소진 시 재구매 gate(할인 `newYearDiscountPercent`=30%). ⚠️ followup 차감 감소는 유닛+배선 검증 완료, 실코드 E2E는 시드 코드 확보 후.
 
 **Phase B 스코프 조정 메모**: 로드맵 초안의 "JSON 컨텍스트 교체"는 `sajuContext` 문자열이 상담+리포트 프롬프트에 공유되고 프롬프트 본문 여러 곳에서 참조되어(promptBuilders.ts), 전역 JSON 전환은 위험 대비 이득이 낮다고 판단해 **보류**. 대신 그라운딩은 시나리오 경로에 집중 — 주제별로 슬라이스된 카드 근거(`summarizeCard`)를 시스템 지침의 `[사용자에게 이미 표시된 카드]` 블록으로 주입하고, 시나리오 지침에 "카드에 있는 값만 근거로 인용" 규칙을 명문화. 카드 자체는 엔진 값을 React가 직접 렌더하므로 환각이 원천 차단됨.
 
