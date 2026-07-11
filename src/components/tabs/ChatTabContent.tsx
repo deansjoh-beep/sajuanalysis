@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Ticket, MessageCircle, RefreshCw, Mic, Send } from 'lucide-react';
+import { MessageCircle, RefreshCw, Mic, Send } from 'lucide-react';
 import { ChatTab } from './ChatTab';
 import { TAB_TRANSITION, GLASS_TAB_BG_CLASS } from '../../constants/styles';
 import { BASIC_CHAT_CATEGORIES, CATEGORIES } from '../../constants/questions';
@@ -33,9 +33,6 @@ interface ChatTabContentProps {
   applyCode: (code: string) => Promise<boolean>;
   freeTurnsRemaining: number;
   activeCode: ChatCodeInfo | null;
-  // 기간/주제 단축칩
-  selectedTopics: string[];
-  setSelectedTopics: React.Dispatch<React.SetStateAction<string[]>>;
   // 음성
   handleVoiceInput: () => void;
   isListening: boolean;
@@ -77,8 +74,6 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
   applyCode,
   freeTurnsRemaining,
   activeCode,
-  selectedTopics,
-  setSelectedTopics,
   handleVoiceInput,
   isListening,
   voiceStatusMessage,
@@ -110,84 +105,31 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
 
   return (
     <ChatTab tabTransition={TAB_TRANSITION} glassTabBgClass={GLASS_TAB_BG_CLASS}>
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full">
-        {/* Desktop Sidebar */}
-        <aside className="hidden md:flex w-64 flex-col border-r border-ink-300/25 bg-paper-50/60 p-4 space-y-6 overflow-y-auto relative">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => switchConsultationMode('basic')}
-                className={`px-3 py-2 rounded-xl text-[13px] font-bold transition-all ${
-                  consultationMode === 'basic'
-                    ? 'bg-ink-900 text-paper-50'
-                    : 'bg-paper-50/60 border border-ink-300/30 text-ink-700'
-                }`}
-              >
-                초급자
-              </button>
-              <button
-                onClick={() => switchConsultationMode('advanced')}
-                className={`px-3 py-2 rounded-xl text-[13px] font-bold transition-all ${
-                  consultationMode === 'advanced'
-                    ? 'bg-ink-900 text-paper-50'
-                    : 'bg-paper-50/60 border border-ink-300/30 text-ink-700'
-                }`}
-              >
-                고급자
-              </button>
-            </div>
-          </div>
-
-          {/* Consultation Tips */}
-          <div className="space-y-3 pt-4 border-t border-ink-300/25">
-            <ul className="space-y-2">
-              <li className="text-[14px] text-ink-500 leading-relaxed">질문에 "어떻게"를 넣어보세요. 고민의 해결은 나의 행동에서 출발합니다.</li>
-              <li className="text-[14px] text-ink-500 leading-relaxed">구체적인 상황을 알려주세요. 모든 사적인 내용은 철저하게 보호해드립니다.</li>
-              <li className="text-[14px] text-ink-500 leading-relaxed">MBTI 등 추가 정보를 넣으시면 더욱 알찬 상담이 됩니다.</li>
-              <li className="text-[14px] text-ink-500 leading-relaxed">맥락을 리프레시하고 재개하면 객관적인 상담이 유지됩니다.</li>
-            </ul>
-          </div>
-
-          {/* Order CTA + Privacy Notice (Desktop) */}
-          <div className="mt-auto space-y-3">
-            <div className="text-[12px] text-ink-500 text-center">
-              {activeCode ? (
-                <>코드 {activeCode.code} · 후속 질문 {totalFollowupRemaining(activeCode)}회 남음</>
-              ) : (
-                <>오늘 무료 상담 {freeTurnsRemaining}/{FREE_DAILY_LIMIT}회 남음</>
-              )}
-            </div>
-            <button
-              onClick={onGoToOrder}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl text-[13px] font-bold bg-ink-900 text-paper-50 hover:bg-ink-700 transition-all"
-            >
-              <Ticket className="w-4 h-4" />
-              프리미엄 리포트 주문하기
-            </button>
-            <div className="border-t border-ink-300/25 pt-3">
-              <p className="text-[12px] text-ink-500 text-center leading-relaxed">
-                상담에 사용된 개인정보 등 모든 정보는 상담이 끝나면 자동으로 파기 됩니다.
-              </p>
-            </div>
-          </div>
-        </aside>
-
+      <div className="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full">
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden relative text-[13px]">
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 hide-scrollbar">
-            <div className="md:hidden grid grid-cols-2 gap-1 pb-1">
-              <button
-                onClick={() => switchConsultationMode('basic')}
-                className={`px-2 py-1 min-h-[44px] rounded-lg text-[13px] font-bold border ${consultationMode === 'basic' ? 'bg-ink-900 border-ink-900 text-paper-50' : 'bg-paper-50/75 border-ink-300/30 text-ink-700'}`}
-              >
-                초급자
-              </button>
-              <button
-                onClick={() => switchConsultationMode('advanced')}
-                className={`px-2 py-1 min-h-[44px] rounded-lg text-[13px] font-bold border ${consultationMode === 'advanced' ? 'bg-ink-900 border-ink-900 text-paper-50' : 'bg-paper-50/75 border-ink-300/30 text-ink-700'}`}
-              >
-                고급자
-              </button>
+            {/* 상단 컨트롤 한 줄: 좌측 잔여 상태 + 우측 모드 토글 */}
+            <div className="flex items-center justify-between gap-2 pb-1">
+              <span className="text-[12px] text-ink-500">
+                {activeCode
+                  ? `코드 ${activeCode.code} · 후속 ${totalFollowupRemaining(activeCode)}회`
+                  : `무료 상담 ${freeTurnsRemaining}/${FREE_DAILY_LIMIT}회`}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => switchConsultationMode('basic')}
+                  className={`px-3 py-1 min-h-[36px] rounded-lg text-[13px] font-bold border ${consultationMode === 'basic' ? 'bg-ink-900 border-ink-900 text-paper-50' : 'bg-paper-50/75 border-ink-300/30 text-ink-700'}`}
+                >
+                  초급자
+                </button>
+                <button
+                  onClick={() => switchConsultationMode('advanced')}
+                  className={`px-3 py-1 min-h-[36px] rounded-lg text-[13px] font-bold border ${consultationMode === 'advanced' ? 'bg-ink-900 border-ink-900 text-paper-50' : 'bg-paper-50/75 border-ink-300/30 text-ink-700'}`}
+                >
+                  고급자
+                </button>
+              </div>
             </div>
 
             {modeNotice && (
@@ -374,52 +316,6 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
 
           {/* Input Area */}
           <div className="p-2 border-t md:pb-4 border-ink-300/25 bg-paper-50/70">
-            <div className="max-w-4xl mx-auto mb-2 flex flex-wrap gap-2">
-              {/* 왼쪽: 기간 단축 버튼 */}
-              <div className="flex flex-wrap gap-2">
-                {['올해운세', '내년운세', '이번달운세', '오늘의 운세'].map((shortcut) => (
-                  <button
-                    key={`fortune-shortcut-${shortcut}`}
-                    onClick={() => {
-                      const query = selectedTopics.length > 0
-                        ? `${shortcut} ${selectedTopics.join(' ')}`
-                        : shortcut;
-                      handleSuggestionClick(query);
-                    }}
-                    disabled={loading}
-                    className="px-3 py-1.5 min-h-[40px] rounded-full text-[13px] font-semibold border transition-all disabled:opacity-50 bg-paper-50/75 border-ink-300/35 text-ink-700 hover:border-ink-500/50 hover:text-ink-900"
-                  >
-                    {shortcut}{selectedTopics.length > 0 ? ` + ${selectedTopics.join('·')}` : ''}
-                  </button>
-                ))}
-              </div>
-              {/* 오른쪽: 주제 토글 버튼 */}
-              <div className="flex flex-wrap gap-2 md:ml-auto">
-                {['재물운', '건강운', '인간관계', '연애운'].map((topic) => {
-                  const isActive = selectedTopics.includes(topic);
-                  return (
-                    <button
-                      key={`topic-filter-${topic}`}
-                      onClick={() => {
-                        setSelectedTopics((prev) =>
-                          prev.includes(topic)
-                            ? prev.filter((t) => t !== topic)
-                            : [...prev, topic]
-                        );
-                      }}
-                      disabled={loading}
-                      className={`px-3 py-1.5 min-h-[40px] rounded-full text-[13px] font-semibold border transition-all disabled:opacity-50 ${
-                        isActive
-                          ? 'bg-ink-900 text-paper-50 border-ink-900'
-                          : 'bg-paper-50/75 border-ink-300/35 text-ink-700 hover:border-ink-500/50 hover:text-ink-900'
-                      }`}
-                    >
-                      {isActive ? `✓ ${topic}` : topic}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             <div className="max-w-4xl mx-auto relative">
               <input

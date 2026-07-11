@@ -16,6 +16,8 @@ import { ChatMessage, ChatOption, GatePayload, isTextMessage } from './useChatTa
 import { getFreeTurnsRemaining, consumeFreeTurn } from '../lib/chatUsage';
 import { lookupCodeClient, consumeFollowupClient, pickConsumableOrder, totalFollowupRemaining } from '../lib/chatCodeClient';
 import type { ChatCodeInfo } from '../lib/chatCodeClient';
+import { findYearGanjiMismatches, buildYearGanjiMap, buildGanjiCorrection } from '../lib/ganjiValidation';
+import type { YearGanji } from '../lib/ganjiValidation';
 
 interface UseChatSendActionParams {
   input: string;
@@ -500,6 +502,50 @@ export const useChatSendAction = ({
     return response.text || '상담 중 오류가 발생했습니다.';
   };
 
+  /**
+   * 생성 + 간지 후처리 검증. 응답이 세운 간지를 잘못 표기하면(엔진 값 대조) 정정
+   * 지시를 붙여 1회 재생성한다. 검증 결과는 텔레메트리로 남겨 오답률을 측정한다.
+   */
+  const runGenerationValidated = async (args: {
+    contents: any[];
+    systemInstruction: string;
+    requestId: number;
+    telemetryRequestId: string;
+    yearGanjiMap: Record<number, YearGanji>;
+  }): Promise<string | null> => {
+    const { contents, systemInstruction, requestId, telemetryRequestId, yearGanjiMap } = args;
+    const first = await runGeneration({ contents, systemInstruction, requestId, telemetryRequestId });
+    if (first === null) return null;
+
+    const mismatches = findYearGanjiMismatches(first, yearGanjiMap);
+    if (mismatches.length === 0) return first;
+
+    console.info('[GANJI_MISMATCH]', {
+      requestId: telemetryRequestId,
+      count: mismatches.length,
+      years: mismatches.map((m) => m.year),
+    });
+
+    // 정정 재생성 1회(원본 contents 보존을 위해 복제).
+    const corrected = await runGeneration({
+      contents: [...contents],
+      systemInstruction: systemInstruction + buildGanjiCorrection(mismatches),
+      requestId,
+      telemetryRequestId: `${telemetryRequestId}-ganjifix`,
+    });
+    if (corrected === null) return null;
+
+    const afterFix = findYearGanjiMismatches(corrected, yearGanjiMap).length;
+    console.info('[GANJI_VALIDATION]', {
+      requestId: telemetryRequestId,
+      before: mismatches.length,
+      after: afterFix,
+      fixed: afterFix < mismatches.length,
+    });
+    // 정정본이 더 낫거나 같으면 정정본, 아니면(재생성이 더 악화) 원본 유지.
+    return afterFix <= mismatches.length ? corrected : first;
+  };
+
   const reportChatError = (err: any, requestId: number) => {
     if (requestId !== activeChatRequestIdRef.current) {
       return;
@@ -594,7 +640,13 @@ export const useChatSendAction = ({
       contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
       const telemetryRequestId = `chat-${requestId}-${Date.now()}`;
-      const rawText = await runGeneration({ contents, systemInstruction, requestId, telemetryRequestId });
+      const rawText = await runGenerationValidated({
+        contents,
+        systemInstruction,
+        requestId,
+        telemetryRequestId,
+        yearGanjiMap: buildYearGanjiMap(ctx.nearbyYearPillars),
+      });
       if (rawText === null) return;
 
       const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);
@@ -733,7 +785,13 @@ export const useChatSendAction = ({
       contents.push({ role: 'user', parts: [{ text: scenario.seedQuestion }] });
 
       const telemetryRequestId = `chat-scenario-${requestId}-${Date.now()}`;
-      const rawText = await runGeneration({ contents, systemInstruction, requestId, telemetryRequestId });
+      const rawText = await runGenerationValidated({
+        contents,
+        systemInstruction,
+        requestId,
+        telemetryRequestId,
+        yearGanjiMap: buildYearGanjiMap(ctx.nearbyYearPillars),
+      });
       if (rawText === null) return;
 
       const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);

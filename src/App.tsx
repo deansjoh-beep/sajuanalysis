@@ -253,7 +253,6 @@ const App: React.FC = () => {
   const [showInputForm, setShowInputForm] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
   const [showInlineSuggestions, setShowInlineSuggestions] = useState(false);
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const allowedAdminEmails = getAllowedAdminEmails();
   const premiumE2EMode = isPremiumE2EMode();
@@ -1304,8 +1303,6 @@ const App: React.FC = () => {
               applyCode={applyCode}
               freeTurnsRemaining={freeTurnsRemaining}
               activeCode={activeCode}
-              selectedTopics={selectedTopics}
-              setSelectedTopics={setSelectedTopics}
               handleVoiceInput={handleVoiceInput}
               isListening={isListening}
               voiceStatusMessage={voiceStatusMessage}
