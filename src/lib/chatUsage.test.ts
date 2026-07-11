@@ -4,6 +4,7 @@ import {
   remainingFromState,
   incrementedState,
   seoulDateKey,
+  isUnlimitedTestUser,
 } from './chatUsage';
 
 describe('chatUsage 무료 턴 한도 코어', () => {
@@ -45,5 +46,49 @@ describe('chatUsage 무료 턴 한도 코어', () => {
 
   it('seoulDateKey는 YYYY-MM-DD 형식', () => {
     expect(seoulDateKey(new Date('2026-07-11T00:00:00Z'))).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('isUnlimitedTestUser 무제한 테스트 명식', () => {
+  const TESTER = {
+    name: '오세진',
+    birthYear: '1969',
+    birthMonth: '12',
+    birthDay: '2',
+    birthHour: '10',
+    calendarType: 'solar',
+    unknownTime: false,
+  };
+
+  it('테스트 명식과 정확히 일치 → true', () => {
+    expect(isUnlimitedTestUser(TESTER)).toBe(true);
+  });
+
+  it('0 패딩된 문자열("02")도 동일 취급', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, birthDay: '02' })).toBe(true);
+  });
+
+  it('이름 앞뒤 공백은 무시', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, name: ' 오세진 ' })).toBe(true);
+  });
+
+  it('이름이 다르면 false', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, name: '홍길동' })).toBe(false);
+  });
+
+  it('생일이 하루라도 다르면 false', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, birthDay: '3' })).toBe(false);
+  });
+
+  it('시(時)가 다르면 false', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, birthHour: '11' })).toBe(false);
+  });
+
+  it('음력 입력이면 false', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, calendarType: 'lunar' })).toBe(false);
+  });
+
+  it('생시 모름이면 false (시각 확인 불가)', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, unknownTime: true })).toBe(false);
   });
 });

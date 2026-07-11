@@ -76,3 +76,43 @@ export function consumeFreeTurn(): number {
   writeState(next);
   return remainingFromState(next, today);
 }
+
+/**
+ * 테스트 전용 무제한 상담 명식.
+ * 이름·생년월일시·양음력이 전부 일치하는 입력만 무료 턴 게이트/차감을 우회한다.
+ * (코드 보유자 followup 차감과는 무관 — 무료 한도만 해제.)
+ */
+export interface UnlimitedTestProfile {
+  name: string;
+  birthYear: number;
+  birthMonth: number;
+  birthDay: number;
+  birthHour: number;
+  calendarType: 'solar' | 'lunar' | 'leap';
+}
+
+export const UNLIMITED_TEST_PROFILES: UnlimitedTestProfile[] = [
+  { name: '오세진', birthYear: 1969, birthMonth: 12, birthDay: 2, birthHour: 10, calendarType: 'solar' },
+];
+
+/** 현재 입력(userData)이 무제한 테스트 명식과 일치하는지(순수). */
+export function isUnlimitedTestUser(u: {
+  name: string;
+  birthYear: string;
+  birthMonth: string;
+  birthDay: string;
+  birthHour: string;
+  calendarType: string;
+  unknownTime?: boolean;
+}): boolean {
+  return UNLIMITED_TEST_PROFILES.some(
+    (p) =>
+      u.name.trim() === p.name &&
+      parseInt(u.birthYear, 10) === p.birthYear &&
+      parseInt(u.birthMonth, 10) === p.birthMonth &&
+      parseInt(u.birthDay, 10) === p.birthDay &&
+      parseInt(u.birthHour, 10) === p.birthHour &&
+      u.calendarType === p.calendarType &&
+      !u.unknownTime
+  );
+}

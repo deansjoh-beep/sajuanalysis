@@ -5,6 +5,8 @@ import { TAB_TRANSITION, GLASS_TAB_BG_CLASS } from '../../constants/styles';
 import { BASIC_CHAT_CATEGORIES, CATEGORIES } from '../../constants/questions';
 import { renderChatPlainText } from '../chat/renderChatPlainText';
 import { SajuCard, ChatOptionsBlock, ChatGate } from '../chat/SajuCards';
+import { QuestionBuilderBlock } from '../chat/QuestionBuilderBlock';
+import { useQuestionBuilder } from '../../hooks/useQuestionBuilder';
 import { buildMyeongsikCard } from '../../lib/chatDataSelectors';
 import { CHAT_SCENARIOS } from '../../constants/chatScenarios';
 import type { ChatMessage } from '../../hooks/useChatTabState';
@@ -33,6 +35,8 @@ interface ChatTabContentProps {
   applyCode: (code: string) => Promise<boolean>;
   freeTurnsRemaining: number;
   activeCode: ChatCodeInfo | null;
+  /** 테스트 명식 일치 시 무료 한도 표시 대신 무제한 표기. */
+  unlimitedTester: boolean;
   // 음성
   handleVoiceInput: () => void;
   isListening: boolean;
@@ -74,6 +78,7 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
   applyCode,
   freeTurnsRemaining,
   activeCode,
+  unlimitedTester,
   handleVoiceInput,
   isListening,
   voiceStatusMessage,
@@ -98,6 +103,9 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
     [sajuResult, yongshinResult]
   );
 
+  // 질문 만들기: 문답 완료 시 완성 질문을 입력창에 채운다(자동 전송 없음 — 사용자가 수정·확정).
+  const questionBuilder = useQuestionBuilder(setInput);
+
   const onGoToOrder = () => {
     setOrderProductType('premium');
     setActiveTab('order');
@@ -114,7 +122,9 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
               <span className="text-[12px] text-ink-500">
                 {activeCode
                   ? `코드 ${activeCode.code} · 후속 ${totalFollowupRemaining(activeCode)}회`
-                  : `무료 상담 ${freeTurnsRemaining}/${FREE_DAILY_LIMIT}회`}
+                  : unlimitedTester
+                    ? '상담 무제한 (테스트)'
+                    : `무료 상담 ${freeTurnsRemaining}/${FREE_DAILY_LIMIT}회`}
               </span>
               <div className="flex gap-1">
                 <button
@@ -145,12 +155,32 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
                   <p className="max-w-[96%] md:max-w-[92%] text-[14px] text-ink-600 px-1 leading-relaxed">
                     {userName ? `${userName}님, ` : ''}무엇이 궁금하세요? 아래에서 골라보시거나 직접 물어보셔도 좋아요.
                   </p>
-                  <ChatOptionsBlock
-                    options={CHAT_SCENARIOS.map((s) => ({ label: s.label, scenarioId: s.id }))}
-                    disabled={loading}
-                    onSelectScenario={handleScenarioSelect}
-                    onSelectQuery={handleSuggestionClick}
-                  />
+                  {questionBuilder.status === 'active' ? (
+                    <QuestionBuilderBlock builder={questionBuilder} />
+                  ) : (
+                    <>
+                      <ChatOptionsBlock
+                        options={CHAT_SCENARIOS.map((s) => ({ label: s.label, scenarioId: s.id }))}
+                        disabled={loading}
+                        onSelectScenario={handleScenarioSelect}
+                        onSelectQuery={handleSuggestionClick}
+                      />
+                      <div className="flex items-center gap-2 px-1">
+                        <button
+                          onClick={questionBuilder.start}
+                          disabled={loading}
+                          className="px-3 py-2 min-h-[40px] rounded-xl text-[13px] font-semibold border transition-all disabled:opacity-50 bg-paper-50/75 border-ink-300/35 text-ink-700 hover:border-ink-500/50 hover:text-ink-900"
+                        >
+                          질문 만들기
+                        </button>
+                        <span className="text-[12px] text-ink-500">
+                          {questionBuilder.status === 'done'
+                            ? '완성된 질문을 아래 입력창에서 다듬은 뒤 보내주세요.'
+                            : '몇 번의 선택으로 질문을 구체적으로 다듬어 드려요'}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">

@@ -34,7 +34,20 @@ interface ModelTelemetryStore {
 
 const STORAGE_KEY = 'saju_model_telemetry_v1';
 const MAX_EVENTS = 250;
-const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+/**
+ * 콘솔에 이벤트를 찍을지 여부. 기본 off — 켜려면 브라우저 콘솔에서
+ * `localStorage.setItem('MODEL_TELEMETRY_LOG', '1')` 후 새로고침(끄기: 값 '0' 또는 삭제).
+ * 텔레메트리 수집(localStorage 집계) 자체는 이 플래그와 무관하게 항상 동작한다.
+ */
+const isTelemetryLogEnabled = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem('MODEL_TELEMETRY_LOG') === '1';
+  } catch {
+    return false;
+  }
+};
 
 const nowIso = () => new Date().toISOString();
 
@@ -138,7 +151,7 @@ export const recordModelTelemetry = (event: Omit<ModelTelemetryEvent, 'timestamp
 
   saveStore(nextStore);
 
-  if (isDev) {
+  if (isTelemetryLogEnabled()) {
     console.info('[MODEL_TELEMETRY]', stampedEvent);
   }
 };

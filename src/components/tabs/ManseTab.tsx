@@ -25,8 +25,6 @@ import { PaperBackground } from '../welcome/PaperBackground';
 import { toOhaengChartData } from '../../constants/ohaengColors';
 import { HanjaBox } from '../manse/HanjaBox';
 import { InsightPanel } from '../manse/InsightPanel';
-import { AIReportSection, ReportModeToggle } from '../manse/AIReportSection';
-import { parseReport, getSectionByIndex } from '../manse/reportSectionUtils';
 import {
   SAJU_GENERAL,
   GYEOK_GENERAL,
@@ -104,13 +102,6 @@ interface ManseTabProps {
   daeunScrollRef: React.RefObject<HTMLDivElement | null>;
   currentSeoulYear: number;
   setActiveTab: (t: ActiveTab) => void;
-  // ── AI 기본 리포트 통합 ──
-  reportContent: string | null;
-  reportLoading: boolean;
-  consultationMode: 'basic' | 'advanced';
-  setConsultationMode: (m: 'basic' | 'advanced') => void;
-  setReportContent: (v: string | null) => void;
-  consultationModeRef: React.MutableRefObject<'basic' | 'advanced'>;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -145,12 +136,6 @@ export default function ManseTab({
   daeunScrollRef,
   currentSeoulYear,
   setActiveTab,
-  reportContent,
-  reportLoading,
-  consultationMode,
-  setConsultationMode,
-  setReportContent,
-  consultationModeRef,
 }: ManseTabProps) {
   // 랜딩 티저 경유(이름 미입력) 방문자 표시용 fallback
   const displayName = userData.name || '방문자';
@@ -204,28 +189,7 @@ export default function ManseTab({
 
   const dayStem = sajuResult.find((p) => p.title === '일주')?.stem.hanja || '';
 
-  // ──────────────────────────────────────────────────────────
-  // AI 기본 리포트 파싱 (6 섹션)
-  // ──────────────────────────────────────────────────────────
-  const parsedReport = useMemo(() => parseReport(reportContent), [reportContent]);
-  const sec = (idx: number) => getSectionByIndex(parsedReport, idx);
-
   const hasData = sajuResult.length > 0;
-  // AI 호출 진행 중인지
-  const aiPending = reportLoading && !reportContent;
-  // reportContent가 있는데 섹션이 없으면 에러 문자열로 취급
-  const reportError =
-    !reportLoading && !!reportContent && parsedReport.sections.length === 0
-      ? parsedReport.greeting || 'AI 해설 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-      : undefined;
-
-  // 모드 토글 핸들러 — 변경 시 리포트 재생성을 위해 reportContent를 null로
-  const handleModeChange = (m: 'basic' | 'advanced') => {
-    if (m === consultationMode) return;
-    setConsultationMode(m);
-    consultationModeRef.current = m;
-    setReportContent(null);
-  };
 
   return (
     <motion.div
@@ -248,21 +212,13 @@ export default function ManseTab({
           <div className="max-w-3xl mx-auto space-y-12 md:space-y-16">
             {/* ─────────── 페이지 헤더 ─────────── */}
             <header className="relative pt-2 pb-2">
-              {/* 모드 토글: 우측 상단 한 곳에만 */}
-              <div className="absolute top-0 right-0">
-                <ReportModeToggle
-                  mode={consultationMode}
-                  onChange={handleModeChange}
-                  disabled={reportLoading}
-                />
-              </div>
-              <div className="text-center space-y-4 pt-14 md:pt-12">
+              <div className="text-center space-y-4">
                 <h2 className="font-serif text-[28px] md:text-[40px] font-bold text-ink-900 leading-tight">
                   {displayName}님의 사주 분석
                 </h2>
                 <p className="text-[14px] text-ink-500 leading-relaxed max-w-2xl mx-auto">
                   태어난 시점의 천간·지지가 그리는 당신만의 지도입니다.<br className="hidden md:block" />
-                  각 영역의 의미와 AI가 풀어내는 당신만의 해설을 함께 보여드립니다.
+                  각 영역의 의미를 차근차근 짚어 보여드립니다.
                 </p>
               </div>
             </header>
@@ -317,14 +273,6 @@ export default function ManseTab({
                 </div>
               </section>
             )}
-
-            {/* ─────────── [AI] SECTION 1: 사주 원국 분석 ─────────── */}
-            <AIReportSection
-              section={sec(1)}
-              loading={aiPending}
-              errorMessage={reportError}
-              loadingLabel="AI가 사주 전체를 분석하고 있습니다. 해설 생성에 1~2분 정도 소요되니 잠시만 기다려 주세요."
-            />
 
             {/* ─────────── 2. 오행 분포 ─────────── */}
             <section className="space-y-5">
@@ -390,14 +338,6 @@ export default function ManseTab({
                 </div>
               </div>
             </section>
-
-            {/* ─────────── [AI] SECTION 4: 오행 밸런스 & 실생활 코칭 ─────────── */}
-            <AIReportSection
-              section={sec(4)}
-              loading={aiPending}
-              errorMessage={reportError}
-              loadingLabel="오행 밸런스 해설 준비 중..."
-            />
 
             {/* ─────────── 3. 지지와 지장간 ─────────── */}
             <section className="space-y-5">
@@ -529,14 +469,6 @@ export default function ManseTab({
               currentSeoulYear={currentSeoulYear}
             />
 
-            {/* ─────────── [AI] SECTION 3: 생애 주기별 운세 ─────────── */}
-            <AIReportSection
-              section={sec(3)}
-              loading={aiPending}
-              errorMessage={reportError}
-              loadingLabel="생애 주기 해설 준비 중..."
-            />
-
             {/* ─────────── 10. 세운 ─────────── */}
             {daeunResult.length > 0 && selectedDaeunIdx !== null && (
               <SeunSection
@@ -547,34 +479,10 @@ export default function ManseTab({
               />
             )}
 
-            {/* ─────────── [AI] SECTION 2: 대운 & 세운 흐름 ─────────── */}
-            <AIReportSection
-              section={sec(2)}
-              loading={aiPending}
-              errorMessage={reportError}
-              loadingLabel="대운·세운 해설 준비 중..."
-            />
-
             {/* ─────────── 11. 용신 ─────────── */}
             {yongshinResult && (
               <YongshinSection name={displayName} yongshin={yongshinResult} />
             )}
-
-            {/* ─────────── [AI] SECTION 5: 용신과 지혜의 길 ─────────── */}
-            <AIReportSection
-              section={sec(5)}
-              loading={aiPending}
-              errorMessage={reportError}
-              loadingLabel="용신 해설 준비 중..."
-            />
-
-            {/* ─────────── [AI] SECTION 6: 테마별 분석 ─────────── */}
-            <AIReportSection
-              section={sec(6)}
-              loading={aiPending}
-              errorMessage={reportError}
-              loadingLabel="테마별 해설 준비 중..."
-            />
 
             {/* ─────────── Disclaimer ─────────── */}
             <div className={`${PAPER_CARD} p-5 md:p-6`} style={PAPER_CARD_SHADOW}>

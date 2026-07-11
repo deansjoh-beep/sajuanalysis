@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Readable } from 'node:stream';
 import { checkVercelRateLimit, generalLimiter } from '../_lib/rate-limit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -19,14 +20,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const safeModel = model.replace(/[^a-zA-Z0-9._-]/g, '');
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${apiKey}`;
+  const isStream = req.query?.stream === '1';
 
   try {
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    if (isStream) {
+      // SSE — Gemini streamGenerateContent(alt=sse)를 그대로 파이프.
+      const upstream = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:streamGenerateContent?alt=sse&key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      );
+      if (!upstream.ok || !upstream.body) {
+        const errData = await upstream.json().catch(() => ({}));
+        return res.status(upstream.status).json(errData);
+      }
+      res.status(200);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      Readable.fromWeb(upstream.body as any).pipe(res);
+      return;
+    }
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
 
     const data = await geminiRes.json();
     return res.status(geminiRes.status).json(data);
