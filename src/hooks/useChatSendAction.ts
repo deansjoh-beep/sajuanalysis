@@ -8,7 +8,7 @@ import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, r
 import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from '../lib/claudeClient';
 import { proxyGenerateContent } from '../lib/geminiClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
-import { buildYearlyCard, buildWealthCard, buildDaeunCard, summarizeCard } from '../lib/chatDataSelectors';
+import { buildYearlyCard, buildPeriodCard, buildWealthCard, buildDaeunCard, buildCareerCard, buildLoveCard, buildHealthCard, buildRelationsCard, summarizeCard } from '../lib/chatDataSelectors';
 import type { SajuCardPayload } from '../lib/chatDataSelectors';
 import { CHAT_SCENARIOS } from '../constants/chatScenarios';
 import type { ChatScenario } from '../constants/chatScenarios';
@@ -207,6 +207,7 @@ export const useChatSendAction = ({
       todayDayPillar,
       nearbyDayPillars,
       currentYearPillar,
+      currentMonthPillar,
       nearbyYearPillars,
     };
   };
@@ -219,8 +220,30 @@ export const useChatSendAction = ({
     switch (scenario.cardKind) {
       case 'yearly':
         return buildYearlyCard(ctx.dayMasterHanja, ctx.currentYearPillar);
+      case 'monthly':
+        return buildPeriodCard(
+          ctx.dayMasterHanja,
+          ctx.currentMonthPillar.monthPillarHanja,
+          ctx.currentMonthPillar.monthPillarHangul,
+          `이달(${ctx.currentMonthPillar.year}-${String(ctx.currentMonthPillar.month).padStart(2, '0')}) 월운`
+        );
+      case 'daily':
+        return buildPeriodCard(
+          ctx.dayMasterHanja,
+          ctx.todayDayPillar.dayPillarHanja,
+          ctx.todayDayPillar.dayPillarHangul,
+          `오늘(${ctx.todayDayPillar.dateText}) 일진`
+        );
       case 'wealth':
         return buildWealthCard(sajuResult, yongshinResult);
+      case 'career':
+        return buildCareerCard(sajuResult, gyeokResult);
+      case 'love':
+        return buildLoveCard(sajuResult, ctx.dayMasterHanja);
+      case 'health':
+        return buildHealthCard(sajuResult, yongshinResult);
+      case 'relations':
+        return buildRelationsCard(sajuResult);
       case 'daeun':
         return buildDaeunCard(daeunResult, ctx.dayMasterHanja, ctx.currentAge);
     }
@@ -642,16 +665,17 @@ export const useChatSendAction = ({
 
       const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);
 
-      // 후속 선택지: 이 주제 심화 질문 + 다른 주제 진입.
+      // 후속 선택지: 이 주제 심화 질문 + 연관 주제 진입.
       const followupOptions: ChatOption[] = scenario.followups.map((q) => ({ label: q, query: q }));
-      const otherScenarioOptions: ChatOption[] = CHAT_SCENARIOS
-        .filter((s) => s.id !== scenario.id)
+      const relatedOptions: ChatOption[] = (scenario.related ?? [])
+        .map((id) => CHAT_SCENARIOS.find((s) => s.id === id))
+        .filter((s): s is ChatScenario => Boolean(s))
         .map((s) => ({ label: `${s.label} 보기`, scenarioId: s.id }));
 
       setMessages((prev) => [
         ...prev,
         { role: 'model', text: finalResponseText },
-        { role: 'model', kind: 'options', title: '이어서 물어볼까요?', options: [...followupOptions, ...otherScenarioOptions] },
+        { role: 'model', kind: 'options', title: '이어서 물어볼까요?', options: [...followupOptions, ...relatedOptions] },
       ]);
     } catch (err: any) {
       reportChatError(err, requestId);
