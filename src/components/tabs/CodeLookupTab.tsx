@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
@@ -402,7 +402,6 @@ export default function CodeLookupTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeReportIdx, setActiveReportIdx] = useState(0);
-  const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
   // 리딤 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
   const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType } | null>(null);
@@ -420,7 +419,6 @@ export default function CodeLookupTab() {
       setCode(target);
       setResult(data as LookupResult);
       setActiveReportIdx(0);
-      setActiveSectionIdx(0);
       return data as LookupResult;
     } catch (e) {
       setError(e instanceof Error ? e.message : '조회에 실패했습니다.');
@@ -455,11 +453,21 @@ export default function CodeLookupTab() {
   };
 
   const activeReport = result?.reports[activeReportIdx] ?? null;
+  // 표지(cover)·빈 섹션은 화면 열람에서 제외한다(표지는 PDF 전용).
   const sections: ReportSection[] = useMemo(
-    () => (activeReport ? parseLifeNavSections(activeReport.content, []) : []),
+    () =>
+      activeReport
+        ? parseLifeNavSections(activeReport.content, []).filter(
+            (s) => s.id !== 'cover' && Boolean(stripMarkers(s.summary) || stripMarkers(s.content)),
+          )
+        : [],
     [activeReport],
   );
-  const activeSection = sections[activeSectionIdx] ?? null;
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollToSection = (i: number) => {
+    // 중첩 스크롤 컨테이너에서는 smooth 동작이 무시돼 즉시 이동으로 처리한다.
+    sectionRefs.current[i]?.scrollIntoView({ block: 'start' });
+  };
 
   const downloadIcs = () => {
     const nextYear = getCurrentWolun().sajuYear + 1;
@@ -626,10 +634,7 @@ export default function CodeLookupTab() {
                           {result.reports.map((r, i) => (
                             <button
                               key={r.reportId}
-                              onClick={() => {
-                                setActiveReportIdx(i);
-                                setActiveSectionIdx(0);
-                              }}
+                              onClick={() => setActiveReportIdx(i)}
                               className={`px-3 py-1.5 rounded-xl text-[13px] font-bold ${
                                 i === activeReportIdx ? 'bg-ink-900 text-paper-50' : 'border border-ink-300/40 text-ink-700'
                               }`}
@@ -656,43 +661,49 @@ export default function CodeLookupTab() {
                     </button>
                   </div>
 
-                  {/* 섹션 탭 */}
-                  {sections.length > 0 && (
-                    <>
-                      <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-1 px-1">
-                        {sections.map((s, i) => (
-                          <button
-                            key={s.id + i}
-                            onClick={() => setActiveSectionIdx(i)}
-                            className={`shrink-0 px-3 py-1.5 rounded-xl text-[13px] font-bold transition-all ${
-                              i === activeSectionIdx
-                                ? 'bg-ink-900 text-paper-50'
-                                : 'border border-ink-300/40 text-ink-700'
-                            }`}
-                          >
-                            {s.title.length > 14 ? `${s.title.slice(0, 14)}…` : s.title}
-                          </button>
-                        ))}
-                      </div>
+                  {/* 목차 — 섹션 바로가기 */}
+                  {sections.length > 1 && (
+                    <nav className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-ink-300/20 pt-4">
+                      {sections.map((s, i) => (
+                        <button
+                          key={s.id + i}
+                          onClick={() => scrollToSection(i)}
+                          className="text-[13px] text-ink-500 underline-offset-4 hover:text-ink-900 hover:underline"
+                        >
+                          {s.title}
+                        </button>
+                      ))}
+                    </nav>
+                  )}
 
-                      {activeSection && (
-                        <div className="space-y-4">
-                          <h4 className="font-serif text-[18px] font-bold text-ink-900">{activeSection.title}</h4>
-                          {activeSection.summary && (
+                  {/* 본문 통독 */}
+                  {sections.length > 0 ? (
+                    <div>
+                      {sections.map((s, i) => (
+                        <div
+                          key={s.id + i}
+                          ref={(el) => {
+                            sectionRefs.current[i] = el;
+                          }}
+                          className="scroll-mt-6 space-y-4 border-t border-ink-300/20 pt-6 first:border-t-0 first:pt-0"
+                        >
+                          <h4 className="font-serif text-[18px] font-bold text-ink-900">{s.title}</h4>
+                          {stripMarkers(s.summary) && (
                             <p className="text-[14px] font-bold text-ink-900 leading-relaxed">
-                              {stripMarkers(activeSection.summary)}
+                              {stripMarkers(s.summary)}
                             </p>
                           )}
-                          {activeSection.id === 'monthly' && activeReport!.product === 'yearly2026' ? (
-                            <MonthCalendar content={activeSection.content} sajuYear={2026} />
+                          {s.id === 'monthly' && activeReport!.product === 'yearly2026' ? (
+                            <MonthCalendar content={s.content} sajuYear={2026} />
                           ) : (
-                            <TextBlock text={activeSection.content} />
+                            <TextBlock text={s.content} />
                           )}
                         </div>
-                      )}
-                    </>
+                      ))}
+                    </div>
+                  ) : (
+                    <TextBlock text={activeReport!.content} />
                   )}
-                  {sections.length === 0 && <TextBlock text={activeReport!.content} />}
                 </section>
               )}
             </>
