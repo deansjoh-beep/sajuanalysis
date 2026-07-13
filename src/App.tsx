@@ -131,7 +131,7 @@ const App: React.FC = () => {
     typeof window !== "undefined" && /[?&]checkout=(return|fail)/.test(window.location.search) ? "checkout" : "welcome"
   );
   const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('premium');
-  const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "about" | "contact" | "taekil">("main");
+  const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "refund" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
@@ -1206,6 +1206,10 @@ const App: React.FC = () => {
               handleStart={handleStart}
               onTeaserManse={handleTeaserToManse}
               reportsComingSoon={REPORTS_COMING_SOON}
+              onOpenPolicy={(page) => {
+                setGuideSubPage(page);
+                setActiveTab('guide');
+              }}
             />
           )}
 

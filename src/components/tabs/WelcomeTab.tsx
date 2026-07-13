@@ -68,6 +68,8 @@ interface WelcomeTabProps {
   onTeaserManse: (input: TeaserInput) => void;
   /** 정식 오픈 전 리포트 구매 게이트 (App.tsx REPORTS_COMING_SOON) */
   reportsComingSoon: boolean;
+  /** 푸터 약관·정책 링크 → 가이드 서브페이지로 이동 */
+  onOpenPolicy: (page: 'terms' | 'privacy' | 'refund') => void;
 }
 
 export default function WelcomeTab({
@@ -87,6 +89,7 @@ export default function WelcomeTab({
   handleStart,
   onTeaserManse,
   reportsComingSoon,
+  onOpenPolicy,
 }: WelcomeTabProps) {
   // 첫 섹션 다음으로 스크롤할 때 사용
   const philosophyRef = useRef<HTMLDivElement>(null);
@@ -186,6 +189,7 @@ export default function WelcomeTab({
               onOpenBlog={() => setActiveTab('blog')}
               onOpenChat={() => setActiveTab('chat')}
               onOpenReport={() => setActiveTab('report')}
+              onOpenPolicy={onOpenPolicy}
             />
           </div>
         ) : (

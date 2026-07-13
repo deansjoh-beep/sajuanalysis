@@ -7,6 +7,7 @@ import {
   DEFAULT_GUIDE_TERMS,
   DEFAULT_GUIDE_PRIVACY,
   DEFAULT_GUIDE_CONTACT,
+  DEFAULT_GUIDE_REFUND,
 } from '../../constants/guideDefaults';
 
 interface GuideTabContentProps {
@@ -14,9 +15,9 @@ interface GuideTabContentProps {
   glassTabBgClass: string;
   glassPanelClass: string;
   glassPanelStrongClass: string;
-  guideSubPage: 'main' | 'privacy' | 'terms' | 'about' | 'contact' | 'taekil';
+  guideSubPage: 'main' | 'privacy' | 'terms' | 'refund' | 'about' | 'contact' | 'taekil';
   setGuideSubPage: React.Dispatch<
-    React.SetStateAction<'main' | 'privacy' | 'terms' | 'about' | 'contact' | 'taekil'>
+    React.SetStateAction<'main' | 'privacy' | 'terms' | 'refund' | 'about' | 'contact' | 'taekil'>
   >;
   guideAboutContent?: string;
   guideTermsContent?: string;
@@ -211,6 +212,9 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
               {guideSubPage === 'privacy' && (
                 <ReactMarkdown>{guidePrivacyContent || DEFAULT_GUIDE_PRIVACY}</ReactMarkdown>
               )}
+              {guideSubPage === 'refund' && (
+                <ReactMarkdown>{DEFAULT_GUIDE_REFUND}</ReactMarkdown>
+              )}
               {guideSubPage === 'contact' && (
                 <ReactMarkdown>{guideContactContent || DEFAULT_GUIDE_CONTACT}</ReactMarkdown>
               )}
@@ -237,6 +241,12 @@ export const GuideTabContent: React.FC<GuideTabContentProps> = ({
               className="hover:text-ink-900 transition-colors"
             >
               개인정보 처리방침
+            </button>
+            <button
+              onClick={() => setGuideSubPage('refund')}
+              className="hover:text-ink-900 transition-colors"
+            >
+              취소·환불 정책
             </button>
             <button
               onClick={() => setGuideSubPage('contact')}

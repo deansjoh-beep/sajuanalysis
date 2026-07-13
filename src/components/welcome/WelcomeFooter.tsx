@@ -14,6 +14,18 @@ interface WelcomeFooterProps {
   onOpenBlog: () => void;
   onOpenChat: () => void;
   onOpenReport: () => void;
+  /** 약관·정책 링크 → 가이드 서브페이지로 이동 */
+  onOpenPolicy: (page: 'terms' | 'privacy' | 'refund') => void;
+}
+
+/** 회사 정보 라벨·값 한 줄 */
+function CompanyInfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-3">
+      <dt className="text-[12px] text-ink-500 shrink-0 w-24">{label}</dt>
+      <dd className="text-[14px] text-ink-700 leading-relaxed">{value}</dd>
+    </div>
+  );
 }
 
 /**
@@ -26,6 +38,7 @@ export function WelcomeFooter({
   onOpenBlog,
   onOpenChat,
   onOpenReport,
+  onOpenPolicy,
 }: WelcomeFooterProps) {
   return (
     <footer className="relative px-4 py-16 md:py-20 border-t border-ink-300/30 bg-paper-100/30">
@@ -142,6 +155,46 @@ export function WelcomeFooter({
               <ExternalLink className="w-4 h-4 text-ink-500 group-hover:text-ink-900 group-hover:translate-x-0.5 transition-all" />
             </a>
           </div>
+        </div>
+
+        {/* 회사 정보 (전자상거래법 표기) */}
+        <div className="space-y-6 border-t border-ink-300/30 pt-14 md:pt-16">
+          <h3 className="font-serif font-bold text-[16px] md:text-[18px] text-ink-900">회사 정보</h3>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3">
+            <CompanyInfoRow label="상호" value="유아이트레이딩(주)" />
+            <CompanyInfoRow label="대표자" value="오세진" />
+            <CompanyInfoRow label="사업자등록번호" value="446-09-01872" />
+            <CompanyInfoRow label="통신판매업신고" value="신고 예정" />
+            <CompanyInfoRow label="업태 / 종목" value="전문, 과학 및 기술서비스업 / 경영 컨설팅업" />
+            <CompanyInfoRow label="고객센터" value="010-2037-5296 · dean.uitrading@gmail.com" />
+            <div className="sm:col-span-2">
+              <CompanyInfoRow
+                label="주소"
+                value="서울특별시 강남구 개포로 310, 159동 1003호 (개포동, 디에이치퍼스티어아이파크)"
+              />
+            </div>
+          </dl>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <button
+              onClick={() => onOpenPolicy('terms')}
+              className="text-[12px] text-ink-500 hover:text-ink-900 underline underline-offset-4 decoration-ink-300/40"
+            >
+              이용약관
+            </button>
+            <button
+              onClick={() => onOpenPolicy('privacy')}
+              className="text-[12px] text-ink-500 hover:text-ink-900 underline underline-offset-4 decoration-ink-300/40"
+            >
+              개인정보 처리방침
+            </button>
+            <button
+              onClick={() => onOpenPolicy('refund')}
+              className="text-[12px] text-ink-500 hover:text-ink-900 underline underline-offset-4 decoration-ink-300/40"
+            >
+              취소·환불 정책
+            </button>
+          </div>
+          <p className="text-[12px] text-ink-500">© 2026 유아이트레이딩(주). All rights reserved.</p>
         </div>
       </div>
     </footer>
