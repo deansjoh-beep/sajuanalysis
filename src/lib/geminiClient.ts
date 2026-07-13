@@ -130,6 +130,8 @@ export const proxyGenerateContent = async ({
   const generationConfig: any = {};
   if (config?.temperature !== undefined) generationConfig.temperature = config.temperature;
   if (config?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = config.maxOutputTokens;
+  // thinking 토큰 제어(예: gemini-2.5* thinkingBudget:0)로 지연·비용 절감.
+  if (config?.thinkingConfig !== undefined) generationConfig.thinkingConfig = config.thinkingConfig;
   if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
 
   const res = await fetch('/api/gemini/generate', {
@@ -158,6 +160,107 @@ export const proxyGenerateContent = async ({
     functionCalls: fcParts.length > 0 ? fcParts.map((p: any) => p.functionCall) : undefined,
     candidates: data.candidates ?? [],
   };
+};
+
+export interface StreamGeminiContentParams {
+  model: string;
+  contents: any[];
+  config?: {
+    systemInstruction?: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+    thinkingConfig?: any;
+  };
+  /** 누적 텍스트를 청크마다 전달(스트리밍 렌더용). */
+  onText?: (accumulated: string) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * SSE 스트리밍 생성. /api/gemini/generate?stream=1 프록시가 Gemini streamGenerateContent(alt=sse)를
+ * 그대로 파이프한다. proxyGenerateContent와 동일한 반환 형태({text, candidates})를 맞춰
+ * 호출측(generateBasicReport)의 finishReason 처리를 재사용한다.
+ */
+export const streamGeminiContent = async ({
+  model,
+  contents,
+  config,
+  onText,
+  signal,
+}: StreamGeminiContentParams): Promise<ProxyGenerateContentResponse> => {
+  const body: any = { model, contents };
+  if (config?.systemInstruction) {
+    body.systemInstruction = { parts: [{ text: config.systemInstruction }] };
+  }
+  const generationConfig: any = {};
+  if (config?.temperature !== undefined) generationConfig.temperature = config.temperature;
+  if (config?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = config.maxOutputTokens;
+  if (config?.thinkingConfig !== undefined) generationConfig.thinkingConfig = config.thinkingConfig;
+  if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
+
+  const res = await fetch('/api/gemini/generate?stream=1', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData?.error?.message || `Gemini stream error ${res.status}`;
+    throw Object.assign(new Error(JSON.stringify({ error: errData?.error || { message: errMsg, code: res.status } })), {
+      status: res.status,
+      error: errData?.error,
+    });
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let full = '';
+  let finishReason: string | undefined;
+
+  const consumeEvent = (rawEvent: string) => {
+    // 이벤트는 여러 줄일 수 있고 줄 끝이 \r\n일 수 있다 — \r 제거 후 data: 파싱.
+    for (const line of rawEvent.split(/\r?\n/)) {
+      const m = line.match(/^data:\s?(.*)$/);
+      if (!m) continue;
+      const payload = m[1];
+      if (!payload || payload === '[DONE]') continue;
+      try {
+        const obj = JSON.parse(payload);
+        const cand = obj.candidates?.[0];
+        const partText: string = (cand?.content?.parts ?? [])
+          .map((p: any) => (typeof p.text === 'string' ? p.text : ''))
+          .join('');
+        if (partText) {
+          full += partText;
+          onText?.(full);
+        }
+        if (cand?.finishReason) finishReason = cand.finishReason;
+      } catch {
+        /* 부분 JSON — 다음 청크에서 합쳐짐(버퍼 유지) */
+      }
+    }
+  };
+
+  // SSE 이벤트 구분자는 빈 줄(\n\n 또는 \r\n\r\n). 완결된 이벤트만 잘라 처리하고
+  // 미완결 부분은 버퍼에 남겨 다음 청크와 합친다.
+  const BOUNDARY = /\r?\n\r?\n/;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let m: RegExpExecArray | null;
+    while ((m = BOUNDARY.exec(buffer)) !== null) {
+      const rawEvent = buffer.slice(0, m.index);
+      buffer = buffer.slice(m.index + m[0].length);
+      consumeEvent(rawEvent);
+    }
+  }
+  if (buffer.trim()) consumeEvent(buffer);
+
+  return { text: full, functionCalls: undefined, candidates: [{ finishReason }] };
 };
 
 export const DEFAULT_GEMINI_MODEL_PRIORITY = [

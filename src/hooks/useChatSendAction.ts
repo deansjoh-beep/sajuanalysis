@@ -49,6 +49,8 @@ interface UseChatSendActionParams {
   activeCode: ChatCodeInfo | null;
   setActiveCode: React.Dispatch<React.SetStateAction<ChatCodeInfo | null>>;
   setFreeTurnsRemaining: React.Dispatch<React.SetStateAction<number>>;
+  /** 테스트 명식(chatUsage.UNLIMITED_TEST_PROFILES) 일치 시 무료 턴 게이트/차감 우회. */
+  unlimitedTester: boolean;
 }
 
 export const useChatSendAction = ({
@@ -79,7 +81,8 @@ export const useChatSendAction = ({
   calculateSajuForPerson,
   activeCode,
   setActiveCode,
-  setFreeTurnsRemaining
+  setFreeTurnsRemaining,
+  unlimitedTester
 }: UseChatSendActionParams) => {
   const makeGate = (variant: GatePayload['variant']): ChatMessage => ({
     role: 'model',
@@ -579,8 +582,9 @@ export const useChatSendAction = ({
     }
 
     // Phase C 게이팅: 무료 사용자는 일일 한도, 코드 보유자는 자유 질문당 followup 1회.
+    // 테스트 명식(unlimitedTester)은 무료 한도 게이트/차감을 모두 우회한다.
     const isCodeHolder = !!activeCode;
-    if (!isCodeHolder && getFreeTurnsRemaining() <= 0) {
+    if (!isCodeHolder && !unlimitedTester && getFreeTurnsRemaining() <= 0) {
       setInput('');
       setMessages((prev) => [...prev, { role: 'user', text: userMessage }, makeGate('free_exhausted')]);
       return;
@@ -651,7 +655,7 @@ export const useChatSendAction = ({
 
       const finalResponseText = enforceRelationshipLabel(rawText, lockedRelationship);
       setMessages((prev) => [...prev, { role: 'model', text: finalResponseText }]);
-      if (!isCodeHolder) {
+      if (!isCodeHolder && !unlimitedTester) {
         setFreeTurnsRemaining(consumeFreeTurn());
       }
       if (modeAtRequest === 'basic') {
@@ -699,7 +703,8 @@ export const useChatSendAction = ({
     calculateSajuForPerson,
     activeCode,
     setActiveCode,
-    setFreeTurnsRemaining
+    setFreeTurnsRemaining,
+    unlimitedTester
   ]);
 
   /**
@@ -727,7 +732,7 @@ export const useChatSendAction = ({
     }
 
     const isCodeHolder = !!activeCode;
-    if (!isCodeHolder && getFreeTurnsRemaining() <= 0) {
+    if (!isCodeHolder && !unlimitedTester && getFreeTurnsRemaining() <= 0) {
       setMessages((prev) => [...prev, makeGate('free_exhausted')]);
       return;
     }
@@ -808,7 +813,7 @@ export const useChatSendAction = ({
         { role: 'model', text: finalResponseText },
         { role: 'model', kind: 'options', title: '이어서 물어볼까요?', options: [...followupOptions, ...relatedOptions] },
       ]);
-      if (!isCodeHolder) {
+      if (!isCodeHolder && !unlimitedTester) {
         setFreeTurnsRemaining(consumeFreeTurn());
       }
     } catch (err: any) {
@@ -840,7 +845,8 @@ export const useChatSendAction = ({
     sajuToolDeclaration,
     calculateSajuForPerson,
     activeCode,
-    setFreeTurnsRemaining
+    setFreeTurnsRemaining,
+    unlimitedTester
   ]);
 
   /**

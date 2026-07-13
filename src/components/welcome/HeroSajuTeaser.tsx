@@ -1,7 +1,15 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { buildTeaserSummary, fetchTeaserComment, type TeaserInput, type TeaserSummary } from '../../lib/landingTeaser';
+import { buildTeaserSummary, fetchTeaserComment, teaserInputToDateStrings, type TeaserInput, type TeaserSummary } from '../../lib/landingTeaser';
 import { toOhaengChartData } from '../../constants/ohaengColors';
+import { getSajuData, getDaeunData, calculateYongshin, calculateGyeok } from '../../utils/saju';
+import { DEFAULT_USER_DATA } from '../../types/app';
+import { getPreferredGeminiModels } from '../../lib/geminiClient';
+import { generateBasicReport } from '../../lib/generateBasicReport';
+import { generateReportKeywords } from '../../lib/generateReportKeywords';
+import { isRetryableModelError } from '../../lib/modelUtils';
+import { parseReport, type ParsedReport } from '../manse/reportSectionUtils';
+import { ReportAccordion } from './ReportAccordion';
 
 const FiveElementsPieChart = React.lazy(() => import('../FiveElementsPieChart'));
 
@@ -25,20 +33,32 @@ const SEG_OFF = 'text-ink-500';
 
 export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }: HeroSajuTeaserProps) {
   const [input, setInput] = useState<TeaserInput>({
-    name: '',
-    birthYear: '1990',
-    birthMonth: '1',
-    birthDay: '1',
-    birthHour: '12',
-    calendarType: 'solar',
-    gender: 'M',
-    unknownTime: false,
+    name: DEFAULT_USER_DATA.name,
+    birthYear: DEFAULT_USER_DATA.birthYear,
+    birthMonth: DEFAULT_USER_DATA.birthMonth,
+    birthDay: DEFAULT_USER_DATA.birthDay,
+    birthHour: DEFAULT_USER_DATA.birthHour,
+    calendarType: DEFAULT_USER_DATA.calendarType,
+    gender: DEFAULT_USER_DATA.gender,
+    unknownTime: DEFAULT_USER_DATA.unknownTime,
   });
   const [summary, setSummary] = useState<TeaserSummary | null>(null);
   const [aiComment, setAiComment] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 무료 기본 리포트 — 2단계 지연 생성.
+  // 1단계: 제출 시 키워드 6개만(저렴·빠름) → 아코디언 헤더.
+  const [keywords, setKeywords] = useState<string[] | null>(null);
+  const [keywordsLoading, setKeywordsLoading] = useState(false);
+  const [keywordsError, setKeywordsError] = useState<string | null>(null);
+  // 2단계: 첫 섹션 펼침 시 본문 전체(만세력 백색 [SECTION] 장문)를 한 번 생성·캐시.
+  const [report, setReport] = useState<ParsedReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  // 늦게 도착한 결과가 "다시 입력하기" 이후 화면에 끼어드는 것 방지용 요청 토큰.
+  const reportReqRef = useRef(0);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -57,16 +77,93 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
     }
     setSummary(built);
 
-    // AI 한 줄 풀이 — 실패 시 조용히 생략(규칙 요약만 표시)
+    // 이전 진행분 취소 + 2단계 결과 폐기.
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    reportReqRef.current++;
+    setReport(null);
+    setReportError(null);
+    setReportLoading(false);
+
+    // AI 한 줄 풀이 — 실패 시 조용히 생략(규칙 요약만 표시)
     setAiComment(null);
     setAiLoading(true);
     fetchTeaserComment(built.ganzhiContext, controller.signal)
       .then((text) => setAiComment(text))
       .catch(() => undefined)
       .finally(() => setAiLoading(false));
+
+    // 1단계: 리포트 섹션 키워드만 생성(저렴). 본문은 첫 펼침 때.
+    setKeywords(null);
+    setKeywordsError(null);
+    setKeywordsLoading(true);
+    generateReportKeywords(built.ganzhiContext, controller.signal)
+      .then((kw) => setKeywords(kw))
+      .catch((e) => {
+        if (e instanceof Error && e.name === 'AbortError') return;
+        console.error('[teaser] keywords failed:', e);
+        setKeywordsError('키워드를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+      })
+      .finally(() => setKeywordsLoading(false));
+  };
+
+  /**
+   * 2단계: 무료 기본 리포트 본문 생성 — 만세력과 동일한 초급자 [SECTION] 장문.
+   * 아코디언 첫 펼침 시 1회 호출(성공하면 캐시, 재호출 방지).
+   */
+  const generateReport = async () => {
+    if (report || reportLoading) return; // 이미 생성됨/진행 중
+    const reqId = ++reportReqRef.current;
+    setReportError(null);
+    setReportLoading(true);
+    try {
+      const { dateStr, timeStr, isLunar, isLeap } = teaserInputToDateStrings(input);
+      const sajuResult = getSajuData(dateStr, timeStr, isLunar, isLeap, input.unknownTime);
+      const daeunResult = getDaeunData(dateStr, timeStr, isLunar, isLeap, input.gender, input.unknownTime);
+      const yongshinResult = calculateYongshin(sajuResult);
+      const gyeokResult = calculateGyeok(sajuResult);
+
+      // 스트리밍: 청크마다 부분 파싱해 아코디언 섹션을 점진적으로 채운다(체감 지연↓).
+      let lastTick = 0;
+      const { text } = await generateBasicReport({
+        sajuResult,
+        daeunResult,
+        yongshinResult,
+        gyeokResult,
+        birthYear: input.birthYear,
+        userName: input.name,
+        mode: 'basic',
+        preferredModels: getPreferredGeminiModels(),
+        onProgress: (acc) => {
+          if (reqId !== reportReqRef.current) return;
+          const now = Date.now();
+          if (now - lastTick < 250) return; // 과도한 리렌더 억제
+          lastTick = now;
+          const partial = parseReport(acc);
+          if (partial.sections.length > 0) setReport(partial);
+        },
+      });
+      if (reqId !== reportReqRef.current) return; // 추월/취소됨
+      const parsed = parseReport(text);
+      if (parsed.sections.length === 0) {
+        setReport(null); // 재시도 가능하도록 초기화
+        setReportError('리포트를 받아오지 못했어요. 아래에서 다시 시도해 주세요.');
+      } else {
+        setReport(parsed);
+      }
+    } catch (e) {
+      console.error('[teaser] report failed:', e);
+      if (reqId !== reportReqRef.current) return;
+      setReport(null); // 부분 스트림 폐기 → 재시도 가능
+      setReportError(
+        isRetryableModelError(e)
+          ? '지금 요청이 많아 잠시 지연되고 있어요. 잠시 후 다시 시도해 주세요.'
+          : '리포트를 만드는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
+      );
+    } finally {
+      if (reqId === reportReqRef.current) setReportLoading(false);
+    }
   };
 
   const chartData = summary ? toOhaengChartData(summary.ohaeng) : [];
@@ -234,6 +331,29 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
               </div>
             )}
 
+            {(keywordsLoading || keywords || keywordsError) && (
+              <div className="border-t border-ink-300/20 pt-3 space-y-3">
+                <p className="text-[12px] text-ink-500">기본 운세 리포트 · 키워드를 눌러 펼쳐보세요</p>
+                {keywordsError ? (
+                  <p className="text-[13px] text-ink-500">{keywordsError}</p>
+                ) : keywords ? (
+                  <ReportAccordion
+                    keywords={keywords}
+                    report={report}
+                    reportLoading={reportLoading}
+                    reportError={reportError}
+                    onFirstExpand={() => { void generateReport(); }}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="h-[52px] rounded-2xl bg-ink-300/15 animate-pulse" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <p className="text-[14px] font-bold text-ink-900 leading-relaxed border-t border-ink-300/20 pt-3">
               더 자세한 당신의 운세는 만세력(FREE)과 유료 리포트에서 확인하세요.
             </p>
@@ -256,9 +376,16 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
             <button
               onClick={() => {
                 abortRef.current?.abort();
+                reportReqRef.current++; // 진행 중 키워드·리포트 생성 결과 폐기
                 setSummary(null);
                 setAiComment(null);
                 setAiLoading(false);
+                setKeywords(null);
+                setKeywordsError(null);
+                setKeywordsLoading(false);
+                setReport(null);
+                setReportError(null);
+                setReportLoading(false);
               }}
               className="text-[12px] text-ink-500 underline"
             >

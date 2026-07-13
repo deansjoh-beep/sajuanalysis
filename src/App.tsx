@@ -44,6 +44,7 @@ import { TaekilTabContent } from "./components/tabs/TaekilTabContent";
 import WelcomeTab from "./components/tabs/WelcomeTab";
 import ManseTab from "./components/tabs/ManseTab";
 import { useChatTabState, isTextMessage } from "./hooks/useChatTabState";
+import { isUnlimitedTestUser } from "./lib/chatUsage";
 import { useReportTabState } from "./hooks/useReportTabState";
 import { useTaekilTabState } from "./hooks/useTaekilTabState";
 import { useChatTabActions } from "./hooks/useChatTabActions";
@@ -102,6 +103,7 @@ import type {
   UserData,
   SuggestionSource,
 } from "./types/app";
+import { DEFAULT_USER_DATA } from "./types/app";
 import type { TeaserInput } from "./lib/landingTeaser";
 import { renderChatPlainText } from "./components/chat/renderChatPlainText";
 
@@ -135,17 +137,7 @@ const App: React.FC = () => {
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   // State
-  const [userData, setUserData] = useState<UserData>({
-    name: "사용자",
-    birthYear: "1990",
-    birthMonth: "1",
-    birthDay: "1",
-    birthHour: "12",
-    birthMinute: "0",
-    calendarType: 'solar',
-    gender: 'M',
-    unknownTime: false
-  });
+  const [userData, setUserData] = useState<UserData>({ ...DEFAULT_USER_DATA });
   const [sajuResult, setSajuResult] = useState<any[]>([]);
   const [daeunResult, setDaeunResult] = useState<any[]>([]);
   const [selectedDaeunIdx, setSelectedDaeunIdx] = useState<number | null>(null);
@@ -356,17 +348,7 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     if (window.confirm("상담을 종료하고 모든 입력 데이터를 삭제하시겠습니까? (이 작업은 되돌릴 수 없습니다)")) {
-      setUserData({
-        name: "사용자",
-        birthYear: "1990",
-        birthMonth: "1",
-        birthDay: "1",
-        birthHour: "12",
-        birthMinute: "0",
-        calendarType: 'solar',
-        gender: 'M',
-        unknownTime: false
-      });
+      setUserData({ ...DEFAULT_USER_DATA });
       setMessages([]);
       setSajuResult([]);
       setDaeunResult([]);
@@ -827,6 +809,9 @@ const App: React.FC = () => {
     });
   }, [user, isAdmin]);
 
+  // 테스트 명식(오세진 1969-12-02 양력 10시) 일치 시 무료 상담 한도 우회.
+  const unlimitedChatTester = isUnlimitedTestUser(userData);
+
   const { handleSend, handleScenarioSelect, applyCode } = useChatSendAction({
     input,
     loading,
@@ -855,7 +840,8 @@ const App: React.FC = () => {
     calculateSajuForPerson,
     activeCode,
     setActiveCode,
-    setFreeTurnsRemaining
+    setFreeTurnsRemaining,
+    unlimitedTester: unlimitedChatTester
   });
 
   const { handleGenerateReport } = useReportGenerationAction({
@@ -875,22 +861,6 @@ const App: React.FC = () => {
     setReportContent,
     preferredModels: getPreferredGeminiModels(),
   });
-
-  // 만세력 페이지에 통합된 AI 기본 리포트 자동 생성 트리거.
-  // 운세분석이 끝나(sajuResult가 채워짐) 그리고 리포트가 아직 없으면 호출.
-  // 모드 토글 시 setReportContent(null)을 호출하면 자동으로 재생성.
-  // ref 가드로 동일 (sajuResult, mode) 조합에 대해 중복 호출 방지 (React StrictMode·재실행 대비).
-  const reportTriggeredKeyRef = useRef<string>('');
-  useEffect(() => {
-    if (sajuResult.length === 0) return;
-    if (reportContent !== null) return;
-    if (loading) return;
-    const key = `${sajuResult.map(p => `${p.stem.hanja}${p.branch.hanja}`).join('|')}::${consultationMode}`;
-    if (reportTriggeredKeyRef.current === key) return;
-    reportTriggeredKeyRef.current = key;
-    handleGenerateReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sajuResult, reportContent, consultationMode, loading]);
 
   const { handleLogin, handleLogout } = useAdminAuthActions({
     setIsLoggingIn
@@ -1251,12 +1221,6 @@ const App: React.FC = () => {
               daeunScrollRef={daeunScrollRef}
               currentSeoulYear={currentSeoulYear}
               setActiveTab={setActiveTab}
-              reportContent={reportContent}
-              reportLoading={loading}
-              consultationMode={consultationMode}
-              setConsultationMode={setConsultationMode}
-              setReportContent={setReportContent}
-              consultationModeRef={consultationModeRef}
             />
           )}
 
@@ -1303,6 +1267,7 @@ const App: React.FC = () => {
               applyCode={applyCode}
               freeTurnsRemaining={freeTurnsRemaining}
               activeCode={activeCode}
+              unlimitedTester={unlimitedChatTester}
               handleVoiceInput={handleVoiceInput}
               isListening={isListening}
               voiceStatusMessage={voiceStatusMessage}

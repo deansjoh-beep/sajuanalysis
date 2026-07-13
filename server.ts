@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import path from "path";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { runTaekilEngine, TaekilRequest } from "./src/utils/taekilEngine.ts";
@@ -92,7 +93,7 @@ try {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: "20mb" }));
 
@@ -150,6 +151,25 @@ async function startServer() {
     if (!model || typeof model !== 'string') return res.status(400).json({ error: 'model field required' });
 
     const safeModel = model.replace(/[^a-zA-Z0-9._-]/g, '');
+
+    // 스트리밍(SSE) — Gemini streamGenerateContent(alt=sse)를 그대로 클라이언트로 파이프.
+    if (req.query.stream === '1') {
+      const upstream = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:streamGenerateContent?alt=sse&key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (!upstream.ok || !upstream.body) {
+        const errData = await upstream.json().catch(() => ({}));
+        return res.status(upstream.status).json(errData);
+      }
+      res.status(200);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      Readable.fromWeb(upstream.body as any).pipe(res);
+      return;
+    }
+
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${apiKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
