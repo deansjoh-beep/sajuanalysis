@@ -2,6 +2,7 @@ import { getSajuData, calculateYongshin } from "../utils/saju";
 import { toLegacyYongshin } from './analysis/gyeokyongshin';
 import { assemblePremiumReportPrompt, evaluatePremiumReportQuality } from './premiumReportCore';
 import { claudeGenerateContent } from './claudeClient';
+import { estimateCostKrw, type CallUsage } from './modelPricing';
 import { ReportInputData, ReportSection } from "./premiumOrderStore";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ export const generateLifeNavReport = async (
   content: string;
   /** 품질 점수(0–100). save-report의 qualityScore로 사용. */
   qualityScore: number;
+  /** 추정 생성 원가(₩, 정수) — 보정 재생성·실패 과금분 포함. 사용량 미수집 시 null. */
+  generationCostKrw: number | null;
 }> => {
   // 1. 프롬프트 조립 — SajuAnalysis 단일 소스(코어 모듈, 벤치 하네스와 동일 경로).
   const { system, user, analysis } = assemblePremiumReportPrompt(inputData);
@@ -44,6 +47,9 @@ export const generateLifeNavReport = async (
   //    (OWNER 결정 2026-07-05: 유료 장문 리포트는 Claude 우선 + Gemini Pro 백업)
   const PREMIUM_CLAUDE_MODEL = 'claude-sonnet-5';
   const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
+  // 원가 집계 — 성공/빈응답 등 과금된 호출의 토큰 사용량을 전부 모은다(보정 재생성 포함).
+  const usages: CallUsage[] = [];
 
   const callGeminiWithFallback = async (
     systemText: string,
@@ -87,6 +93,13 @@ export const generateLifeNavReport = async (
         }
 
         const data = await response.json();
+        if (data?.usageMetadata) {
+          usages.push({
+            model,
+            inputTokens: Number(data.usageMetadata.promptTokenCount ?? 0),
+            outputTokens: Number(data.usageMetadata.candidatesTokenCount ?? 0),
+          });
+        }
         const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
         if (!text) {
           console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${model} returned empty — trying next model.`);
@@ -114,7 +127,7 @@ export const generateLifeNavReport = async (
     geminiConfig: any,
   ): Promise<string> => {
     try {
-      const { text } = await claudeGenerateContent({
+      const { text, usage } = await claudeGenerateContent({
         model: PREMIUM_CLAUDE_MODEL,
         systemInstruction: systemText,
         userMessage: userText,
@@ -125,6 +138,7 @@ export const generateLifeNavReport = async (
         thinking: { type: 'disabled' },
         signal,
       });
+      if (usage) usages.push(usage); // 빈 응답이어도 과금은 발생 — 폴백 전에 집계.
       if (text) return text;
       console.warn(`[MODEL_FALLBACK] generatePremiumReport: ${PREMIUM_CLAUDE_MODEL} returned empty — falling back to Gemini.`);
     } catch (err: any) {
@@ -184,6 +198,8 @@ export const generateLifeNavReport = async (
     });
   }
 
-  return { sections, saju, daeun, yongshin, content: quality.normalizedText, qualityScore: quality.score };
+  const generationCostKrw = usages.length > 0 ? Math.round(estimateCostKrw(usages)) : null;
+
+  return { sections, saju, daeun, yongshin, content: quality.normalizedText, qualityScore: quality.score, generationCostKrw };
 };
 

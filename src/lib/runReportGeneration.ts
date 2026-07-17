@@ -97,6 +97,8 @@ export async function runReportGeneration(
         orderId,
         content,
         qualityScore: generated.qualityScore,
+        // 관리자 원가 통계(reports.generation_cost_krw)용 — 토큰 사용량 기반 추정치.
+        generationCostKrw: generated.generationCostKrw,
       }),
     });
     const data = await res.json().catch(() => ({}));

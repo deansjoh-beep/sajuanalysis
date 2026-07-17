@@ -17,6 +17,21 @@ export interface MyeongsikParams {
 
 const YANG_STEMS = ['甲', '丙', '戊', '庚', '壬'];
 
+/**
+ * 재입력한 생년월일이 코드에 등록된 명식과 같은 사주인지 검증한다.
+ * 결제 후 생성 중 이탈한 주문을 복구할 때, 다른 사주로 리포트가 생성되는 사고를 막는
+ * 무결성 검증(겸 구매자 본인 확인). 서버에 생년월일 원문이 없으므로 간지 비교가 유일한 수단.
+ */
+export function myeongsikMatches(stored: MyeongsikParams, entered: MyeongsikParams): boolean {
+  return (
+    stored.pillars.year === entered.pillars.year &&
+    stored.pillars.month === entered.pillars.month &&
+    stored.pillars.day === entered.pillars.day &&
+    (stored.pillars.hour ?? null) === (entered.pillars.hour ?? null) &&
+    stored.gender === entered.gender
+  );
+}
+
 export function buildMyeongsikFromBirth(input: BirthFormInput): MyeongsikParams {
   const analysis = buildSajuAnalysis({
     dateStr: input.dateStr,

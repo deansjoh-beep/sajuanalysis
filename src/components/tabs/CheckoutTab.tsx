@@ -56,6 +56,10 @@ function CheckoutDone({
           <p className="text-[12px] text-ink-500">사주 코드</p>
           <p className="font-serif text-[28px] font-bold tracking-widest text-ink-900 mt-1">{code}</p>
         </div>
+        <p className="text-[12px] text-ink-500 leading-relaxed">
+          생성 도중 창이 닫혀도 결제는 안전합니다. ‘리포트 조회’에서 코드를 입력하면 추가 결제 없이
+          생성을 다시 시작할 수 있습니다.
+        </p>
       </section>
 
       {sections ? (
@@ -331,6 +335,13 @@ export default function CheckoutTab() {
               <p className="text-[14px] text-ink-500 leading-relaxed">
                 아래 버튼을 누르면 토스페이먼츠 결제창이 열립니다. 결제가 끝나면 리포트 코드가 발급되고
                 생성이 시작됩니다.
+              </p>
+              {/* 청약철회 제한 사전 고지 — 전자상거래법 17조 2항. 취소·환불 정책과 문구 정합 유지. */}
+              <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
+                리포트는 사주 정보를 바탕으로 개별 생성되는 맞춤형 디지털 콘텐츠로, 생성이 완료된 후에는
+                청약철회(환불)가 불가합니다. 생성 전에는 전액 환불되며, 오류로 정상 열람이 불가능한 경우에는
+                생성 후에도 재생성 또는 전액 환불해 드립니다. 결제 진행 시 위 내용에 동의한 것으로 봅니다.
+                자세한 내용은 하단 '취소·환불 정책'을 확인해 주세요.
               </p>
               <button
                 onClick={() => void requestPay()}
