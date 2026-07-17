@@ -30,9 +30,16 @@ export interface ClaudeGenerateParams {
   signal?: AbortSignal;
 }
 
+export interface ClaudeUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 /**
  * Anthropic Messages API 호출.
  * 반환 형태는 Gemini generateContent의 { text } 서브셋과 동일하게 맞춤.
+ * usage는 원가 집계용(generation_cost_krw) — 프록시가 usage를 안 주면 undefined.
  */
 export const claudeGenerateContent = async ({
   model,
@@ -43,7 +50,7 @@ export const claudeGenerateContent = async ({
   thinking,
   stream,
   signal,
-}: ClaudeGenerateParams): Promise<{ text: string }> => {
+}: ClaudeGenerateParams): Promise<{ text: string; usage?: ClaudeUsage }> => {
   const response = await fetch('/api/claude/generate', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -78,5 +85,13 @@ export const claudeGenerateContent = async ({
   const textBlock = Array.isArray(data.content)
     ? data.content.find((b: any) => b?.type === 'text')
     : null;
-  return { text: textBlock ? String(textBlock.text) : '' };
+  const usage = data?.usage
+    ? {
+        // 단가표 키와 일치하도록 요청 모델명을 사용한다 (응답 model은 버전 접미사가 붙을 수 있음).
+        model,
+        inputTokens: Number(data.usage.input_tokens ?? 0),
+        outputTokens: Number(data.usage.output_tokens ?? 0),
+      }
+    : undefined;
+  return { text: textBlock ? String(textBlock.text) : '', usage };
 };

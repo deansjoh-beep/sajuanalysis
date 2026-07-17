@@ -31,6 +31,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { assemblePremiumReportPrompt, evaluatePremiumReportQuality } from '../src/lib/premiumReportCore';
+import { PRICING_USD_PER_M } from '../src/lib/modelPricing';
 import { claudeStreamAggregate } from '../api/_lib/claude-stream';
 import type { ReportInputData, ProductType } from '../src/lib/premiumOrderStore';
 
@@ -45,15 +46,7 @@ const PREMIUM_CLAUDE_MODEL = 'claude-sonnet-5';
 const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 const PASS_SCORE = 80; // 프로덕션 보정 트리거와 동일 기준
 
-/** USD / 1M tokens. 2026-07 기준 공표가 — 변경 시 갱신할 것. 산출 원가는 추정치. */
-const PRICING_USD_PER_M: Record<string, { input: number; output: number }> = {
-  // Sonnet 5 인트로가($2/$10)는 2026-08-31까지 — 이후 정가 $3/$15로 갱신할 것.
-  'claude-sonnet-5': { input: 2.0, output: 10.0 },
-  'gemini-2.5-pro': { input: 1.25, output: 10.0 },
-  'gemini-2.5-flash': { input: 0.3, output: 2.5 },
-  'gemini-2.0-flash': { input: 0.1, output: 0.4 },
-  'gemini-1.5-flash': { input: 0.075, output: 0.3 },
-};
+// 단가표(PRICING_USD_PER_M)는 프로덕션 원가 집계와 단일 소스 공유 — src/lib/modelPricing.ts에서만 수정할 것.
 const USD_KRW = Number(process.env.BENCH_USD_KRW || 1400);
 
 // ── CLI 인자 ─────────────────────────────────────────────────────────────────

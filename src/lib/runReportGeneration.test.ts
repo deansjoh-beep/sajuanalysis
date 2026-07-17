@@ -53,6 +53,7 @@ describe('runReportGeneration', () => {
       yongshin: null,
       content: SAMPLE_CONTENT,
       qualityScore: 88,
+      generationCostKrw: 265,
     });
 
     let savedBody: any = null;
@@ -73,6 +74,8 @@ describe('runReportGeneration', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/code/save-report', expect.anything());
     expect(savedBody.content).toBe(SAMPLE_CONTENT);
     expect(savedBody.qualityScore).toBe(88);
+    // 원가 통계(reports.generation_cost_krw)용 추정치가 함께 저장돼야 한다.
+    expect(savedBody.generationCostKrw).toBe(265);
     // 저장된 content를 다시 파싱하면 원래 섹션이 복원된다.
     const reparsed = parseLifeNavSections(savedBody.content, []);
     expect(reparsed.map((s) => s.id)).toEqual(sections.map((s) => s.id));
@@ -87,6 +90,7 @@ describe('runReportGeneration', () => {
       yongshin: null,
       content: '너무 짧음',
       qualityScore: 0,
+      generationCostKrw: null,
     });
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -110,6 +114,7 @@ describe('runReportGeneration', () => {
       yongshin: null,
       content: SAMPLE_CONTENT,
       qualityScore: 88,
+      generationCostKrw: null,
     });
     vi.stubGlobal(
       'fetch',
