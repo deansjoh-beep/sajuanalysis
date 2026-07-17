@@ -42,6 +42,17 @@ interface ReportPromptParams {
   sajuContext: string;
   daeunContext: string;
   currentAge: number;
+  /**
+   * 엔진(hookEngine)이 선정한 핵심 훅. 사용자에게 이미 리포트 상단에서 노출되므로
+   * 본문의 지정 섹션에서 반드시 회수(근거 제시)되도록 규칙을 주입한다.
+   */
+  coreHook?: {
+    headline: string;
+    advice?: string;
+    sectionIndex: number;
+    sectionLabel: string;
+    evidence: string[];
+  } | null;
 }
 
 export const buildConsultingSystemInstruction = ({
@@ -154,9 +165,19 @@ export const buildReportSystemInstruction = ({
   userName,
   sajuContext,
   daeunContext,
-  currentAge
+  currentAge,
+  coreHook
 }: ReportPromptParams) => {
-  return `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다. 
+  const coreHookInstruction = coreHook
+    ? `
+[핵심 훅 회수 규칙 - 매우 중요]
+- 사용자는 리포트 상단에서 엔진이 선정한 다음 핵심 훅을 이미 보았습니다: "${coreHook.headline}"${coreHook.advice ? `\n- 함께 노출된 핵심 조언: "${coreHook.advice}"` : ''}
+- 근거 용어: ${coreHook.evidence.join(', ')}
+- ${coreHook.sectionIndex}번 섹션(${coreHook.sectionLabel})에서 이 훅을 반드시 다시 다루십시오. 위 근거 용어를 명시적으로 언급하며 사주 데이터로 구체적으로 뒷받침하고, 핵심 조언을 더 구체적인 실행 방법으로 발전시키십시오.
+- 어떤 섹션에서도 이 훅과 모순되는 결론을 내리지 마십시오. 훅이 본문에서 뒷받침되지 않으면 낚시성 리포트가 됩니다.
+`
+    : '';
+  return `당신은 깊이 있고 전문적인 조언을 제공하는 **'사주명리 상담가 유아이'**입니다.
 현재 날짜: ${currentDateText}
 서울 기준 올해 세운(연도 간지): ${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})
 제공된 사용자의 사주 데이터와 대운 정보를 **철저하게 분석한 결과에만 입각하여** 아래의 **[6대 카테고리]**에 맞춰 종합운세리포트를 작성하십시오.
@@ -167,7 +188,7 @@ export const buildReportSystemInstruction = ({
 - **대운 분석 섹션 엄수 규칙:** 대운은 인생의 장기 흐름(10년 단위)과 구조 변화를 설명하는 섹션입니다. 대운 섹션에서는 단기 운(오늘 일진/당일 시세/하루 운세) 언급을 절대 금지하고, 인생 흐름과 시기별 전략만 제시하십시오.
 - **연도 간지 표기 고정 규칙:** 연도 간지(세운)를 언급할 때는 반드시 위의 "서울 기준 올해 세운(연도 간지)"를 그대로 사용하고, 다른 간지로 임의 추정/변경/혼용하지 마십시오.
 - **지침 준수 우선 규칙:** 문장 자연스러움보다 [지침 사항]과 [Output Format] 준수를 우선하십시오. 지침에 없는 임의 확장 해석은 금지합니다.
-
+${coreHookInstruction}
 [지침 사항]
 ${reportGuideline}
 

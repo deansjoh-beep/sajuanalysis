@@ -7,6 +7,7 @@ import { parseModelErrorPayload, isRetryableModelError, isModelSelectionError, r
 import { getClaudeApiKey, claudeGenerateContent, DEFAULT_CLAUDE_MODELS } from './claudeClient';
 import { proxyGenerateContent, streamGeminiContent } from './geminiClient';
 import { hanjaToHangul, calculateDeity, getSipseung, getGongmangSummary, getHapChungSummary, getShinsalSummary, getOriginalSipseungSummary } from '../utils/saju';
+import { selectCoreHook, type CoreHook } from './hookEngine';
 
 /**
  * AI 기본 리포트(만세력 페이지에 통합되는 [SECTION] 형식 장문) 생성 코어.
@@ -41,6 +42,8 @@ export interface GenerateBasicReportResult {
   text: string;
   /** finishReason이 MAX_TOKENS라 출력이 잘렸는지. */
   truncated: boolean;
+  /** 엔진이 선정한 핵심 훅 (프롬프트에 회수 규칙으로 주입됨). 판정 불가 시 null. */
+  coreHook: CoreHook | null;
 }
 
 export async function generateBasicReport(
@@ -118,6 +121,14 @@ export async function generateBasicReport(
     })
     .join('\n');
 
+  // 핵심 훅 — 엔진이 결정론적으로 선정. 실패해도 리포트 생성은 계속한다.
+  let coreHook: CoreHook | null = null;
+  try {
+    coreHook = selectCoreHook({ sajuResult, daeunResult, yongshinResult, currentAge });
+  } catch (e) {
+    console.warn('[HOOK] selectCoreHook failed:', e);
+  }
+
   const modeGuideline = mode === 'basic' ? BASIC_REPORT_GUIDELINE : ADVANCED_REPORT_GUIDELINE;
   const reportGuideline = `${REPORT_GUIDELINE}\n\n${modeGuideline}`;
   const baseSystemInstruction = buildReportSystemInstruction({
@@ -128,6 +139,7 @@ export async function generateBasicReport(
     sajuContext,
     daeunContext,
     currentAge,
+    coreHook,
   });
 
   const modelCandidates = preferredModels.length > 0
@@ -239,5 +251,5 @@ export async function generateBasicReport(
     console.warn('[REPORT] finishReason=MAX_TOKENS: output was cut off by token limit');
   }
 
-  return { text, truncated: finishReason === 'MAX_TOKENS' };
+  return { text, truncated: finishReason === 'MAX_TOKENS', coreHook };
 }

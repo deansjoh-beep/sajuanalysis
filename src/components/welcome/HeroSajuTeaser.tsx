@@ -9,6 +9,7 @@ import { generateBasicReport } from '../../lib/generateBasicReport';
 import { generateReportKeywords } from '../../lib/generateReportKeywords';
 import { isRetryableModelError } from '../../lib/modelUtils';
 import { parseReport, type ParsedReport } from '../manse/reportSectionUtils';
+import { selectCoreHook, formatHookPct, type CoreHook } from '../../lib/hookEngine';
 import { ReportAccordion } from './ReportAccordion';
 
 const FiveElementsPieChart = React.lazy(() => import('../FiveElementsPieChart'));
@@ -43,6 +44,8 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
     unknownTime: DEFAULT_USER_DATA.unknownTime,
   });
   const [summary, setSummary] = useState<TeaserSummary | null>(null);
+  // 엔진 선정 핵심 훅 — AI 호출 없이 제출 즉시 결정론적으로 계산·노출.
+  const [coreHook, setCoreHook] = useState<CoreHook | null>(null);
   const [aiComment, setAiComment] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +79,20 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
       return;
     }
     setSummary(built);
+
+    // 핵심 훅 — 희소성 통계 기반 결정론 선정. 실패해도 요약 표시는 계속.
+    try {
+      const { dateStr, timeStr, isLunar, isLeap } = teaserInputToDateStrings(input);
+      const sajuResult = getSajuData(dateStr, timeStr, isLunar, isLeap, input.unknownTime);
+      const daeunResult = getDaeunData(dateStr, timeStr, isLunar, isLeap, input.gender, input.unknownTime);
+      const yongshinResult = calculateYongshin(sajuResult);
+      const birthYearInt = parseInt(input.birthYear, 10);
+      const currentAge = isNaN(birthYearInt) ? 0 : currentSeoulYear - birthYearInt;
+      setCoreHook(selectCoreHook({ sajuResult, daeunResult, yongshinResult, currentAge }));
+    } catch (e) {
+      console.warn('[teaser] core hook failed:', e);
+      setCoreHook(null);
+    }
 
     // 이전 진행분 취소 + 2단계 결과 폐기.
     abortRef.current?.abort();
@@ -274,6 +291,19 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
           </>
         ) : (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="space-y-4">
+            {coreHook && (
+              <div className="rounded-2xl border border-ink-300/30 bg-white px-4 py-4 space-y-1.5">
+                <p className="text-[12px] text-ink-500">
+                  당신의 사주에서 가장 특징적인 포인트
+                  {coreHook.rarityPercent != null && ` · 전체의 약 ${formatHookPct(coreHook.rarityPercent)}%`}
+                </p>
+                <p className="text-[14px] font-bold text-ink-900 leading-relaxed">{coreHook.headline}</p>
+                <p className="text-[14px] text-ink-700 leading-relaxed">{coreHook.detail}</p>
+                <p className="text-[12px] text-ink-500 pt-1.5">핵심 조언</p>
+                <p className="text-[14px] text-ink-700 leading-relaxed">{coreHook.advice}</p>
+              </div>
+            )}
+
             <div>
               <p className="text-[12px] text-ink-500">당신의 명식</p>
               <p className="font-serif text-[18px] md:text-[22px] font-bold text-ink-900 tracking-wider mt-1">
@@ -378,6 +408,7 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
                 abortRef.current?.abort();
                 reportReqRef.current++; // 진행 중 키워드·리포트 생성 결과 폐기
                 setSummary(null);
+                setCoreHook(null);
                 setAiComment(null);
                 setAiLoading(false);
                 setKeywords(null);
