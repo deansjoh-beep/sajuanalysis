@@ -41,7 +41,8 @@ export default function ReportGenerationProgress({
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const startedRef = useRef(false);
+  // 실행 토큰 — StrictMode 이중 마운트/재시작 시 이전 실행의 결과가 최신 상태를 덮지 않게 한다.
+  const runIdRef = useRef(0);
 
   const stopTimer = () => {
     if (timerRef.current) {
@@ -52,10 +53,13 @@ export default function ReportGenerationProgress({
 
   const start = async () => {
     if (phase === 'running') return;
+    const runId = ++runIdRef.current;
     setPhase('running');
     setError(null);
     setElapsed(0);
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    stopTimer();
     timerRef.current = setInterval(() => setElapsed((p) => p + 1), 1000);
 
     const result = await runReportGeneration({
@@ -63,8 +67,11 @@ export default function ReportGenerationProgress({
       orderId,
       product,
       birth,
-      signal: abortRef.current.signal,
+      signal: controller.signal,
     });
+
+    // 추월된(재시작으로 대체된) 실행의 결과는 무시한다.
+    if (runId !== runIdRef.current) return;
 
     stopTimer();
     abortRef.current = null;
@@ -88,10 +95,10 @@ export default function ReportGenerationProgress({
     stopTimer();
   };
 
-  // autoStart: 마운트 시 1회만 시작
+  // autoStart: 마운트 시 시작. StrictMode(dev)의 마운트→정리→재마운트에서도
+  // 정리 시 abort된 실행을 재마운트 effect가 새 runId로 다시 시작한다.
   useEffect(() => {
-    if (autoStart && !startedRef.current) {
-      startedRef.current = true;
+    if (autoStart) {
       void start();
     }
     return () => {

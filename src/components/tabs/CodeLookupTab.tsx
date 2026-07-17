@@ -5,7 +5,7 @@ import { PaperBackground } from '../welcome/PaperBackground';
 import { parseLifeNavSections } from '../../lib/premiumReportCore';
 import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
 import type { BirthFormInput } from '../../lib/runReportGeneration';
-import { buildMyeongsikFromBirth, type MyeongsikParams } from '../../lib/buildMyeongsik';
+import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from '../../lib/buildMyeongsik';
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
 
@@ -160,26 +160,59 @@ function MonthCalendar({ content, sajuYear }: { content: string; sajuYear: numbe
   );
 }
 
+// ─── 생년월일 입력 공용 필드 (선물 리딤 · 미생성 복구 공유) ─────────────────
+
+const EMPTY_BIRTH: BirthFormInput = { dateStr: '', timeStr: '12:00', isLunar: false, gender: 'M', unknownTime: false };
+
+function BirthFields({ birth, onChange }: { birth: BirthFormInput; onChange: (b: BirthFormInput) => void }) {
+  const field = 'w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900';
+  const set = <K extends keyof BirthFormInput>(key: K, value: BirthFormInput[K]) => onChange({ ...birth, [key]: value });
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <label className="space-y-1">
+          <span className="text-[12px] text-ink-500">생년월일</span>
+          <input type="date" value={birth.dateStr} onChange={(e) => set('dateStr', e.target.value)} className={field} />
+        </label>
+        <label className="space-y-1">
+          <span className="text-[12px] text-ink-500">태어난 시간</span>
+          <input type="time" value={birth.timeStr} onChange={(e) => set('timeStr', e.target.value)} disabled={birth.unknownTime} className={`${field} disabled:opacity-40`} />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-4 text-[14px] text-ink-700">
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={birth.gender === 'M'} onChange={() => set('gender', 'M')} /> 남성
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={birth.gender === 'F'} onChange={() => set('gender', 'F')} /> 여성
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={birth.isLunar} onChange={(e) => set('isLunar', e.target.checked)} /> 음력
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={birth.unknownTime} onChange={(e) => set('unknownTime', e.target.checked)} /> 시간 모름
+        </label>
+      </div>
+    </>
+  );
+}
+
 // ─── 선물 코드 등록 폼 ──────────────────────────────────────────────────────
 
 function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth: BirthFormInput) => void }) {
-  const [dateStr, setDateStr] = useState('');
-  const [timeStr, setTimeStr] = useState('12:00');
-  const [gender, setGender] = useState<'M' | 'F'>('M');
-  const [isLunar, setIsLunar] = useState(false);
-  const [unknownTime, setUnknownTime] = useState(false);
+  const [birth, setBirth] = useState<BirthFormInput>(EMPTY_BIRTH);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth.dateStr)) {
       setError('생년월일을 입력해 주세요.');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const myeongsik = buildMyeongsikFromBirth({ dateStr, timeStr, isLunar, gender, unknownTime });
+      const myeongsik = buildMyeongsikFromBirth(birth);
       const res = await fetch('/api/code/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -188,15 +221,13 @@ function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || '등록에 실패했습니다.');
       // 생년월일이 메모리에 있는 유일한 시점 — 생성 파이프로 그대로 넘긴다.
-      onRedeemed({ dateStr, timeStr, isLunar, gender, unknownTime });
+      onRedeemed(birth);
     } catch (e) {
       setError(e instanceof Error ? e.message : '등록에 실패했습니다.');
     } finally {
       setBusy(false);
     }
   };
-
-  const field = 'w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900';
 
   return (
     <section className={`${PAPER_CARD} p-6 space-y-4`}>
@@ -205,30 +236,7 @@ function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth
         이 코드는 아직 사주가 등록되지 않은 선물 코드입니다. 생년월일과 태어난 시간을 입력하면
         코드에 사주가 등록되고 리포트를 받을 수 있습니다. 한 번 등록하면 변경할 수 없습니다.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="space-y-1">
-          <span className="text-[12px] text-ink-500">생년월일</span>
-          <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className={field} />
-        </label>
-        <label className="space-y-1">
-          <span className="text-[12px] text-ink-500">태어난 시간</span>
-          <input type="time" value={timeStr} onChange={(e) => setTimeStr(e.target.value)} disabled={unknownTime} className={`${field} disabled:opacity-40`} />
-        </label>
-      </div>
-      <div className="flex flex-wrap items-center gap-4 text-[14px] text-ink-700">
-        <label className="flex items-center gap-2">
-          <input type="radio" checked={gender === 'M'} onChange={() => setGender('M')} /> 남성
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" checked={gender === 'F'} onChange={() => setGender('F')} /> 여성
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={isLunar} onChange={(e) => setIsLunar(e.target.checked)} /> 음력
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={unknownTime} onChange={(e) => setUnknownTime(e.target.checked)} /> 시간 모름
-        </label>
-      </div>
+      <BirthFields birth={birth} onChange={setBirth} />
       {error && <p className="text-[12px] text-red-600">{error}</p>}
       <button
         onClick={submit}
@@ -236,6 +244,67 @@ function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth
         className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
       >
         {busy ? '등록 중...' : '사주 등록하기'}
+      </button>
+    </section>
+  );
+}
+
+// ─── 미생성 주문 복구 폼 (결제 후 생성 중 이탈 복구) ─────────────────────────
+
+/**
+ * status='paid'인데 리포트가 없는 주문 — 결제 확정 직후 브라우저 이탈 등으로 생성이
+ * 완료되지 못한 경우다. 서버에 생년월일 원문이 없으므로(개인정보 무저장) 재입력을 받아
+ * 등록된 명식(간지)과 일치하는지 검증한 뒤, 추가 결제 없이 생성을 다시 시작한다.
+ */
+function RecoverGenerationForm({
+  order,
+  storedMyeongsik,
+  onVerified,
+}: {
+  order: LookupOrder;
+  storedMyeongsik: MyeongsikParams;
+  onVerified: (birth: BirthFormInput) => void;
+}) {
+  const [birth, setBirth] = useState<BirthFormInput>(EMPTY_BIRTH);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth.dateStr)) {
+      setError('생년월일을 입력해 주세요.');
+      return;
+    }
+    setError(null);
+    let entered: MyeongsikParams;
+    try {
+      entered = buildMyeongsikFromBirth(birth);
+    } catch {
+      setError('사주 계산에 실패했습니다. 입력을 확인해 주세요.');
+      return;
+    }
+    if (!myeongsikMatches(storedMyeongsik, entered)) {
+      setError('입력한 생년월일이 이 코드에 등록된 명식과 일치하지 않습니다. 결제 때 입력한 정보와 동일하게 입력해 주세요.');
+      return;
+    }
+    onVerified(birth);
+  };
+
+  return (
+    <section className={`${PAPER_CARD} p-6 space-y-4`}>
+      <h3 className="font-serif text-[18px] font-bold text-ink-900">
+        {PRODUCT_LABEL[order.product] ?? order.product} — 리포트가 아직 생성되지 않았습니다
+      </h3>
+      <p className="text-[14px] text-ink-500 leading-relaxed">
+        결제는 정상 완료되었지만, 생성 도중 창이 닫히는 등의 이유로 리포트가 만들어지지 않았습니다.
+        추가 결제 없이 지금 바로 생성할 수 있습니다. 개인정보를 저장하지 않는 원칙 때문에 생년월일을
+        한 번 더 입력해 주세요. 등록된 명식과 일치하는지 확인한 뒤 생성이 시작됩니다.
+      </p>
+      <BirthFields birth={birth} onChange={setBirth} />
+      {error && <p className="text-[12px] text-red-600">{error}</p>}
+      <button
+        onClick={submit}
+        className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
+      >
+        확인하고 리포트 생성하기
       </button>
     </section>
   );
@@ -403,8 +472,8 @@ export default function CodeLookupTab() {
   const [error, setError] = useState<string | null>(null);
   const [activeReportIdx, setActiveReportIdx] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
-  // 리딤 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
-  const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType } | null>(null);
+  // 리딤/복구 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
+  const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType; autoStart?: boolean } | null>(null);
 
   const normalized = codeInput.trim().toUpperCase().replace(/^([A-Z0-9]{2})([A-Z0-9]{6})$/, '$1-$2');
 
@@ -451,6 +520,17 @@ export default function CodeLookupTab() {
     }
     lookup(normalized);
   };
+
+  // 결제 완료(paid) 상태로 남아 있는데 리포트가 없는 주문 = 생성 중 이탈로 미생성.
+  // regenerable(generated 후 만료)과 구분되는 무료 복구 대상.
+  const recoverTarget = useMemo(() => {
+    if (!result || result.giftPending || !result.myeongsik) return null;
+    return (
+      result.orders.find(
+        (o) => o.status === 'paid' && !result.reports.some((r) => r.product === o.product),
+      ) ?? null
+    );
+  }, [result]);
 
   const activeReport = result?.reports[activeReportIdx] ?? null;
   // 표지(cover)·빈 섹션은 화면 열람에서 제외한다(표지는 PDF 전용).
@@ -569,6 +649,7 @@ export default function CodeLookupTab() {
                 orderId={pendingGen.orderId}
                 product={pendingGen.product}
                 birth={pendingGen.birth}
+                autoStart={pendingGen.autoStart}
                 onComplete={handleGenerated}
               />
             </Suspense>
@@ -612,6 +693,22 @@ export default function CodeLookupTab() {
                   </p>
                 )}
               </section>
+
+              {/* 결제 후 미생성 주문 복구 — 명식 일치 검증 후 무료 생성 */}
+              {recoverTarget && !pendingGen && result.myeongsik && (
+                <RecoverGenerationForm
+                  order={recoverTarget}
+                  storedMyeongsik={result.myeongsik}
+                  onVerified={(birth) =>
+                    setPendingGen({
+                      birth,
+                      orderId: recoverTarget.orderId,
+                      product: recoverTarget.product as ProductType,
+                      autoStart: true,
+                    })
+                  }
+                />
+              )}
 
               {/* 만료 → 재생성 안내 */}
               {result.regenerable.length > 0 && (
