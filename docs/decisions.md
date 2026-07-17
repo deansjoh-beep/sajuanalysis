@@ -8,7 +8,8 @@
 
 ## 확정 (Confirmed Decisions)
 
-### 2026-07-07
+### 2026-07-17
+- **생성 후 환불 정책 → 환불 불가 확정** — 유료 리포트는 맞춤형 디지털 콘텐츠로, 생성(제공) 완료 후에는 청약철회 불가(전자상거래법 17조 2항). 근거: 구매 화면 사전 고지 + 취소·환불 정책 페이지 명시(§2). 예외는 하자·오류(정책 §3)뿐이며, 관리자가 `POST /api/payment/refund`에 `force: true`로 명시 승인할 때만 생성 후 환불 실행. 코드 반영: `db/payment.ts` `RefundNotAllowedError`(403) + `refundOrder(options.allowGenerated)`, CheckoutTab 결제 단계 사전 고지 문구.
 - **v1.5 규칙 엔진 병합 승인 (Phase 3-1 A/B 벤치 판정)** — v1(레거시 provisional) vs v1.5(자평 표준 규칙 엔진, `docs/myeongri-standard/`) 30건 A/B 벤치 결과(`bench-output/ab-30/ab-compare.md`): 통과율 100% 동일, v1.5 평균 score 우위(100 vs 99.2), 원가·소요 +1~2%(미미). 핵심 근거 — v1은 30건 중 19건(63%)에서 "용신=기신" 자기모순 표기를 냈고(레거시 eokbuYongshin 표기 오류), v1.5는 §6.3.1 생극 기계 도출 구조상 이 결함이 원천적으로 발생하지 않음(실측 0/30). **`sajuAnalysisToPromptContext` 기본 엔진을 v1.5로 전환**, provisional 경고문을 자평 표준 확신 표기로 대체(기준서 §1.1.3·§1.1.4). v1은 회귀 비교·디버깅용으로만 존치.
 
 ### 2026-07-03

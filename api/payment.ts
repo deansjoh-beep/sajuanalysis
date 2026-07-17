@@ -7,7 +7,7 @@ import {
   isPaidProduct,
   PaymentValidationError,
   refundOrder,
-  RefundPolicyPendingError,
+  RefundNotAllowedError,
 } from '../db/payment.js';
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 import { getAdminStats } from '../db/admin.js';
@@ -22,7 +22,8 @@ import { isAdminRequest } from './code.js';
  *   금액은 서버 가격표로 검증, 승인 후 영속 실패 시 자동 취소.
  *   gift=true면 명식 없는 미사용 선물 코드를 발급한다.
  * - POST /api/payment/refund — 환불. x-admin-token 필요.
- *   생성 전 100% / 생성 후는 ⛔ 정책 확정 대기로 차단(501).
+ *   생성 전 100% / 생성 후는 환불 불가 정책으로 차단(403, OWNER 확정 2026-07-17).
+ *   하자·오류 예외(정책 3항)는 body.force=true로만 승인.
  * - GET  /api/payment/stats — [관리자] 일별 매출·생성 성공률·검증 실패율·평균 원가·환불 (x-admin-token).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -115,7 +116,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'INVALID_REQUEST', message: 'orderNo, reason은 필수입니다.' });
       }
 
-      const outcome = await refundOrder(db, toss, orderNo, reason);
+      // force=true: 하자·오류 예외 환불(정책 3항) — 관리자가 명시적으로 승인한 경우에만.
+      const outcome = await refundOrder(db, toss, orderNo, reason, { allowGenerated: body.force === true });
       if (!outcome.found) {
         return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 주문을 찾을 수 없습니다.' });
       }
@@ -133,8 +135,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error instanceof PersonalDataError) {
       return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
     }
-    if (error instanceof RefundPolicyPendingError) {
-      return res.status(501).json({ error: 'REFUND_POLICY_PENDING', message: error.message });
+    if (error instanceof RefundNotAllowedError) {
+      return res.status(403).json({ error: 'REFUND_NOT_ALLOWED', message: error.message });
     }
     if (error instanceof TossApiError) {
       console.error(`[api/payment:${action}] toss error ${error.code}:`, error.message);

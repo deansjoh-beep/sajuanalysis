@@ -29,7 +29,7 @@ import {
   isPaidProduct,
   PaymentValidationError,
   refundOrder,
-  RefundPolicyPendingError,
+  RefundNotAllowedError,
 } from "./db/payment.ts";
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
@@ -901,8 +901,8 @@ async function startServer() {
     if (error instanceof PersonalDataError) {
       return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
     }
-    if (error instanceof RefundPolicyPendingError) {
-      return res.status(501).json({ error: 'REFUND_POLICY_PENDING', message: error.message });
+    if (error instanceof RefundNotAllowedError) {
+      return res.status(403).json({ error: 'REFUND_NOT_ALLOWED', message: error.message });
     }
     if (error instanceof TossApiError) {
       console.error(`[payment:${action}] toss error ${error.code}:`, error.message);
@@ -981,7 +981,8 @@ async function startServer() {
       }
       const db = await getDb();
       const toss = createTossClient();
-      const outcome = await refundOrder(db, toss, orderNo, reason);
+      // force=true: 하자·오류 예외 환불(정책 3항) — 관리자가 명시적으로 승인한 경우에만.
+      const outcome = await refundOrder(db, toss, orderNo, reason, { allowGenerated: req.body?.force === true });
       if (!outcome.found) {
         return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: '해당 주문을 찾을 수 없습니다.' });
       }

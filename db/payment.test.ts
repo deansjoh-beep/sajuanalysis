@@ -21,7 +21,7 @@ import {
   PaymentValidationError,
   PRODUCT_PRICES,
   refundOrder,
-  RefundPolicyPendingError,
+  RefundNotAllowedError,
 } from './payment.ts';
 import * as schema from './schema.ts';
 import { codes, orders, type MyeongsikParams } from './schema.ts';
@@ -231,7 +231,7 @@ describe('결제 — 승인·멱등·자동취소·환불 (PGlite)', () => {
     expect(calls.cancel).toHaveLength(1); // 토스 재호출 없음
   });
 
-  it('환불: 생성 후(generated) 주문은 정책 확정 대기로 차단된다', async () => {
+  it('환불: 생성 후(generated) 주문은 생성 후 환불 불가 정책으로 차단된다', async () => {
     const { toss, calls } = makeFakeToss();
     const result = await confirmPaymentAndPersist(db, toss, {
       orderNo: 'toss-order-7',
@@ -242,8 +242,26 @@ describe('결제 — 승인·멱등·자동취소·환불 (PGlite)', () => {
     });
     await db.update(orders).set({ status: 'generated' }).where(eq(orders.id, result.orderId));
 
-    await expect(refundOrder(db, toss, 'toss-order-7', '변심')).rejects.toThrow(RefundPolicyPendingError);
-    expect(calls.cancel).toHaveLength(0); // 정책 확정 전엔 토스 취소도 나가면 안 됨
+    await expect(refundOrder(db, toss, 'toss-order-7', '변심')).rejects.toThrow(RefundNotAllowedError);
+    expect(calls.cancel).toHaveLength(0); // 정책 차단 시 토스 취소도 나가면 안 됨
+  });
+
+  it('환불: 생성 후 주문도 force(하자 예외 승인)면 전액 환불된다', async () => {
+    const { toss, calls } = makeFakeToss();
+    const result = await confirmPaymentAndPersist(db, toss, {
+      orderNo: 'toss-order-8',
+      paymentKey: 'pk-8',
+      amount: PRODUCT_PRICES.yearly2026,
+      product: 'yearly2026',
+      myeongsik,
+    });
+    await db.update(orders).set({ status: 'generated' }).where(eq(orders.id, result.orderId));
+
+    const outcome = await refundOrder(db, toss, 'toss-order-8', '본문 누락 하자', { allowGenerated: true });
+    expect(outcome).toEqual({ found: true, alreadyRefunded: false, amount: PRODUCT_PRICES.yearly2026 });
+    expect(calls.cancel).toHaveLength(1);
+    const [order] = await db.select().from(orders).where(eq(orders.orderNo, 'toss-order-8'));
+    expect(order.status).toBe('refunded');
   });
 
   it('환불: 존재하지 않는 주문은 found=false', async () => {

@@ -37,11 +37,15 @@ export class PaymentValidationError extends Error {
   }
 }
 
-/** 생성 후 환불 — 정책 문구 확정(⛔ OWNER) 전까지 발생하는 차단 오류 */
-export class RefundPolicyPendingError extends Error {
+/**
+ * 생성 후 환불 차단 오류 — OWNER 확정 정책(2026-07-17): 맞춤형 디지털 콘텐츠는
+ * 생성(제공) 완료 후 청약철회 불가(전자상거래법 17조 2항, 구매 화면 사전 고지).
+ * 예외: 하자·오류(취소·환불 정책 3항)는 관리자가 force 플래그로 명시 승인 시에만 환불.
+ */
+export class RefundNotAllowedError extends Error {
   constructor() {
-    super('리포트 생성 후 환불 정책이 아직 확정되지 않았습니다. 관리자에게 문의하세요.');
-    this.name = 'RefundPolicyPendingError';
+    super('리포트가 이미 생성된 주문은 환불할 수 없습니다(생성 후 환불 불가 정책, 구매 시 사전 고지). 하자·오류로 인한 예외 환불은 force 승인으로만 가능합니다.');
+    this.name = 'RefundNotAllowedError';
   }
 }
 
@@ -124,18 +128,20 @@ export interface RefundOutcome {
 
 /**
  * 환불 처리. 생성 전(paid) → 토스 전액 취소 + status=refunded.
- * 생성 후(generated) → RefundPolicyPendingError (⛔ 정책 확정 대기).
+ * 생성 후(generated) → RefundNotAllowedError (생성 후 환불 불가 정책).
+ * 단, allowGenerated=true(관리자가 하자·오류를 인정한 예외 승인)면 생성 후에도 전액 환불.
  */
 export async function refundOrder(
   db: Db,
   toss: TossClient,
   orderNo: string,
   reason: string,
+  options: { allowGenerated?: boolean } = {},
 ): Promise<RefundOutcome> {
   const [order] = await db.select().from(orders).where(eq(orders.orderNo, orderNo));
   if (!order) return { found: false, alreadyRefunded: false, amount: null };
   if (order.status === 'refunded') return { found: true, alreadyRefunded: true, amount: null };
-  if (order.status === 'generated') throw new RefundPolicyPendingError();
+  if (order.status === 'generated' && options.allowGenerated !== true) throw new RefundNotAllowedError();
 
   await toss.cancelPayment(order.paymentKey, reason);
   await db.update(orders).set({ status: 'refunded' }).where(eq(orders.id, order.id));
