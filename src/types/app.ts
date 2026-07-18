@@ -17,15 +17,17 @@ export interface UserData {
 }
 
 /**
- * 입력 폼 기본값 — 테스트 계정(오세진 1969-12-02 양력 10:00, 남).
- * 무제한 상담 테스트 명식(chatUsage.UNLIMITED_TEST_PROFILES)과 동일하게 유지한다.
+ * 입력 폼 기본값 — 임의의 중립 명식(실존 인물 아님).
+ * ⚠️ 개인 명식이나 무제한 상담 테스트 명식(chatUsage.UNLIMITED_TEST_PROFILES)과
+ * 절대 일치시키지 말 것 — 일치하면 기본값 그대로 상담하는 모든 방문자가
+ * 무료 한도를 우회하게 되고, 개인 생년월일시가 사이트 기본값으로 노출된다.
  */
 export const DEFAULT_USER_DATA: UserData = {
-  name: '오세진',
-  birthYear: '1969',
-  birthMonth: '12',
-  birthDay: '2',
-  birthHour: '10',
+  name: '',
+  birthYear: '1991',
+  birthMonth: '7',
+  birthDay: '23',
+  birthHour: '9',
   birthMinute: '0',
   calendarType: 'solar',
   gender: 'M',
