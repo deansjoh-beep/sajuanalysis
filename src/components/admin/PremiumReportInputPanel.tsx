@@ -9,20 +9,20 @@ import { ReportInputData, ReportSection, LifeEvent } from '../../lib/premiumOrde
 import { generateLifeNavReport } from '../../lib/generatePremiumReport';
 import { CardHeader } from '../CardHeader';
 
-// 샘플 데이터 (개발/검증용)
+// 샘플 데이터 (개발/검증용) — 가상 인물. 실존 개인정보를 넣지 말 것(번들에 노출됨).
 const SAMPLE_DATA: ReportInputData = {
-  name: '오세진',
+  name: '홍길동',
   gender: 'M',
-  birthDate: '1969-12-02',
-  birthTime: '10:00',
+  birthDate: '1985-03-21',
+  birthTime: '14:00',
   isLunar: false,
   isLeap: false,
   unknownTime: false,
-  concern: '지금 사업 확장 타이밍이 맞는지, 주요 의사결정에 사주 흐름이 어떻게 연결되는지 궁금합니다.',
-  interest: '사업, 투자, 후세 교육',
+  concern: '지금 이직 타이밍이 맞는지, 주요 의사결정에 사주 흐름이 어떻게 연결되는지 궁금합니다.',
+  interest: '직업, 재물, 건강',
   reportLevel: 'advanced',
-  lifeEvents: [{ year: 1987, description: '서울대 경제학과 입학' }],
-  adminNotes: '경제 분야 전문가. 사업 확장 시기 및 자녀 관계도 언급 요망.',
+  lifeEvents: [{ year: 2010, description: '첫 직장 입사' }],
+  adminNotes: '검증용 가상 샘플. 시기별 전략 중심으로 언급 요망.',
 };
 
 const ESTIMATED_SECONDS = 120;
