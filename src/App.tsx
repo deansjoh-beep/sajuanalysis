@@ -809,7 +809,7 @@ const App: React.FC = () => {
     });
   }, [user, isAdmin]);
 
-  // 테스트 명식(오세진 1969-12-02 양력 10시) 일치 시 무료 상담 한도 우회.
+  // 테스트 명식(chatUsage.UNLIMITED_TEST_PROFILES, 가상 인물) 일치 시 무료 상담 한도 우회.
   const unlimitedChatTester = isUnlimitedTestUser(userData);
 
   const { handleSend, handleScenarioSelect, applyCode } = useChatSendAction({
