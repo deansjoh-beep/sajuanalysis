@@ -91,8 +91,9 @@ export interface UnlimitedTestProfile {
   calendarType: 'solar' | 'lunar' | 'leap';
 }
 
+// ⚠️ 가상 명식만 등록할 것(실존 인물 금지) — 이 배열은 JS 번들로 배포되어 누구나 볼 수 있다.
 export const UNLIMITED_TEST_PROFILES: UnlimitedTestProfile[] = [
-  { name: '오세진', birthYear: 1969, birthMonth: 12, birthDay: 2, birthHour: 10, calendarType: 'solar' },
+  { name: '유아이테스트', birthYear: 1934, birthMonth: 2, birthDay: 27, birthHour: 5, calendarType: 'solar' },
 ];
 
 /** 현재 입력(userData)이 무제한 테스트 명식과 일치하는지(순수). */

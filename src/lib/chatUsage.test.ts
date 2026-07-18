@@ -5,6 +5,7 @@ import {
   incrementedState,
   seoulDateKey,
   isUnlimitedTestUser,
+  UNLIMITED_TEST_PROFILES,
 } from './chatUsage';
 
 describe('chatUsage 무료 턴 한도 코어', () => {
@@ -50,13 +51,15 @@ describe('chatUsage 무료 턴 한도 코어', () => {
 });
 
 describe('isUnlimitedTestUser 무제한 테스트 명식', () => {
+  // 프로필 원본에서 파생 — 프로필이 바뀌어도 테스트가 깨지지 않게 한다.
+  const P = UNLIMITED_TEST_PROFILES[0];
   const TESTER = {
-    name: '오세진',
-    birthYear: '1969',
-    birthMonth: '12',
-    birthDay: '2',
-    birthHour: '10',
-    calendarType: 'solar',
+    name: P.name,
+    birthYear: String(P.birthYear),
+    birthMonth: String(P.birthMonth),
+    birthDay: String(P.birthDay),
+    birthHour: String(P.birthHour),
+    calendarType: P.calendarType,
     unknownTime: false,
   };
 
@@ -64,12 +67,12 @@ describe('isUnlimitedTestUser 무제한 테스트 명식', () => {
     expect(isUnlimitedTestUser(TESTER)).toBe(true);
   });
 
-  it('0 패딩된 문자열("02")도 동일 취급', () => {
-    expect(isUnlimitedTestUser({ ...TESTER, birthDay: '02' })).toBe(true);
+  it('0 패딩된 문자열도 동일 취급', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, birthDay: String(P.birthDay).padStart(2, '0') })).toBe(true);
   });
 
   it('이름 앞뒤 공백은 무시', () => {
-    expect(isUnlimitedTestUser({ ...TESTER, name: ' 오세진 ' })).toBe(true);
+    expect(isUnlimitedTestUser({ ...TESTER, name: ` ${P.name} ` })).toBe(true);
   });
 
   it('이름이 다르면 false', () => {
@@ -77,15 +80,15 @@ describe('isUnlimitedTestUser 무제한 테스트 명식', () => {
   });
 
   it('생일이 하루라도 다르면 false', () => {
-    expect(isUnlimitedTestUser({ ...TESTER, birthDay: '3' })).toBe(false);
+    expect(isUnlimitedTestUser({ ...TESTER, birthDay: String(P.birthDay + 1) })).toBe(false);
   });
 
   it('시(時)가 다르면 false', () => {
-    expect(isUnlimitedTestUser({ ...TESTER, birthHour: '11' })).toBe(false);
+    expect(isUnlimitedTestUser({ ...TESTER, birthHour: String(P.birthHour + 1) })).toBe(false);
   });
 
-  it('음력 입력이면 false', () => {
-    expect(isUnlimitedTestUser({ ...TESTER, calendarType: 'lunar' })).toBe(false);
+  it('양음력이 다르면 false', () => {
+    expect(isUnlimitedTestUser({ ...TESTER, calendarType: P.calendarType === 'solar' ? 'lunar' : 'solar' })).toBe(false);
   });
 
   it('생시 모름이면 false (시각 확인 불가)', () => {
