@@ -4,8 +4,10 @@ import { loadTossPayments, ANONYMOUS } from '@tosspayments/tosspayments-sdk';
 import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
 import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
-import type { BirthFormInput } from '../../lib/runReportGeneration';
+import type { BirthFormInput, ReportAskInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth } from '../../lib/buildMyeongsik';
+import { BirthInputFields, userDataToBirthStrings } from '../BirthInputFields';
+import type { UserData } from '../../types/app';
 import { PRODUCT_ACCESS } from '@/db/productAccess';
 
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
@@ -31,49 +33,118 @@ const SESSION_KEY = 'sj_checkout_pending';
 interface PendingCheckout {
   birth: BirthFormInput;
   product: ProductType;
+  ask?: ReportAskInput;
 }
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 const isOpen = (p: ProductType) => PRODUCT_ACCESS[p] === 'open';
 
-// ─── 결제 완료 화면 (코드 안내 + 자동 생성) ──────────────────────────────────
+/** 전역 userData(랜딩·상담과 공유) → 생성/명식 파이프 입력. */
+function birthFromUserData(u: UserData): BirthFormInput {
+  const { dateStr, timeStr } = userDataToBirthStrings(u);
+  return {
+    dateStr,
+    timeStr,
+    isLunar: u.calendarType !== 'solar',
+    isLeap: u.calendarType === 'leap',
+    gender: u.gender,
+    unknownTime: u.unknownTime,
+  };
+}
+
+// ─── 코드 표시 + 클립보드 복사 ────────────────────────────────────────────────
+
+function CodeWithCopy({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // 클립보드 API 불가 환경(비보안 컨텍스트 등) — 선택 가능한 텍스트로 폴백
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } finally {
+        document.body.removeChild(ta);
+      }
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-ink-300/40 bg-paper-50 px-5 py-4">
+      <p className="text-[12px] text-ink-500 text-center">사주 코드</p>
+      <div className="mt-1 flex items-center justify-center gap-3">
+        <p className="font-serif text-[28px] font-bold tracking-widest text-ink-900">{code}</p>
+        <button
+          onClick={() => void copy()}
+          className={`shrink-0 px-3 py-1.5 rounded-xl border text-[13px] font-bold transition-colors ${
+            copied
+              ? 'border-ink-900 bg-ink-900 text-paper-50'
+              : 'border-ink-300/40 text-ink-700 hover:border-ink-900/40'
+          }`}
+        >
+          {copied ? '복사됨' : '복사'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 결제 완료 화면 (코드 안내 + 자동 생성 → 조회 탭 자동 이동) ───────────────
 
 function CheckoutDone({
   code,
   orderId,
   product,
   birth,
+  ask,
+  onReportReady,
 }: {
   code: string;
   orderId: string;
   product: ProductType;
   birth: BirthFormInput;
+  ask?: ReportAskInput;
+  onReportReady?: (code: string) => void;
 }) {
   const [sections, setSections] = useState<ReportSection[] | null>(null);
+
+  const handleComplete = (s: ReportSection[]) => {
+    setSections(s);
+    // 생성 완료 → 리포트 조회 탭으로 자동 이동해 클릭 없이 표시(구매 화면에서 사전 안내됨).
+    onReportReady?.(code);
+  };
 
   return (
     <div className="space-y-6">
       <section className={`${PAPER_CARD} p-6 space-y-3`}>
         <h3 className="font-serif text-[18px] font-bold text-ink-900">리포트가 발급되었습니다</h3>
         <p className="text-[14px] text-ink-700 leading-relaxed">
-          아래 <strong className="font-bold text-ink-900">사주 코드</strong>가 리포트의 유일한 열쇠입니다. 반드시
-          저장해 두세요. 열람 기간이 지나거나 기기를 바꿔도 이 코드로 다시 찾을 수 있습니다.
+          아래 <strong className="font-bold text-ink-900">사주 코드</strong>가 리포트의 유일한 열쇠입니다.{' '}
+          <strong className="font-bold text-ink-900">복사 버튼으로 지금 저장해 두세요.</strong> 열람 기간이
+          지나거나 기기를 바꿔도, ‘리포트 조회’에 이 코드를 붙여넣으면 언제든 다시 찾을 수 있습니다.
         </p>
-        <div className="rounded-2xl border border-ink-300/40 bg-paper-50 px-5 py-4 text-center">
-          <p className="text-[12px] text-ink-500">사주 코드</p>
-          <p className="font-serif text-[28px] font-bold tracking-widest text-ink-900 mt-1">{code}</p>
-        </div>
+        <CodeWithCopy code={code} />
         <p className="text-[12px] text-ink-500 leading-relaxed">
-          생성 도중 창이 닫혀도 괜찮습니다. ‘리포트 조회’에서 코드를 입력하면 추가 절차 없이
-          생성을 다시 시작할 수 있습니다.
+          개인정보는 저장되지 않으므로 코드를 분실하면 복구할 수 없습니다. 생성이 끝나면 리포트 조회
+          화면으로 자동 이동해 바로 표시됩니다. 생성 도중 창이 닫혀도 괜찮습니다 — ‘리포트 조회’에서
+          코드를 입력하면 추가 절차 없이 생성을 다시 시작할 수 있습니다.
         </p>
       </section>
 
       {sections ? (
         <section className={`${PAPER_CARD} p-6`}>
           <p className="text-[14px] text-ink-700 leading-relaxed">
-            리포트가 생성되었습니다. <strong className="font-bold text-ink-900">‘리포트 조회’ 탭</strong>에서 위
-            코드를 입력하면 전체 내용을 열람하고 PDF로 저장할 수 있습니다.
+            리포트가 생성되었습니다. 잠시 후 <strong className="font-bold text-ink-900">‘리포트 조회’</strong>로
+            자동 이동합니다. 이동하지 않으면 조회 탭에서 위 코드를 입력해 주세요.
           </p>
         </section>
       ) : (
@@ -89,8 +160,9 @@ function CheckoutDone({
             orderId={orderId}
             product={product}
             birth={birth}
+            ask={ask}
             autoStart
-            onComplete={setSections}
+            onComplete={handleComplete}
           />
         </Suspense>
       )}
@@ -102,23 +174,45 @@ function CheckoutDone({
 
 type Step = 'select' | 'birth' | 'pay' | 'confirming' | 'done' | 'error';
 
-export default function CheckoutTab({ initialProduct }: { initialProduct?: ProductType } = {}) {
+interface CheckoutTabProps {
+  initialProduct?: ProductType;
+  /** 전역 생년월일시(App userData) — 랜딩·상담·만세력과 단일 소스 공유. */
+  userData: UserData;
+  setUserData: (u: UserData) => void;
+  currentSeoulYear: number;
+  /** 생년월일 확정 시(다음 단계 진입) — App이 상담·만세력용 사주 분석을 미리 계산한다. */
+  onBirthConfirmed?: (u: UserData) => void;
+  /** 리포트 생성 완료 시 — App이 조회 탭으로 자동 이동해 코드를 자동 조회한다. */
+  onReportReady?: (code: string) => void;
+}
+
+export default function CheckoutTab({
+  initialProduct,
+  userData,
+  setUserData,
+  currentSeoulYear,
+  onBirthConfirmed,
+  onReportReady,
+}: CheckoutTabProps) {
   const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY as string | undefined;
 
   const [step, setStep] = useState<Step>('select');
   const [product, setProduct] = useState<ProductType | null>(null);
-  const [birth, setBirth] = useState<BirthFormInput>({
-    dateStr: '',
-    timeStr: '12:00',
-    isLunar: false,
-    gender: 'M',
-    unknownTime: false,
-  });
+  // 가장 알고 싶은 것·가장 큰 고민 — 선택 입력, 리포트 프롬프트에만 사용.
+  const [interest, setInterest] = useState('');
+  const [concern, setConcern] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ code: string; orderId: string; product: ProductType; birth: BirthFormInput } | null>(null);
+  const [done, setDone] = useState<{
+    code: string;
+    orderId: string;
+    product: ProductType;
+    birth: BirthFormInput;
+    ask?: ReportAskInput;
+  } | null>(null);
 
   const catalogItem = PRODUCT_CATALOG.find((p) => p.id === product) ?? null;
+  const ask: ReportAskInput = { interest, concern };
 
   const selectProduct = (id: ProductType) => {
     if (!isOpen(id)) return; // 준비중 상품은 진행 불가
@@ -161,6 +255,7 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
     if (!product || !catalogItem || busy) return;
     setError(null);
     setBusy(true);
+    const birth = birthFromUserData(userData);
     try {
       const res = await fetch('/api/payment/free', {
         method: 'POST',
@@ -169,7 +264,7 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || '발급에 실패했습니다.');
-      setDone({ code: data.code, orderId: data.orderId, product, birth });
+      setDone({ code: data.code, orderId: data.orderId, product, birth, ask });
       setStep('done');
     } catch (e) {
       setStep('error');
@@ -212,7 +307,7 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
       if (!res.ok) throw new Error(data?.message || '결제 승인에 실패했습니다.');
       sessionStorage.removeItem(SESSION_KEY);
       cleanUrl();
-      setDone({ code: data.code, orderId: data.orderId, product: pending.product, birth: pending.birth });
+      setDone({ code: data.code, orderId: data.orderId, product: pending.product, birth: pending.birth, ask: pending.ask });
       setStep('done');
     } catch (e) {
       setStep('error');
@@ -226,7 +321,7 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
     setError(null);
     setBusy(true);
     const orderNo = `sj-${crypto.randomUUID()}`;
-    const pending: PendingCheckout = { birth, product };
+    const pending: PendingCheckout = { birth: birthFromUserData(userData), product, ask };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(pending));
     try {
       const toss = await loadTossPayments(clientKey);
@@ -248,15 +343,14 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
   };
 
   const goPay = () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth.dateStr)) {
-      setError('생년월일을 입력해 주세요.');
-      return;
-    }
     setError(null);
+    // 입력한 생년월일시를 상담·만세력에도 즉시 재사용할 수 있도록 App에 알린다.
+    onBirthConfirmed?.(userData);
     setStep('pay');
   };
 
-  const field = 'w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900';
+  const askField =
+    'w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900 placeholder:text-ink-300';
 
   // 무료 개방 중에는 토스 clientKey가 없어도 진행 가능. 정식 결제(FREE_OPEN=false) 시에만 키가 필요하다.
   const paymentBlocked = !FREE_OPEN && !clientKey;
@@ -341,9 +435,9 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
             </div>
           )}
 
-          {/* 2) 생년월일 입력 */}
+          {/* 2) 생년월일시 + 질문·고민 입력 — 랜딩 무료운세와 동일 UI, 전역 공유(1회 입력 재사용) */}
           {!paymentBlocked && step === 'birth' && catalogItem && (
-            <section className={`${PAPER_CARD} p-6 space-y-4`}>
+            <section className={`${PAPER_CARD} p-6 space-y-5`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-serif text-[18px] font-bold text-ink-900">{catalogItem.label}</h3>
                 <button onClick={() => setStep('select')} className="text-[12px] text-ink-500 underline">
@@ -351,47 +445,42 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
                 </button>
               </div>
               <p className="text-[14px] text-ink-500 leading-relaxed">
-                생년월일과 태어난 시간을 입력해 주세요. 이 정보는 사주 계산에만 쓰이고 저장되지 않습니다.
+                생년월일과 태어난 시간을 확인해 주세요. 사이트에서 이미 입력하셨다면 그대로 채워져
+                있습니다. 여기서 입력한 정보는 상담·만세력에서도 다시 입력할 필요 없이 그대로 사용되며,
+                사주 계산에만 쓰이고 저장되지 않습니다.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="space-y-1">
-                  <span className="text-[12px] text-ink-500">생년월일</span>
+
+              <BirthInputFields value={userData} onChange={setUserData} currentSeoulYear={currentSeoulYear} />
+
+              <div className="space-y-3 border-t border-ink-300/20 pt-4">
+                <label className="block space-y-1">
+                  <span className="text-[12px] text-ink-500">가장 알고 싶은 것 (선택)</span>
                   <input
-                    type="date"
-                    value={birth.dateStr}
-                    onChange={(e) => setBirth((b) => ({ ...b, dateStr: e.target.value }))}
-                    className={field}
+                    type="text"
+                    value={interest}
+                    onChange={(e) => setInterest(e.target.value)}
+                    placeholder="예: 올해 이직 시기, 건강운, 재물 흐름"
+                    maxLength={200}
+                    className={askField}
                   />
                 </label>
-                <label className="space-y-1">
-                  <span className="text-[12px] text-ink-500">태어난 시간</span>
-                  <input
-                    type="time"
-                    value={birth.timeStr}
-                    disabled={birth.unknownTime}
-                    onChange={(e) => setBirth((b) => ({ ...b, timeStr: e.target.value }))}
-                    className={`${field} disabled:opacity-40`}
+                <label className="block space-y-1">
+                  <span className="text-[12px] text-ink-500">가장 큰 고민 (선택)</span>
+                  <textarea
+                    value={concern}
+                    onChange={(e) => setConcern(e.target.value)}
+                    placeholder="지금 가장 마음에 걸리는 일을 적어 주시면 리포트 첫 장에서 먼저 답해 드립니다."
+                    maxLength={500}
+                    rows={3}
+                    className={`${askField} resize-none`}
                   />
                 </label>
+                <p className="text-[12px] text-ink-500 leading-relaxed">
+                  적어 주신 내용은 리포트 생성에만 사용됩니다. 이름·연락처 등 개인정보는 적지 말아 주세요.
+                </p>
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-[14px] text-ink-700">
-                <label className="flex items-center gap-2">
-                  <input type="radio" checked={birth.gender === 'M'} onChange={() => setBirth((b) => ({ ...b, gender: 'M' }))} /> 남성
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" checked={birth.gender === 'F'} onChange={() => setBirth((b) => ({ ...b, gender: 'F' }))} /> 여성
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={birth.isLunar} onChange={(e) => setBirth((b) => ({ ...b, isLunar: e.target.checked }))} /> 음력
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={birth.unknownTime} onChange={(e) => setBirth((b) => ({ ...b, unknownTime: e.target.checked }))} /> 시간 모름
-                </label>
-              </div>
-              <button
-                onClick={goPay}
-                className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
-              >
+
+              <button onClick={goPay} className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold">
                 {FREE_OPEN ? '다음' : `결제 단계로 (${won(catalogItem.price)})`}
               </button>
             </section>
@@ -407,11 +496,13 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
               {FREE_OPEN ? (
                 <>
                   <p className="text-[14px] text-ink-500 leading-relaxed">
-                    아래 버튼을 누르면 사주 코드가 발급되고 리포트 생성이 바로 시작됩니다.
+                    아래 버튼을 누르면 사주 코드가 발급되고 리포트 생성이 바로 시작됩니다. 생성은 약 2분
+                    걸리며, 끝나면 <strong className="font-bold text-ink-700">리포트 조회 화면으로 자동 이동해 바로 표시됩니다.</strong>
                   </p>
                   <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
-                    리포트는 입력하신 사주 정보로 개별 생성되는 맞춤형 콘텐츠입니다. 발급된 코드로 열람 기간
-                    내 다시 열람할 수 있으며, 오류로 정상 열람이 불가능한 경우 재생성됩니다.
+                    발급되는 사주 코드는 재열람의 유일한 열쇠입니다. 코드 옆 복사 버튼으로 저장해 두시면,
+                    나중에 ‘리포트 조회’에 붙여넣어 언제든 다시 볼 수 있습니다. 리포트는 입력하신 사주
+                    정보로 개별 생성되는 맞춤형 콘텐츠이며, 오류로 정상 열람이 불가능한 경우 재생성됩니다.
                   </p>
                   <button
                     onClick={() => void requestFree()}
@@ -425,7 +516,8 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
                 <>
                   <p className="text-[14px] text-ink-500 leading-relaxed">
                     아래 버튼을 누르면 토스페이먼츠 결제창이 열립니다. 결제가 끝나면 리포트 코드가 발급되고
-                    생성이 시작됩니다.
+                    생성이 시작되며, 생성이 끝나면 리포트 조회 화면으로 자동 이동해 바로 표시됩니다. 코드는
+                    복사 버튼으로 꼭 저장해 두세요.
                   </p>
                   {/* 청약철회 제한 사전 고지 — 전자상거래법 17조 2항. 취소·환불 정책과 문구 정합 유지. */}
                   <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
@@ -458,7 +550,14 @@ export default function CheckoutTab({ initialProduct }: { initialProduct?: Produ
 
           {/* 5) 완료 */}
           {step === 'done' && done && (
-            <CheckoutDone code={done.code} orderId={done.orderId} product={done.product} birth={done.birth} />
+            <CheckoutDone
+              code={done.code}
+              orderId={done.orderId}
+              product={done.product}
+              birth={done.birth}
+              ask={done.ask}
+              onReportReady={onReportReady}
+            />
           )}
 
           {/* 오류 */}

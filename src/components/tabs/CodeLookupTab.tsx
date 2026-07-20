@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
@@ -124,7 +124,13 @@ function MonthCalendar({ content, sajuYear }: { content: string; sajuYear: numbe
     }
     return blocks;
   }, [content]);
-  const wolun: WolunMonth[] = useMemo(() => getWolunData(sajuYear), [sajuYear]);
+  // 리포트 월블록은 양력 1~12월(己丑/축월부터)인데 getWolunData(Y)는 사주년(입춘, 庚寅/인월부터
+  // 이듬해 축월까지)이라, 양력 1월의 축월은 직전 사주년(Y-1)에 속한다. 두 해 월운을 합쳐 12개월을
+  // 모두 커버한다(간지가 겹치지 않아 find로 안전하게 매칭됨).
+  const wolun: WolunMonth[] = useMemo(
+    () => [...getWolunData(sajuYear), ...getWolunData(sajuYear - 1)],
+    [sajuYear],
+  );
   const [open, setOpen] = useState<number | null>(null);
 
   if (months.length === 0) return <TextBlock text={content} />;
@@ -136,7 +142,10 @@ function MonthCalendar({ content, sajuYear }: { content: string; sajuYear: numbe
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {months.map((block, i) => {
-          const w = wolun[i];
+          // 절입 구간은 인덱스가 아니라 간지로 매칭한다. 리포트 월블록은 양력월(1월=己丑/축월)부터,
+          // getWolunData는 사주년(입춘=庚寅/인월)부터라 시작 월이 한 칸 어긋나므로, 인덱스로 짝지으면
+          // 각 달의 절입이 한 달씩 밀린다. 제목에 든 간지(예: '甲午')로 정확히 찾는다(없으면 표기 생략).
+          const w = wolun.find((x) => block.title.includes(x.ganzhi));
           return (
             <div key={i} className={`${PAPER_CARD} p-4`}>
               <button className="w-full text-left" onClick={() => setOpen(open === i ? null : i)}>
@@ -464,7 +473,7 @@ function buildPdfHtml(code: string, myeongsik: MyeongsikParams | null, report: L
 
 // ─── 메인 탭 ────────────────────────────────────────────────────────────────
 
-export default function CodeLookupTab() {
+export default function CodeLookupTab({ initialCode }: { initialCode?: string } = {}) {
   const [codeInput, setCodeInput] = useState('');
   const [code, setCode] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
@@ -496,6 +505,15 @@ export default function CodeLookupTab() {
       setLoading(false);
     }
   };
+
+  // 리포트 생성 직후 자동 진입(App handleReportReady) — 코드를 채우고 클릭 없이 바로 조회한다.
+  useEffect(() => {
+    if (initialCode) {
+      setCodeInput(initialCode);
+      void lookup(initialCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 리딤 성공 → 재조회로 주문 확보 → 리포트 없는 주문이면 생성 단계로 진입.
   const handleRedeemed = async (birth: BirthFormInput) => {

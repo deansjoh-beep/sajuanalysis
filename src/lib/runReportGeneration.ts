@@ -17,14 +17,25 @@ export interface BirthFormInput {
   dateStr: string; // 'YYYY-MM-DD'
   timeStr: string; // 'HH:mm'
   isLunar: boolean;
+  /** 음력 윤달 여부 (미지정 시 false — 기존 호출부 호환). */
+  isLeap?: boolean;
   gender: 'M' | 'F';
   unknownTime: boolean;
+}
+
+/** 구매 시 선택 입력하는 질문·고민 — 프롬프트에만 쓰이고 서버에 별도 저장되지 않는다. */
+export interface ReportAskInput {
+  /** 가장 알고 싶은 것 */
+  interest?: string;
+  /** 가장 큰 고민 */
+  concern?: string;
 }
 
 /** 생년월일 폼값 + 상품 → generateLifeNavReport가 소비하는 ReportInputData. */
 export function buildReportInputFromBirth(
   birth: BirthFormInput,
   product: ProductType,
+  ask: ReportAskInput = {},
 ): ReportInputData {
   return {
     // 개인정보 불변식: 실명 미주입 → 저장될 본문에 이름이 남지 않는다.
@@ -33,10 +44,10 @@ export function buildReportInputFromBirth(
     birthDate: birth.dateStr,
     birthTime: birth.unknownTime ? '12:00' : birth.timeStr,
     isLunar: birth.isLunar,
-    isLeap: false,
+    isLeap: birth.isLeap ?? false,
     unknownTime: birth.unknownTime,
-    concern: '',
-    interest: '',
+    concern: (ask.concern ?? '').trim(),
+    interest: (ask.interest ?? '').trim(),
     // premium 이외 상품은 reportLevel 무관. 기본값 advanced.
     reportLevel: 'advanced',
     lifeEvents: [],
@@ -56,6 +67,8 @@ interface RunReportGenerationParams {
   orderId: string;
   product: ProductType;
   birth: BirthFormInput;
+  /** 구매 시 선택 입력한 질문·고민 — 리딤/복구 경로에는 없음(선택). */
+  ask?: ReportAskInput;
   signal?: AbortSignal;
 }
 
@@ -67,9 +80,9 @@ interface RunReportGenerationParams {
 export async function runReportGeneration(
   params: RunReportGenerationParams,
 ): Promise<RunReportGenerationResult> {
-  const { code, orderId, product, birth, signal } = params;
+  const { code, orderId, product, birth, ask, signal } = params;
 
-  const input = buildReportInputFromBirth(birth, product);
+  const input = buildReportInputFromBirth(birth, product, ask);
 
   let generated: Awaited<ReturnType<typeof generateLifeNavReport>>;
   try {
