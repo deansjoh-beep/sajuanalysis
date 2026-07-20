@@ -63,7 +63,7 @@ const PRODUCT = (argValue('product') ?? 'lifeNav') as 'lifeNav' | ProductType;
 const NO_REPAIR = hasFlag('no-repair');
 const DELAY_MS = Math.max(0, parseInt(argValue('delay') ?? '1000', 10));
 type YongshinEngine = 'v1' | 'v1.5';
-const ENGINE = (argValue('engine') ?? 'v1') as YongshinEngine; // 플랜 3-1 — v1.5 = 자평 규칙 엔진 컨텍스트
+const ENGINE = (argValue('engine') ?? 'v1.5') as YongshinEngine; // 프로덕션 기본과 일치(v1.5 자평 규칙 엔진). v1은 --engine v1로 회귀 비교 시에만.
 const AB = hasFlag('ab'); // 케이스당 v1·v1.5 쌍 생성(A/B 벤치, ⛔ OWNER 병합 판정용)
 const now = new Date();
 const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;

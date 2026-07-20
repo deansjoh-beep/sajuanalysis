@@ -102,8 +102,10 @@ const buildYongshinContext = (analysis: SajuAnalysis): string => {
   const g = analysis.gyeokYongshin;
   if (!g) return '격국·용신 판정 불가(입력 불충분)';
   const legacy = toLegacyYongshin(g);
+  // eokbuYongshin은 억부 방식으로 도출한 '용신 후보'이지 기신이 아니다. 과거 '기신:'으로 오표기해
+  // 신약 사주(조후=억부 오행 일치)에서 "용신 X | 기신 X" 자기모순을 유발했다(A/B 벤치 63%). 라벨 정정.
   return (
-    `강약: ${legacy.strength} | 조후: ${legacy.johooStatus} | 용신: ${legacy.yongshin} | 기신: ${legacy.eokbuYongshin} | 논리: ${legacy.logicBasis}` +
+    `강약: ${legacy.strength} | 조후: ${legacy.johooStatus} | 용신: ${legacy.yongshin} | 억부용신: ${legacy.eokbuYongshin} | 논리: ${legacy.logicBasis}` +
     ' | ※ 격국·용신은 유파 의존 잠정 해석이므로 참고 경향으로만 서술할 것(단정 금지)'
   );
 };
@@ -267,7 +269,8 @@ export const buildLegacyPromptContext = (
     return `${d.startAge}세(${d.startYear}~${d.startYear + 9}년) 대운: ${stemHangul}(${d.stem})${branchHangul}(${d.branch})`;
   }).join(', ');
 
-  const yongshinContext = `강약: ${yongshin.strength} | 조후: ${yongshin.johooStatus} | 용신: ${yongshin.yongshin} | 기신: ${yongshin.eokbuYongshin ?? ''} | 논리: ${yongshin.logicBasis ?? ''}`;
+  // eokbuYongshin = 억부용신(용신 후보). 과거 '기신:' 오표기 정정 — buildYongshinContext와 동일 라벨 유지.
+  const yongshinContext = `강약: ${yongshin.strength} | 조후: ${yongshin.johooStatus} | 용신: ${yongshin.yongshin} | 억부용신: ${yongshin.eokbuYongshin ?? ''} | 논리: ${yongshin.logicBasis ?? ''}`;
 
   return {
     sajuContext,

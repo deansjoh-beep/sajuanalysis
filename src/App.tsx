@@ -79,8 +79,14 @@ const LazyBlogTab = React.lazy(() => import("./components/tabs/BlogTab").then((m
 const LazyCodeLookupTab = React.lazy(() => import("./components/tabs/CodeLookupTab"));
 const LazyCheckoutTab = React.lazy(() => import("./components/tabs/CheckoutTab"));
 
-// 정식 오픈 전: 리포트 구매·조회 탭을 "준비 중"으로 표시한다. 오픈 시 false로 바꾸면 실제 탭이 뜬다.
-const REPORTS_COMING_SOON = true;
+// 리포트 구매·조회 탭 정식 오픈(무료 개방). 상품별 개방 여부는 db/productAccess.ts가 관리한다.
+// 전체를 다시 "준비 중"으로 닫으려면 true로 되돌린다.
+const REPORTS_COMING_SOON = false;
+
+// 레거시 프리미엄 리포트(네이버스토어 구매 → 관리자 수동 생성/딜리버리) 노출 스위치.
+// false = 전면 숨김(주문/생성/딜리버리 코드·관리자 패널·API는 그대로 보존 — 되살리려면 true).
+// true로 바꾸면 상단 "프리미엄리포트" 탭과 랜딩 상품 클릭이 다시 레거시 주문 폼(order 탭)으로 연결된다.
+const LEGACY_PREMIUM_ORDER_ENABLED = false;
 
 // 라우트/Gemini/관리자/Firestore 에러/블로그 헬퍼/타입/renderChatPlainText
 // 는 모두 전용 모듈로 분리됨. (App.tsx 슬림화)
@@ -1111,7 +1117,7 @@ const App: React.FC = () => {
               { id: "welcome", label: "HOME" },
               { id: "dashboard", label: "만세력" },
               { id: "chat", label: "상담" },
-              { id: "report", label: "프리미엄리포트" },
+              ...(LEGACY_PREMIUM_ORDER_ENABLED ? [{ id: "report", label: "프리미엄리포트" }] : []),
               { id: "checkout", label: "리포트 구매" },
               { id: "lookup", label: "리포트 조회" },
               ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),
@@ -1205,7 +1211,7 @@ const App: React.FC = () => {
               currentSeoulYear={currentSeoulYear}
               handleStart={handleStart}
               onTeaserManse={handleTeaserToManse}
-              reportsComingSoon={REPORTS_COMING_SOON}
+              legacyOrderEnabled={LEGACY_PREMIUM_ORDER_ENABLED}
               onOpenPolicy={(page) => {
                 setGuideSubPage(page);
                 setActiveTab('guide');
@@ -1243,7 +1249,7 @@ const App: React.FC = () => {
               <ComingSoon title="리포트 구매" />
             ) : (
               <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-                <LazyCheckoutTab />
+                <LazyCheckoutTab initialProduct={orderProductType} />
               </Suspense>
             )
           )}
@@ -1403,7 +1409,7 @@ const App: React.FC = () => {
             { id: "welcome", label: "HOME" },
             { id: "dashboard", label: "만세력" },
             { id: "chat", label: "상담" },
-            { id: "report", label: "리포트" },
+            ...(LEGACY_PREMIUM_ORDER_ENABLED ? [{ id: "report", label: "리포트" }] : []),
             { id: "checkout", label: "구매" },
             { id: "lookup", label: "조회" },
             ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),

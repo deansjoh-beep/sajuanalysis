@@ -356,8 +356,9 @@ export type PremiumReportPromptBundle = {
 
 /**
  * 입력 → SajuAnalysis(단일 소스) → 상품별 system/user 프롬프트 조립.
- * opts.yongshinEngine: 'v1'(기본) | 'v1.5'(자평 표준 규칙 엔진 + 기준서 §조항 주입) —
- * 기본값 전환은 A/B 벤치 감수 후 ⛔ OWNER 병합 판정(플랜 3-1).
+ * opts.yongshinEngine: 'v1.5'(기본 — 자평 표준 규칙 엔진 + 기준서 §조항 주입) | 'v1'(레거시 provisional, 회귀 비교용).
+ * 기본값은 sajuAnalysisToPromptContext에서 'v1.5'로 확정됨(2026-07-07 OWNER 병합, A/B 벤치 30건 근거 — 플랜 3-1).
+ * opts 미지정 시 v1.5가 적용된다.
  */
 export const assemblePremiumReportPrompt = (
   inputData: ReportInputData,

@@ -119,6 +119,34 @@ export async function confirmPaymentAndPersist(
   }
 }
 
+export interface IssueFreeResult {
+  code: string;
+  orderId: string;
+}
+
+/**
+ * 무료 개방 발급 — 토스 없이 코드 + 주문(₩0, status='paid')을 기록한다.
+ * confirmPaymentAndPersist의 3단계(금액 검증·멱등·토스 승인)를 제외한 것으로,
+ * 베타 코드(issueBetaCodes)와 동일한 ₩0 "paid" 자격 패턴이다. 발급 후 클라이언트가
+ * 반환된 code/orderId로 기존 자동 생성 파이프(runReportGeneration → save-report)를 태운다.
+ *
+ * ⚠️ 상품 개방 여부(isOpenProduct) 검증은 호출부(api/payment `free`·server.ts)의 책임이다.
+ *    이 함수는 토스 승인을 생략하므로, 개방되지 않은 상품에 대해 호출해서는 안 된다.
+ */
+export async function issueFreeOrder(
+  db: Db,
+  product: PaidProduct,
+  myeongsik: MyeongsikParams,
+  codeOptions: IssueCodeOptions = {},
+): Promise<IssueFreeResult> {
+  const issued = await issueCode(db, myeongsik, codeOptions);
+  const [orderRow] = await db
+    .insert(orders)
+    .values({ orderNo: `free-${issued.code}`, paymentKey: 'free-open', codeId: issued.id, product, status: 'paid', amount: 0 })
+    .returning();
+  return { code: issued.code, orderId: orderRow.id };
+}
+
 export interface RefundOutcome {
   found: boolean;
   alreadyRefunded: boolean;
