@@ -10,7 +10,7 @@
  *
  * 검증 정책:
  *   - sajuContext·daeunContext·hapchungContext·shinsalContext → **바이트 동일** 요구.
- *   - yongshinContext → 의도적 차이: 값(강약·조후·용신·기신)은 동일 prefix, 논리 문구가
+ *   - yongshinContext → 의도적 차이: 값(강약·조후·용신·억부용신)은 동일 prefix, 논리 문구가
  *     구조화 모듈(gyeokyongshin) 표현으로 바뀌고 잠정 경고가 병기된다. 스냅샷으로 문서화.
  *   - sipseungContext → 의도적 교정: 레거시는 saju[2](월간)를 일간으로 잘못 전달했다.
  *     어댑터는 일간 기준(= getOriginalSipseungSummary(일간, saju))과 동일해야 한다.
@@ -88,7 +88,7 @@ describe.each(FIXTURES)('컨텍스트 diff 하네스 — $name', (f) => {
   });
 
   test('yongshinContext — 값 prefix 동일 + 잠정 경고 병기(의도적 차이)', () => {
-    // 강약·조후·용신·기신 수치는 동일 알고리즘이므로 prefix가 바이트 동일해야 한다.
+    // 강약·조후·용신·억부용신 수치는 동일 알고리즘이므로 prefix가 바이트 동일해야 한다.
     const legacyPrefix = legacy.yongshinContext.split(' | 논리:')[0];
     expect(adapted.yongshinContext.startsWith(legacyPrefix)).toBe(true);
     // 논리 문구는 구조화 모듈 표현 + 잠정 경고 병기.
