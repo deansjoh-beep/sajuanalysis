@@ -27,10 +27,12 @@ import { createTossClient, isTossConfigured, TossApiError } from "./api/_lib/tos
 import {
   confirmPaymentAndPersist,
   isPaidProduct,
+  issueFreeOrder,
   PaymentValidationError,
   refundOrder,
   RefundNotAllowedError,
 } from "./db/payment.ts";
+import { isOpenProduct } from "./db/productAccess.ts";
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
@@ -927,6 +929,33 @@ async function startServer() {
     }
     return true;
   };
+
+  // 무료 개방 발급 — 토스 없이 코드+주문(₩0). DB만 필요(토스 미설정 환경 동작). api/payment.ts `free`와 동일 형상.
+  app.post("/api/payment/free", expressRateLimit(paymentLimiter), async (req, res) => {
+    if (!isDbConfigured()) {
+      return res.status(503).json({ error: 'DB_NOT_CONFIGURED', message: '데이터베이스가 아직 구성되지 않았습니다.' });
+    }
+    try {
+      const body = (req.body || {}) as Record<string, unknown>;
+      const product = String(body.product || '');
+      const myeongsik = body.myeongsik as MyeongsikParams | undefined;
+      if (!isPaidProduct(product)) {
+        return res.status(400).json({ error: 'INVALID_PRODUCT', message: `알 수 없는 상품: ${product}` });
+      }
+      if (!isOpenProduct(product)) {
+        return res.status(403).json({ error: 'PRODUCT_NOT_OPEN', message: '아직 무료 개방되지 않은 상품입니다.' });
+      }
+      if (!myeongsik) {
+        return res.status(400).json({ error: 'MYEONGSIK_REQUIRED', message: 'myeongsik(명식 파라미터)이 필요합니다.' });
+      }
+      assertNoPersonalKeys(myeongsik as unknown as Record<string, unknown>);
+      const db = await getDb();
+      const result = await issueFreeOrder(db, product, myeongsik);
+      return res.status(200).json({ ok: true, code: result.code, orderId: result.orderId });
+    } catch (error) {
+      return handlePaymentError(res, 'free', error);
+    }
+  });
 
   app.post("/api/payment/confirm", expressRateLimit(paymentLimiter), async (req, res) => {
     if (!requirePaymentReady(res)) return;

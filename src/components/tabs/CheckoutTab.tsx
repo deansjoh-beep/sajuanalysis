@@ -6,13 +6,19 @@ import { PaperBackground } from '../welcome/PaperBackground';
 import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
 import type { BirthFormInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth } from '../../lib/buildMyeongsik';
+import { PRODUCT_ACCESS } from '@/db/productAccess';
 
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
 
 const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
 
-// ⚠️ 가격은 서버 db/payment.ts PRODUCT_PRICES와 반드시 동기화(OWNER 확정 2026-07-09). 서버가 amount를
-//    재검증하므로 불일치 시 결제는 거부되지만, 표시 금액이 어긋나면 UX가 깨지므로 값 변경 시 양쪽을 같이 고칠 것.
+// 토스페이먼츠 정식 승인 전까지 무료 개방(결제 없이 코드 발급 → 즉시 생성). 상품별 개방 여부는
+// db/productAccess.ts PRODUCT_ACCESS가 단일 소스다. 승인 후 이 값을 false로 바꾸면 아래 토스 결제
+// 경로가 그대로 활성화된다(결제 코드는 보존).
+const FREE_OPEN = true;
+
+// ⚠️ 가격은 서버 db/payment.ts PRODUCT_PRICES와 반드시 동기화(OWNER 확정 2026-07-09). 개방 상태는
+//    db/productAccess.ts PRODUCT_ACCESS와 동기화. 무료 개방 중에는 가격 대신 '무료'로 표기한다.
 const PRODUCT_CATALOG: Array<{ id: ProductType; label: string; price: number; desc: string }> = [
   { id: 'yearly2026', label: '2026 일년운세 리포트', price: 4900, desc: '2026년 열두 달의 흐름과 시기별 조언' },
   { id: 'premium', label: '평생 사주 리포트', price: 9900, desc: '대운 전체를 관통하는 평생 인생 네비게이션' },
@@ -28,6 +34,7 @@ interface PendingCheckout {
 }
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
+const isOpen = (p: ProductType) => PRODUCT_ACCESS[p] === 'open';
 
 // ─── 결제 완료 화면 (코드 안내 + 자동 생성) ──────────────────────────────────
 
@@ -47,7 +54,7 @@ function CheckoutDone({
   return (
     <div className="space-y-6">
       <section className={`${PAPER_CARD} p-6 space-y-3`}>
-        <h3 className="font-serif text-[18px] font-bold text-ink-900">결제가 완료되었습니다</h3>
+        <h3 className="font-serif text-[18px] font-bold text-ink-900">리포트가 발급되었습니다</h3>
         <p className="text-[14px] text-ink-700 leading-relaxed">
           아래 <strong className="font-bold text-ink-900">사주 코드</strong>가 리포트의 유일한 열쇠입니다. 반드시
           저장해 두세요. 열람 기간이 지나거나 기기를 바꿔도 이 코드로 다시 찾을 수 있습니다.
@@ -57,7 +64,7 @@ function CheckoutDone({
           <p className="font-serif text-[28px] font-bold tracking-widest text-ink-900 mt-1">{code}</p>
         </div>
         <p className="text-[12px] text-ink-500 leading-relaxed">
-          생성 도중 창이 닫혀도 결제는 안전합니다. ‘리포트 조회’에서 코드를 입력하면 추가 결제 없이
+          생성 도중 창이 닫혀도 괜찮습니다. ‘리포트 조회’에서 코드를 입력하면 추가 절차 없이
           생성을 다시 시작할 수 있습니다.
         </p>
       </section>
@@ -95,7 +102,7 @@ function CheckoutDone({
 
 type Step = 'select' | 'birth' | 'pay' | 'confirming' | 'done' | 'error';
 
-export default function CheckoutTab() {
+export default function CheckoutTab({ initialProduct }: { initialProduct?: ProductType } = {}) {
   const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY as string | undefined;
 
   const [step, setStep] = useState<Step>('select');
@@ -108,12 +115,20 @@ export default function CheckoutTab() {
     unknownTime: false,
   });
   const [error, setError] = useState<string | null>(null);
-  const [paying, setPaying] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ code: string; orderId: string; product: ProductType; birth: BirthFormInput } | null>(null);
 
   const catalogItem = PRODUCT_CATALOG.find((p) => p.id === product) ?? null;
 
-  // 결제 후 successUrl로 돌아왔을 때 confirm 처리 (마운트 1회).
+  const selectProduct = (id: ProductType) => {
+    if (!isOpen(id)) return; // 준비중 상품은 진행 불가
+    setError(null);
+    setProduct(id);
+    setStep('birth');
+  };
+
+  // 결제 후 successUrl로 돌아왔을 때 confirm 처리 (마운트 1회). 무료 개방 중에는 return 파라미터가
+  // 없으므로 이 경로는 건너뛰고, 대신 랜딩에서 넘어온 initialProduct(개방 상품)를 미리 선택한다.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const flag = params.get('checkout');
@@ -128,6 +143,11 @@ export default function CheckoutTab() {
     const amount = params.get('amount');
     if (paymentKey && orderId && amount) {
       void confirmReturn(paymentKey, orderId, Number(amount));
+      return;
+    }
+    if (initialProduct && isOpen(initialProduct)) {
+      setProduct(initialProduct);
+      setStep('birth');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -136,6 +156,30 @@ export default function CheckoutTab() {
     window.history.replaceState({}, '', window.location.pathname);
   };
 
+  // ── 무료 개방 발급 (토스 없이 코드+주문 → 즉시 자동 생성) ──
+  const requestFree = async () => {
+    if (!product || !catalogItem || busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch('/api/payment/free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product, myeongsik: buildMyeongsikFromBirth(birth) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || '발급에 실패했습니다.');
+      setDone({ code: data.code, orderId: data.orderId, product, birth });
+      setStep('done');
+    } catch (e) {
+      setStep('error');
+      setError(e instanceof Error ? e.message : '발급에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── 토스 결제 승인 (정식 오픈 후 FREE_OPEN=false 시 활성화) ──
   const confirmReturn = async (paymentKey: string, orderId: string, amount: number) => {
     setStep('confirming');
     let pending: PendingCheckout | null = null;
@@ -178,16 +222,13 @@ export default function CheckoutTab() {
   };
 
   const requestPay = async () => {
-    if (!clientKey || !product || !catalogItem || paying) return;
+    if (!clientKey || !product || !catalogItem || busy) return;
     setError(null);
-    setPaying(true);
-    // orderNo: Toss orderId 규칙(영숫자+-,_ 6~64자) 충족. DB orders.orderNo로 저장됨.
+    setBusy(true);
     const orderNo = `sj-${crypto.randomUUID()}`;
     const pending: PendingCheckout = { birth, product };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(pending));
     try {
-      // 결제창(개별 연동) 방식 — API 개별 연동 키(test_ck_/test_sk_)와 호환.
-      // (전자결제 승인 후 결제위젯(gck/gsk)으로 바꾸려면 toss.widgets() 방식으로 복귀.)
       const toss = await loadTossPayments(clientKey);
       const payment = toss.payment({ customerKey: ANONYMOUS });
       await payment.requestPayment({
@@ -200,10 +241,9 @@ export default function CheckoutTab() {
         card: { useEscrow: false, flowMode: 'DEFAULT', useCardPoint: false, useAppCardOnly: false },
       });
     } catch (e) {
-      // 사용자가 결제창을 닫은 경우 등 — 세션 정리 후 결제 단계 유지.
       sessionStorage.removeItem(SESSION_KEY);
       setError(e instanceof Error ? e.message : '결제 요청이 중단되었습니다.');
-      setPaying(false);
+      setBusy(false);
     }
   };
 
@@ -217,6 +257,9 @@ export default function CheckoutTab() {
   };
 
   const field = 'w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900';
+
+  // 무료 개방 중에는 토스 clientKey가 없어도 진행 가능. 정식 결제(FREE_OPEN=false) 시에만 키가 필요하다.
+  const paymentBlocked = !FREE_OPEN && !clientKey;
 
   return (
     <motion.div
@@ -235,13 +278,15 @@ export default function CheckoutTab() {
       <div className="relative px-4 py-10 md:py-14 md:px-10">
         <div className="max-w-3xl mx-auto space-y-6">
           <header className="text-center space-y-3 pt-2 pb-2">
-            <h2 className="font-serif text-[28px] md:text-[36px] font-bold text-ink-900 leading-tight">리포트 구매</h2>
+            <h2 className="font-serif text-[28px] md:text-[36px] font-bold text-ink-900 leading-tight">리포트 받기</h2>
             <p className="text-[14px] text-ink-500 leading-relaxed">
-              결제 후 발급되는 사주 코드로 리포트를 열람합니다. 개인정보는 저장되지 않으며, 코드가 유일한 열쇠입니다.
+              {FREE_OPEN
+                ? '지금은 무료로 개방 중입니다. 발급되는 사주 코드로 리포트를 열람하며, 개인정보는 저장되지 않습니다.'
+                : '결제 후 발급되는 사주 코드로 리포트를 열람합니다. 개인정보는 저장되지 않으며, 코드가 유일한 열쇠입니다.'}
             </p>
           </header>
 
-          {!clientKey && step !== 'done' && (
+          {paymentBlocked && step !== 'done' && (
             <section className={`${PAPER_CARD} p-6`}>
               <p className="text-[14px] text-ink-700">결제 준비 중입니다. 잠시 후 다시 이용해 주세요.</p>
             </section>
@@ -249,28 +294,55 @@ export default function CheckoutTab() {
 
           {error && step !== 'error' && <p className="text-[12px] text-red-600 text-center">{error}</p>}
 
-          {/* 1) 상품 선택 */}
-          {clientKey && step === 'select' && (
+          {/* 1) 상품 선택 — 개방(무료) 상품은 선택 가능, 준비중 상품은 배지 표시 */}
+          {!paymentBlocked && step === 'select' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {PRODUCT_CATALOG.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setProduct(p.id);
-                    setStep('birth');
-                  }}
-                  className={`${PAPER_CARD} p-5 text-left hover:border-ink-900/40 transition-colors`}
-                >
-                  <p className="font-serif text-[18px] font-bold text-ink-900">{p.label}</p>
-                  <p className="text-[12px] text-ink-500 mt-1 leading-relaxed">{p.desc}</p>
-                  <p className="text-[14px] font-bold text-ink-900 mt-3">{won(p.price)}</p>
-                </button>
-              ))}
+              {PRODUCT_CATALOG.map((p) => {
+                const open = isOpen(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => selectProduct(p.id)}
+                    disabled={!open}
+                    aria-disabled={!open}
+                    className={`${PAPER_CARD} p-5 text-left transition-colors ${
+                      open ? 'hover:border-ink-900/40' : 'opacity-60 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-serif text-[18px] font-bold text-ink-900">{p.label}</p>
+                      {open ? (
+                        FREE_OPEN && (
+                          <span className="shrink-0 rounded-full bg-seal/10 text-seal text-[12px] font-bold px-2.5 py-1">
+                            무료 오픈
+                          </span>
+                        )
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-ink-300/20 text-ink-500 text-[12px] font-bold px-2.5 py-1">
+                          준비중
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-ink-500 mt-1 leading-relaxed">{p.desc}</p>
+                    <p className="text-[14px] font-bold text-ink-900 mt-3">
+                      {open && FREE_OPEN ? (
+                        <>
+                          무료 <span className="text-[12px] font-normal text-ink-500 line-through ml-1">{won(p.price)}</span>
+                        </>
+                      ) : !open ? (
+                        <span className="text-[12px] font-normal text-ink-500">곧 순차적으로 열립니다</span>
+                      ) : (
+                        won(p.price)
+                      )}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {/* 2) 생년월일 입력 */}
-          {clientKey && step === 'birth' && catalogItem && (
+          {!paymentBlocked && step === 'birth' && catalogItem && (
             <section className={`${PAPER_CARD} p-6 space-y-4`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-serif text-[18px] font-bold text-ink-900">{catalogItem.label}</h3>
@@ -320,36 +392,57 @@ export default function CheckoutTab() {
                 onClick={goPay}
                 className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
               >
-                결제 단계로 ({won(catalogItem.price)})
+                {FREE_OPEN ? '다음' : `결제 단계로 (${won(catalogItem.price)})`}
               </button>
             </section>
           )}
 
-          {/* 3) 결제 */}
-          {clientKey && step === 'pay' && catalogItem && (
+          {/* 3) 발급/결제 확인 */}
+          {!paymentBlocked && step === 'pay' && catalogItem && (
             <section className={`${PAPER_CARD} p-6 space-y-4`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-serif text-[18px] font-bold text-ink-900">{catalogItem.label}</h3>
-                <span className="text-[14px] font-bold text-ink-900">{won(catalogItem.price)}</span>
+                <span className="text-[14px] font-bold text-ink-900">{FREE_OPEN ? '무료' : won(catalogItem.price)}</span>
               </div>
-              <p className="text-[14px] text-ink-500 leading-relaxed">
-                아래 버튼을 누르면 토스페이먼츠 결제창이 열립니다. 결제가 끝나면 리포트 코드가 발급되고
-                생성이 시작됩니다.
-              </p>
-              {/* 청약철회 제한 사전 고지 — 전자상거래법 17조 2항. 취소·환불 정책과 문구 정합 유지. */}
-              <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
-                리포트는 사주 정보를 바탕으로 개별 생성되는 맞춤형 디지털 콘텐츠로, 생성이 완료된 후에는
-                청약철회(환불)가 불가합니다. 생성 전에는 전액 환불되며, 오류로 정상 열람이 불가능한 경우에는
-                생성 후에도 재생성 또는 전액 환불해 드립니다. 결제 진행 시 위 내용에 동의한 것으로 봅니다.
-                자세한 내용은 하단 '취소·환불 정책'을 확인해 주세요.
-              </p>
-              <button
-                onClick={() => void requestPay()}
-                disabled={paying}
-                className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
-              >
-                {paying ? '결제창 여는 중...' : `${won(catalogItem.price)} 결제하기`}
-              </button>
+              {FREE_OPEN ? (
+                <>
+                  <p className="text-[14px] text-ink-500 leading-relaxed">
+                    아래 버튼을 누르면 사주 코드가 발급되고 리포트 생성이 바로 시작됩니다.
+                  </p>
+                  <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
+                    리포트는 입력하신 사주 정보로 개별 생성되는 맞춤형 콘텐츠입니다. 발급된 코드로 열람 기간
+                    내 다시 열람할 수 있으며, 오류로 정상 열람이 불가능한 경우 재생성됩니다.
+                  </p>
+                  <button
+                    onClick={() => void requestFree()}
+                    disabled={busy}
+                    className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
+                  >
+                    {busy ? '발급 중...' : '무료로 리포트 받기'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-[14px] text-ink-500 leading-relaxed">
+                    아래 버튼을 누르면 토스페이먼츠 결제창이 열립니다. 결제가 끝나면 리포트 코드가 발급되고
+                    생성이 시작됩니다.
+                  </p>
+                  {/* 청약철회 제한 사전 고지 — 전자상거래법 17조 2항. 취소·환불 정책과 문구 정합 유지. */}
+                  <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
+                    리포트는 사주 정보를 바탕으로 개별 생성되는 맞춤형 디지털 콘텐츠로, 생성이 완료된 후에는
+                    청약철회(환불)가 불가합니다. 생성 전에는 전액 환불되며, 오류로 정상 열람이 불가능한 경우에는
+                    생성 후에도 재생성 또는 전액 환불해 드립니다. 결제 진행 시 위 내용에 동의한 것으로 봅니다.
+                    자세한 내용은 하단 '취소·환불 정책'을 확인해 주세요.
+                  </p>
+                  <button
+                    onClick={() => void requestPay()}
+                    disabled={busy}
+                    className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
+                  >
+                    {busy ? '결제창 여는 중...' : `${won(catalogItem.price)} 결제하기`}
+                  </button>
+                </>
+              )}
               <button onClick={() => setStep('birth')} className="text-[12px] text-ink-500 underline">
                 이전으로
               </button>

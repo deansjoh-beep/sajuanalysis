@@ -5,10 +5,12 @@ import { getDb, isDbConfigured } from '../db/client.js';
 import {
   confirmPaymentAndPersist,
   isPaidProduct,
+  issueFreeOrder,
   PaymentValidationError,
   refundOrder,
   RefundNotAllowedError,
 } from '../db/payment.js';
+import { isOpenProduct } from '../db/productAccess.js';
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 import { getAdminStats } from '../db/admin.js';
 import { getFeedbackStats } from '../db/feedback.js';
@@ -55,6 +57,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   }
   if (!checkVercelRateLimit(req, res, paymentLimiter)) return;
+
+  // 무료 개방 발급 — 토스 없이 코드+주문(₩0) 기록. 토스 미설정 환경에서도 동작해야 하므로
+  // isTossConfigured() 가드보다 먼저 처리한다(승인 전 주간 단계적 무료 오픈 워크플로).
+  if (action === 'free') {
+    const body = (req.body || {}) as Record<string, unknown>;
+    const product = String(body.product || '');
+    const myeongsik = body.myeongsik as MyeongsikParams | undefined;
+    if (!isPaidProduct(product)) {
+      return res.status(400).json({ error: 'INVALID_PRODUCT', message: `알 수 없는 상품: ${product}` });
+    }
+    if (!isOpenProduct(product)) {
+      return res.status(403).json({ error: 'PRODUCT_NOT_OPEN', message: '아직 무료 개방되지 않은 상품입니다.' });
+    }
+    if (!myeongsik) {
+      return res.status(400).json({ error: 'MYEONGSIK_REQUIRED', message: 'myeongsik(명식 파라미터)이 필요합니다.' });
+    }
+    try {
+      assertNoPersonalKeys(myeongsik as unknown as Record<string, unknown>);
+      const db = await getDb();
+      const result = await issueFreeOrder(db, product, myeongsik);
+      return res.status(200).json({ ok: true, code: result.code, orderId: result.orderId });
+    } catch (error: unknown) {
+      if (error instanceof PersonalDataError) {
+        return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
+      }
+      const message = error instanceof Error ? error.message : 'free issue failed';
+      console.error('[api/payment:free] error:', error);
+      return res.status(500).json({ error: 'FREE_ISSUE_FAILED', message });
+    }
+  }
 
   if (!isTossConfigured()) {
     return res.status(503).json({
