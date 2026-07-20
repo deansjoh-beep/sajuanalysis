@@ -137,6 +137,8 @@ const App: React.FC = () => {
     typeof window !== "undefined" && /[?&]checkout=(return|fail)/.test(window.location.search) ? "checkout" : "welcome"
   );
   const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('premium');
+  // 리포트 생성 완료 시 조회 탭이 자동 조회할 코드 (CheckoutTab onReportReady → CodeLookupTab initialCode)
+  const [lookupAutoCode, setLookupAutoCode] = useState<string | null>(null);
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "refund" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -445,22 +447,33 @@ const App: React.FC = () => {
     setShowInlineSuggestions(false);
   }, [messages.length]);
 
-  // Saju Calculation Trigger — 입력 폼(handleStart)과 랜딩 티저(handleTeaserToManse)가 공유
-  const runAnalysis = async (data: UserData) => {
-    setIsAnalyzing(true);
-    setAnalysisStep(0);
+  // 사주 계산에 실제로 쓰이는 필드만의 시그니처 — 같은 생년월일시면 재계산(및 상담 초기화)을 건너뛴다.
+  const birthSignature = (d: UserData) =>
+    [d.birthYear, d.birthMonth, d.birthDay, d.unknownTime ? 'x' : `${d.birthHour}:${d.birthMinute}`, d.calendarType, d.gender].join('|');
+  const lastAnalyzedRef = useRef<string>('');
+
+  // Saju Calculation Trigger — 입력 폼(handleStart)·랜딩 티저(handleTeaserToManse)·리포트 구매(silent)가 공유.
+  // silent: 연출·탭 이동 없이 계산만 수행(리포트 구매에서 입력한 생년월일시를 상담·만세력에 재사용).
+  const runAnalysis = async (data: UserData, opts: { silent?: boolean } = {}) => {
+    const silent = opts.silent === true;
+    if (!silent) {
+      setIsAnalyzing(true);
+      setAnalysisStep(0);
+    }
 
     try {
-      const steps = [
-        "천문 데이터를 분석하고 있습니다...",
-        "사주 팔자를 산출하고 있습니다...",
-        "대운의 흐름을 파악하고 있습니다...",
-        "현대적 해석을 준비하고 있습니다..."
-      ];
+      if (!silent) {
+        const steps = [
+          "천문 데이터를 분석하고 있습니다...",
+          "사주 팔자를 산출하고 있습니다...",
+          "대운의 흐름을 파악하고 있습니다...",
+          "현대적 해석을 준비하고 있습니다..."
+        ];
 
-      for (let i = 0; i < steps.length; i++) {
-        setAnalysisStep(i);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        for (let i = 0; i < steps.length; i++) {
+          setAnalysisStep(i);
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
       }
 
       const dateStr = `${data.birthYear}-${data.birthMonth.padStart(2, '0')}-${data.birthDay.padStart(2, '0')}`;
@@ -485,6 +498,7 @@ const App: React.FC = () => {
       }
       setYongshinResult(yongshin);
       setGyeokResult(gyeok);
+      lastAnalyzedRef.current = birthSignature(data);
 
       // 로그인한 회원이면 사주 프로필을 저장 → 개인화에 사용
       if (user) {
@@ -504,9 +518,11 @@ const App: React.FC = () => {
       setReportContent(null);
       setConsultationMode('basic');
       consultationModeRef.current = 'basic';
-      setActiveTab("dashboard");
-      setShowInputForm(false);
-      
+      if (!silent) {
+        setActiveTab("dashboard");
+        setShowInputForm(false);
+      }
+
       // Reset chat with context
       if (consultationMode === 'basic') {
         setBasicSelectedCategory(BASIC_CHAT_CATEGORIES[0]);
@@ -520,9 +536,9 @@ const App: React.FC = () => {
       setMessages([]);
     } catch (err: any) {
       console.error("Analysis error:", err);
-      alert("사주 분석 중 오류가 발생했습니다. 입력 정보를 확인해 주세요.");
+      if (!silent) alert("사주 분석 중 오류가 발생했습니다. 입력 정보를 확인해 주세요.");
     } finally {
-      setIsAnalyzing(false);
+      if (!silent) setIsAnalyzing(false);
     }
   };
 
@@ -544,6 +560,21 @@ const App: React.FC = () => {
     };
     setUserData(merged);
     void runAnalysis(merged);
+  };
+
+  // 리포트 구매에서 생년월일시 확정 → 상담·만세력에서 재입력 없이 그대로 사용.
+  // 같은 명식이면 재계산(과 그에 따른 상담 초기화)을 건너뛴다.
+  const handleCheckoutBirthConfirmed = (u: UserData) => {
+    setUserData(u);
+    if (birthSignature(u) !== lastAnalyzedRef.current) {
+      void runAnalysis(u, { silent: true });
+    }
+  };
+
+  // 리포트 생성 완료 → 조회 탭으로 자동 이동, 코드 자동 조회(클릭 없이 표시)
+  const handleReportReady = (code: string) => {
+    setLookupAutoCode(code);
+    setActiveTab('lookup');
   };
 
   const pickRandomQuestions = (source: string[], count: number, exclude: string[] = []) => {
@@ -1239,7 +1270,7 @@ const App: React.FC = () => {
               <ComingSoon title="리포트 조회" />
             ) : (
               <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-                <LazyCodeLookupTab />
+                <LazyCodeLookupTab initialCode={lookupAutoCode ?? undefined} />
               </Suspense>
             )
           )}
@@ -1249,7 +1280,14 @@ const App: React.FC = () => {
               <ComingSoon title="리포트 구매" />
             ) : (
               <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-                <LazyCheckoutTab initialProduct={orderProductType} />
+                <LazyCheckoutTab
+                  initialProduct={orderProductType}
+                  userData={userData}
+                  setUserData={setUserData}
+                  currentSeoulYear={currentSeoulYear}
+                  onBirthConfirmed={handleCheckoutBirthConfirmed}
+                  onReportReady={handleReportReady}
+                />
               </Suspense>
             )
           )}

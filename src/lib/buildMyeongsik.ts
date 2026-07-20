@@ -37,7 +37,7 @@ export function buildMyeongsikFromBirth(input: BirthFormInput): MyeongsikParams 
     dateStr: input.dateStr,
     timeStr: input.unknownTime ? '12:00' : input.timeStr,
     isLunar: input.isLunar,
-    isLeap: false,
+    isLeap: input.isLeap ?? false,
     gender: input.gender,
     unknownTime: input.unknownTime,
   });

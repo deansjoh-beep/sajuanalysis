@@ -123,3 +123,22 @@ describe('getCurrentWolun — 조회 시점 기준', () => {
     expect(r.months).toHaveLength(12);
   });
 });
+
+describe('양력월 월주 ↔ 월운 절입 구간 매칭 (CodeLookupTab 월운 캘린더 계약)', () => {
+  // 일년운세 리포트의 월블록 제목은 getMonthPillarsForYear(양력 1~12월, 1월=축월부터)의 간지를 쓰고,
+  // 열람 캘린더는 [getWolunData(Y), getWolunData(Y-1)] 풀에서 그 간지로 절입 구간을 찾는다
+  // (getWolunData는 사주년=입춘 기준이라 양력 1월의 축월은 Y-1에 속함 — 인덱스로 짝지으면 한 달 밀림).
+  // 이 테스트는 그 매칭 계약을 고정한다: 12개 전부 정확히 한 번씩 찾아지고, 구간이 실제 그 달을 덮는다.
+  test.each([2025, 2026, 2027])('%i년: 양력 12개월 월주가 매칭 풀에서 유일하게 찾아지고 구간이 정확하다', async (year) => {
+    const { getMonthPillarsForYear } = await import('../seoulDateGanji');
+    const pool = [...getWolunData(year), ...getWolunData(year - 1)];
+    for (const p of getMonthPillarsForYear(year)) {
+      const matches = pool.filter((w) => w.ganzhi === p.monthPillarHanja);
+      expect(matches, `${year}년 ${p.month}월 ${p.monthPillarHanja}`).toHaveLength(1);
+      // 해당 양력 달의 15일 정오(KST)가 매칭된 절입 구간 안에 있어야 한다
+      const mid = kstMs(year, p.month, 15, 12, 0);
+      expect(mid, `${year}년 ${p.month}월 구간 시작`).toBeGreaterThanOrEqual(matches[0].startUtcMs);
+      expect(mid, `${year}년 ${p.month}월 구간 끝`).toBeLessThan(matches[0].endUtcMs);
+    }
+  });
+});

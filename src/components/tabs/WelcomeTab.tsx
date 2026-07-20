@@ -13,6 +13,7 @@ import { PreparationChecklist } from '../welcome/PreparationChecklist';
 import { FinalCTASection } from '../welcome/FinalCTASection';
 import { WelcomeFooter } from '../welcome/WelcomeFooter';
 import { ReviewsSection } from '../ReviewsSection';
+import { BirthInputFields } from '../BirthInputFields';
 import type { TeaserInput } from '../../lib/landingTeaser';
 
 type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
@@ -250,182 +251,12 @@ export default function WelcomeTab({
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold ml-1 text-ink-500">년도</label>
-                        <select
-                          value={userData.birthYear}
-                          disabled={!isAgreed}
-                          onChange={(e) => setUserData({ ...userData, birthYear: e.target.value })}
-                          className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
-                        >
-                          {Array.from({ length: 100 }, (_, i) => currentSeoulYear - i).map((y) => (
-                            <option key={y} value={y}>
-                              {y}년
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold ml-1 text-ink-500">월</label>
-                        <select
-                          value={userData.birthMonth}
-                          disabled={!isAgreed}
-                          onChange={(e) =>
-                            setUserData({ ...userData, birthMonth: e.target.value })
-                          }
-                          className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                            <option key={m} value={m}>
-                              {m}월
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold ml-1 text-ink-500">일</label>
-                        <select
-                          value={userData.birthDay}
-                          disabled={!isAgreed}
-                          onChange={(e) => setUserData({ ...userData, birthDay: e.target.value })}
-                          className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                            <option key={d} value={d}>
-                              {d}일
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {!userData.unknownTime && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold ml-1 text-ink-500">시</label>
-                          <select
-                            value={userData.birthHour}
-                            disabled={!isAgreed}
-                            onChange={(e) =>
-                              setUserData({ ...userData, birthHour: e.target.value })
-                            }
-                            className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
-                          >
-                            {Array.from({ length: 24 }, (_, i) => i).map((h) => (
-                              <option key={h} value={h}>
-                                {h}시
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold ml-1 text-ink-500">분</label>
-                          <select
-                            value={userData.birthMinute}
-                            disabled={!isAgreed}
-                            onChange={(e) =>
-                              setUserData({ ...userData, birthMinute: e.target.value })
-                            }
-                            className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
-                          >
-                            {Array.from({ length: 60 }, (_, i) => i).map((m) => (
-                              <option key={m} value={m}>
-                                {m}분
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 ml-1">
-                      <input
-                        type="checkbox"
-                        id="unknownTime"
-                        disabled={!isAgreed}
-                        checked={userData.unknownTime}
-                        onChange={(e) =>
-                          setUserData({ ...userData, unknownTime: e.target.checked })
-                        }
-                        className="w-4 h-4 rounded border-ink-500 text-ink-900 focus:ring-ink-500"
-                      />
-                      <label
-                        htmlFor="unknownTime"
-                        className="text-[13px] font-medium text-ink-500"
-                      >
-                        생시를 몰라요
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between p-2 rounded-2xl bg-paper-100/60 border border-ink-300/30">
-                      <div className="flex items-center gap-1.5 p-1 rounded-xl w-full">
-                        <button
-                          onClick={() => setUserData({ ...userData, calendarType: 'solar' })}
-                          disabled={!isAgreed}
-                          className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${
-                            userData.calendarType === 'solar'
-                              ? 'bg-ink-900 text-paper-50 shadow-md'
-                              : 'text-ink-500'
-                          }`}
-                        >
-                          양력
-                        </button>
-                        <button
-                          onClick={() => setUserData({ ...userData, calendarType: 'lunar' })}
-                          disabled={!isAgreed}
-                          className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${
-                            userData.calendarType === 'lunar'
-                              ? 'bg-ink-900 text-paper-50 shadow-md'
-                              : 'text-ink-500'
-                          }`}
-                        >
-                          음력(평)
-                        </button>
-                        <button
-                          onClick={() => setUserData({ ...userData, calendarType: 'leap' })}
-                          disabled={!isAgreed}
-                          className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${
-                            userData.calendarType === 'leap'
-                              ? 'bg-ink-900 text-paper-50 shadow-md'
-                              : 'text-ink-500'
-                          }`}
-                        >
-                          음력(윤)
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2 rounded-2xl bg-paper-100/60 border border-ink-300/30">
-                      <div className="flex items-center gap-1.5 p-1 rounded-xl w-full">
-                        <button
-                          onClick={() => setUserData({ ...userData, gender: 'M' })}
-                          disabled={!isAgreed}
-                          className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${
-                            userData.gender === 'M'
-                              ? 'bg-ink-900 text-paper-50 shadow-md'
-                              : 'text-ink-500'
-                          }`}
-                        >
-                          남자
-                        </button>
-                        <button
-                          onClick={() => setUserData({ ...userData, gender: 'F' })}
-                          disabled={!isAgreed}
-                          className={`flex-1 py-2 min-h-[44px] rounded-lg text-[11px] font-bold transition-all ${
-                            userData.gender === 'F'
-                              ? 'bg-ink-900 text-paper-50 shadow-md'
-                              : 'text-ink-500'
-                          }`}
-                        >
-                          여자
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <BirthInputFields
+                    value={userData}
+                    onChange={setUserData}
+                    disabled={!isAgreed}
+                    currentSeoulYear={currentSeoulYear}
+                  />
 
                   <button
                     onClick={handleStart}

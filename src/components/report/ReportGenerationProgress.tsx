@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
-import { runReportGeneration, type BirthFormInput } from '../../lib/runReportGeneration';
+import { runReportGeneration, type BirthFormInput, type ReportAskInput } from '../../lib/runReportGeneration';
 
 /**
  * 자동 생성 파이프 진행 UI (Phase 3-3).
@@ -22,6 +22,8 @@ interface ReportGenerationProgressProps {
   orderId: string;
   product: ProductType;
   birth: BirthFormInput;
+  /** 구매 시 선택 입력한 질문·고민(선택) — 프롬프트에 전달된다. */
+  ask?: ReportAskInput;
   /** true면 마운트 즉시 생성 시작(결제 확정 직후 흐름). 기본은 버튼 클릭 시작. */
   autoStart?: boolean;
   onComplete: (sections: ReportSection[]) => void;
@@ -32,6 +34,7 @@ export default function ReportGenerationProgress({
   orderId,
   product,
   birth,
+  ask,
   autoStart = false,
   onComplete,
 }: ReportGenerationProgressProps) {
@@ -67,6 +70,7 @@ export default function ReportGenerationProgress({
       orderId,
       product,
       birth,
+      ask,
       signal: controller.signal,
     });
 
