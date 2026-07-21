@@ -481,6 +481,8 @@ export default function CodeLookupTab({ initialCode }: { initialCode?: string } 
   const [error, setError] = useState<string | null>(null);
   const [activeReportIdx, setActiveReportIdx] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // PDF 저장 직후 저장 위치 안내를 노출한다(요청 시점에만).
+  const [pdfSaved, setPdfSaved] = useState(false);
   // 리딤/복구 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
   const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType; autoStart?: boolean } | null>(null);
 
@@ -581,6 +583,7 @@ export default function CodeLookupTab({ initialCode }: { initialCode?: string } 
   const downloadPdf = async () => {
     if (!result || !activeReport) return;
     setPdfBusy(true);
+    setPdfSaved(false);
     try {
       const html = buildPdfHtml(code, result.myeongsik, activeReport, sections);
       const res = await fetch('/api/generate-pdf', {
@@ -596,6 +599,7 @@ export default function CodeLookupTab({ initialCode }: { initialCode?: string } 
       a.download = `사주리포트_${code}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      setPdfSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'PDF 생성에 실패했습니다.');
     } finally {
@@ -775,6 +779,14 @@ export default function CodeLookupTab({ initialCode }: { initialCode?: string } 
                       {pdfBusy ? 'PDF 생성 중...' : 'PDF로 저장'}
                     </button>
                   </div>
+
+                  {/* PDF 저장 위치 안내 — 저장을 누른 뒤에만 노출 */}
+                  {pdfSaved && (
+                    <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-4">
+                      PDF를 내려받았습니다. PC는 ‘다운로드’ 폴더, 휴대폰은 ‘파일’ 또는 ‘다운로드’ 앱에서 확인하실 수 있습니다.
+                      브라우저에 따라 저장 위치를 고르는 창이 뜨거나 새 탭으로 열릴 수 있으며, 이때는 공유·저장 버튼으로 저장해 주세요.
+                    </p>
+                  )}
 
                   {/* 목차 — 섹션 바로가기 */}
                   {sections.length > 1 && (
