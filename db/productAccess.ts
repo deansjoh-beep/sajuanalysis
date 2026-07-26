@@ -16,7 +16,8 @@ export type ProductAccess = 'open' | 'soon';
 export const PRODUCT_ACCESS: Record<CommerceProduct, ProductAccess> = {
   // 1차 무료 개방 (2026-07-21~). 이후 주간 단위로 아래 'soon'을 하나씩 'open'으로 전환.
   yearly2026: 'open',
-  premium: 'soon',
+  // 2차 무료 개방 (2026-07-26~). 평생 사주 리포트 오픈.
+  premium: 'open',
   jobCareer: 'soon',
   loveMarriage: 'soon',
 };
