@@ -136,7 +136,10 @@ const App: React.FC = () => {
     // 토스 결제 후 successUrl/failUrl로 복귀하면 결제 탭에서 승인 처리를 이어받는다.
     typeof window !== "undefined" && /[?&]checkout=(return|fail)/.test(window.location.search) ? "checkout" : "welcome"
   );
-  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage'>('premium');
+  // 랜딩 상품 카드에서 고른 상품 — "사용자가 명시적으로 고른 것"만 담는다(1회성).
+  // ⚠️ 기본값을 특정 상품으로 두면 안 된다. 그러면 아무것도 고르지 않고 네비 '리포트 구매'로
+  //    들어온 경우와 구분되지 않아 구매 탭이 선택 화면을 건너뛴다(2026-07 평생 사주 무료 오픈 때 발생).
+  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | null>(null);
   // 리포트 생성 완료 시 조회 탭이 자동 조회할 코드 (CheckoutTab onReportReady → CodeLookupTab initialCode)
   const [lookupAutoCode, setLookupAutoCode] = useState<string | null>(null);
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "refund" | "about" | "contact" | "taekil">("main");
@@ -1286,7 +1289,8 @@ const App: React.FC = () => {
             ) : (
               <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
                 <LazyCheckoutTab
-                  initialProduct={orderProductType}
+                  initialProduct={orderProductType ?? undefined}
+                  onPreselectConsumed={() => setOrderProductType(null)}
                   userData={userData}
                   setUserData={setUserData}
                   currentSeoulYear={currentSeoulYear}
@@ -1426,8 +1430,9 @@ const App: React.FC = () => {
               className="absolute inset-0 overflow-y-auto bg-gradient-to-b from-slate-50 to-indigo-50/30"
             >
               <Suspense fallback={<div className="h-full flex items-center justify-center text-[13px] text-zinc-500">주문 폼 불러오는 중...</div>}>
+                {/* 레거시 주문 폼은 항상 상품이 필요하다 — 미선택 진입 시 종전 기본값을 유지한다. */}
                 <LazyPremiumOrderForm
-                  productType={orderProductType}
+                  productType={orderProductType ?? 'premium'}
                   initialUserData={userData.name ? userData : undefined}
                 />
               </Suspense>

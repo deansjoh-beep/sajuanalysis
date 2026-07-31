@@ -227,7 +227,14 @@ function CheckoutDone({
 type Step = 'select' | 'birth' | 'pay' | 'confirming' | 'done' | 'error';
 
 interface CheckoutTabProps {
+  /**
+   * 랜딩 상품 카드를 눌러 넘어온 경우에만 지정된다(1회성 의도). 값이 있으면 선택 단계를
+   * 건너뛰고 바로 생년월일 입력으로 간다. 네비 '리포트 구매'처럼 상품을 고르지 않고
+   * 들어온 경로에서는 반드시 undefined여야 선택 화면이 뜬다.
+   */
   initialProduct?: ProductType;
+  /** initialProduct를 소비했음을 알린다 — App이 값을 비워 다음 진입에 새지 않게 한다. */
+  onPreselectConsumed?: () => void;
   /** 전역 생년월일시(App userData) — 랜딩·상담·만세력과 단일 소스 공유. */
   userData: UserData;
   setUserData: (u: UserData) => void;
@@ -242,6 +249,7 @@ interface CheckoutTabProps {
 
 export default function CheckoutTab({
   initialProduct,
+  onPreselectConsumed,
   userData,
   setUserData,
   currentSeoulYear,
@@ -277,7 +285,8 @@ export default function CheckoutTab({
   };
 
   // 결제 후 successUrl로 돌아왔을 때 confirm 처리 (마운트 1회). 무료 개방 중에는 return 파라미터가
-  // 없으므로 이 경로는 건너뛰고, 대신 랜딩에서 넘어온 initialProduct(개방 상품)를 미리 선택한다.
+  // 없으므로 이 경로는 건너뛰고, 대신 랜딩 상품 카드에서 넘어온 initialProduct(개방 상품)를 미리 선택한다.
+  // 소비 즉시 App에 알려 값을 비운다 — 남겨두면 다음에 네비로 들어올 때도 선택 화면이 건너뛰어진다.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const flag = params.get('checkout');
@@ -297,6 +306,7 @@ export default function CheckoutTab({
     if (initialProduct && isOpen(initialProduct)) {
       setProduct(initialProduct);
       setStep('birth');
+      onPreselectConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
