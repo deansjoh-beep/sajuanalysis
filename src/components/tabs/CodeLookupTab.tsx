@@ -47,6 +47,10 @@ interface LookupResult {
   reports: LookupReport[];
   regenerable: Array<{ orderId: string; product: string }>;
   newYearDiscountPercent: number | null;
+  /** 무료 제공 시기 발급 코드의 1년 유효기간 경과 — true면 나머지 필드는 비어 온다 */
+  codeExpired: boolean;
+  /** 코드 만료 시각(ISO) — 유료 구매 이력 보유 코드는 null(무기한) */
+  codeExpiresAt: string | null;
 }
 
 const PRODUCT_LABEL: Record<string, string> = {
@@ -685,7 +689,20 @@ export default function CodeLookupTab({
             {error && <p className="mt-3 text-[12px] text-red-600">{error}</p>}
           </section>
 
-          {result && result.giftPending && <GiftRedeemForm code={code} onRedeemed={handleRedeemed} />}
+          {/* 코드 만료 — 무료 제공 시기 발급 코드는 1년 유효 */}
+          {result && result.codeExpired && (
+            <section className={`${PAPER_CARD} p-6`}>
+              <p className="text-[14px] text-ink-700 leading-relaxed">
+                무료 제공 기간에 발급된 코드는 발급일로부터 1년간 유효합니다. 이 코드는{' '}
+                {result.codeExpiresAt
+                  ? `${new Date(result.codeExpiresAt).toLocaleDateString('ko-KR')}에 만료되었습니다.`
+                  : '만료되었습니다.'}{' '}
+                새 리포트가 필요하시면 ‘리포트 받기’에서 다시 발급받아 주세요.
+              </p>
+            </section>
+          )}
+
+          {result && !result.codeExpired && result.giftPending && <GiftRedeemForm code={code} onRedeemed={handleRedeemed} />}
 
           {pendingGen && (
             <Suspense
@@ -706,7 +723,7 @@ export default function CodeLookupTab({
             </Suspense>
           )}
 
-          {result && !result.giftPending && (
+          {result && !result.codeExpired && !result.giftPending && (
             <>
               {/* 명식 + 주문 요약 */}
               <section className={`${PAPER_CARD} p-6 space-y-4`}>
@@ -743,6 +760,11 @@ export default function CodeLookupTab({
                     재구매 혜택: 새해 리포트 {result.newYearDiscountPercent}% 할인 대상입니다.
                   </p>
                 )}
+                <p className="text-[12px] text-ink-500 border-t border-ink-300/20 pt-3">
+                  {result.codeExpiresAt
+                    ? `코드 유효기간: ${new Date(result.codeExpiresAt).toLocaleDateString('ko-KR')}까지 — 무료 제공 기간에 발급된 코드는 1년간 유효하며, 유료 구매 이력이 생기면 기한 없이 유지됩니다.`
+                    : '코드 유효기간: 제한 없음 — 유료 구매 이력이 있는 코드는 기한 없이 유지됩니다.'}
+                </p>
               </section>
 
               {/* 결제 후 미생성 주문 복구 — 명식 일치 검증 후 무료 생성 */}

@@ -9,6 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   consumeFollowup,
   FOLLOWUP_LIMIT,
+  FREE_CODE_VALIDITY_DAYS,
   lookupCode,
   NEW_YEAR_DISCOUNT_PERCENT,
   redeemGiftCode,
@@ -47,7 +48,7 @@ describe('사주 코드 체계 — 조회·리딤·후속질문', () => {
     await db.delete(codes);
   });
 
-  async function seed(codeStr: string, opts: { gift?: boolean; orderStatus?: 'paid' | 'generated' | 'refunded'; reportExpired?: boolean; withReport?: boolean } = {}) {
+  async function seed(codeStr: string, opts: { gift?: boolean; orderStatus?: 'paid' | 'generated' | 'refunded'; reportExpired?: boolean; withReport?: boolean; amount?: number } = {}) {
     const [codeRow] = await db
       .insert(codes)
       .values({ code: codeStr, myeongsik: opts.gift ? null : myeongsik })
@@ -60,7 +61,7 @@ describe('사주 코드 체계 — 조회·리딤·후속질문', () => {
         codeId: codeRow.id,
         product: 'yearly2026',
         status: opts.orderStatus ?? 'paid',
-        amount: 49000,
+        amount: opts.amount ?? 49000,
       })
       .returning();
     let report = null;
@@ -118,6 +119,58 @@ describe('사주 코드 체계 — 조회·리딤·후속질문', () => {
     const result = await lookupCode(db, 'CC-333333');
     expect(result.giftPending).toBe(true);
     expect(result.myeongsik).toBeNull();
+  });
+
+  // ─── 코드 유효기간 (무료 제공 시기 1년 / 유료 무기한 — OWNER 확정 2026-07-31) ──
+
+  const aYearAndDayAgo = () => new Date(Date.now() - (FREE_CODE_VALIDITY_DAYS + 1) * 86_400_000);
+
+  it('expiry: 무료(₩0) 코드는 발급 1년 경과 시 만료 — 내용 미반환', async () => {
+    const { codeRow } = await seed('QQ-100001', { amount: 0, orderStatus: 'generated', withReport: true });
+    await db.update(codes).set({ createdAt: aYearAndDayAgo() }).where(eq(codes.id, codeRow.id));
+
+    const result = await lookupCode(db, 'QQ-100001');
+    expect(result.found).toBe(true);
+    expect(result.codeExpired).toBe(true);
+    expect(result.myeongsik).toBeNull();
+    expect(result.orders).toHaveLength(0);
+    expect(result.reports).toHaveLength(0);
+  });
+
+  it('expiry: 유료 주문 이력 코드는 1년이 지나도 무기한 유효', async () => {
+    const { codeRow } = await seed('QQ-100002', { amount: 49000 });
+    await db.update(codes).set({ createdAt: aYearAndDayAgo() }).where(eq(codes.id, codeRow.id));
+
+    const result = await lookupCode(db, 'QQ-100002');
+    expect(result.codeExpired).toBe(false);
+    expect(result.codeExpiresAt).toBeNull();
+    expect(result.orders).toHaveLength(1);
+  });
+
+  it('expiry: 신규 무료 코드는 유효 + 만료 예정 시각(발급+1년) 동봉', async () => {
+    const { codeRow } = await seed('QQ-100003', { amount: 0 });
+    const result = await lookupCode(db, 'QQ-100003');
+    expect(result.codeExpired).toBe(false);
+    expect(result.codeExpiresAt).not.toBeNull();
+    const expected = codeRow.createdAt.getTime() + FREE_CODE_VALIDITY_DAYS * 86_400_000;
+    expect(result.codeExpiresAt!.getTime()).toBe(expected);
+  });
+
+  it('expiry: 만료된 무료 선물 코드는 리딤 불가(expired)', async () => {
+    const { codeRow } = await seed('QQ-100004', { gift: true, amount: 0 });
+    await db.update(codes).set({ createdAt: aYearAndDayAgo() }).where(eq(codes.id, codeRow.id));
+    expect(await redeemGiftCode(db, 'QQ-100004', myeongsik)).toBe('expired');
+  });
+
+  it('expiry: 만료된 무료 코드는 후속 질문·리포트 저장도 차단된다', async () => {
+    const { codeRow, order } = await seed('QQ-100005', { amount: 0 });
+    await db.update(codes).set({ createdAt: aYearAndDayAgo() }).where(eq(codes.id, codeRow.id));
+
+    const followup = await consumeFollowup(db, 'QQ-100005', order.id);
+    expect(followup.ok).toBe(false);
+
+    const save = await saveReport(db, 'QQ-100005', order.id, '본문');
+    expect(save.ok).toBe(false);
   });
 
   // ─── 선물 코드 리딤 ───────────────────────────────────────────────────

@@ -124,6 +124,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (outcome === 'already_redeemed') {
           return res.status(409).json({ error: 'ALREADY_REDEEMED', message: '이미 등록된 코드입니다.' });
         }
+        if (outcome === 'expired') {
+          return res.status(410).json({ error: 'CODE_EXPIRED', message: '무료 제공 기간에 발급된 코드는 발급일로부터 1년간 유효합니다. 이 코드는 만료되었습니다.' });
+        }
         return res.status(200).json({ ok: true, redeemed: true });
       }
 

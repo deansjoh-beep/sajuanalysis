@@ -83,6 +83,19 @@ export const FOLLOWUP_LIMIT = 3;
 /** 재구매(새해 리포트) 할인율 — 구매 이력 보유 코드에 적용 (OWNER 확정 2026-07-10: 10→30) */
 export const NEW_YEAR_DISCOUNT_PERCENT = 30;
 
+/** 무료 제공 시기 발급 코드 유효기간 — 발급일로부터 1년 (OWNER 확정 2026-07-31) */
+export const FREE_CODE_VALIDITY_DAYS = 365;
+
+/**
+ * 코드 만료 시각. 유료 주문(amount>0) 이력이 하나라도 있으면 무기한(null),
+ * ₩0 주문뿐이거나 주문이 없으면(무료 제공 시기 발급·미리딤 선물) 발급일 + 1년.
+ * 컬럼 추가 없이 동적 계산 — 무료 코드로 나중에 유료 재구매하면 자동으로 무기한 전환된다.
+ */
+export function codeExpiresAt(createdAt: Date, orderAmounts: number[]): Date | null {
+  if (orderAmounts.some((a) => a > 0)) return null;
+  return new Date(createdAt.getTime() + FREE_CODE_VALIDITY_DAYS * 86_400_000);
+}
+
 export interface CodeLookupResult {
   found: boolean;
   /** true면 아직 명식이 채워지지 않은 미사용 선물 코드 */
@@ -108,6 +121,10 @@ export interface CodeLookupResult {
   regenerable: Array<{ orderId: string; product: string }>;
   /** 구매 이력 보유 → 새해 리포트 10% 할인 */
   newYearDiscountPercent: number | null;
+  /** 무료 제공 시기 발급 코드의 유효기간 경과 여부 — true면 나머지 필드는 비운다 */
+  codeExpired: boolean;
+  /** 코드 만료 시각 — 유료 구매 이력 보유 코드는 null(무기한) */
+  codeExpiresAt: Date | null;
 }
 
 const EMPTY_LOOKUP: CodeLookupResult = {
@@ -118,6 +135,8 @@ const EMPTY_LOOKUP: CodeLookupResult = {
   reports: [],
   regenerable: [],
   newYearDiscountPercent: null,
+  codeExpired: false,
+  codeExpiresAt: null,
 };
 
 export async function lookupCode(db: Db, rawCode: string, now: Date = new Date()): Promise<CodeLookupResult> {
@@ -126,6 +145,13 @@ export async function lookupCode(db: Db, rawCode: string, now: Date = new Date()
   if (!codeRow) return EMPTY_LOOKUP;
 
   const orderRows = await db.select().from(orders).where(eq(orders.codeId, codeRow.id));
+
+  // 무료 제공 시기 코드(유료 주문 이력 없음)는 발급 1년 경과 시 만료 — 내용은 내려주지 않는다.
+  const expiry = codeExpiresAt(codeRow.createdAt, orderRows.map((o) => o.amount));
+  if (expiry !== null && expiry.getTime() <= now.getTime()) {
+    return { ...EMPTY_LOOKUP, found: true, codeExpired: true, codeExpiresAt: expiry };
+  }
+
   const reportRows = await db.select().from(reports).where(eq(reports.codeId, codeRow.id));
 
   const validReports = reportRows.filter((r) => r.expiresAt.getTime() > now.getTime());
@@ -157,16 +183,19 @@ export async function lookupCode(db: Db, rawCode: string, now: Date = new Date()
     })),
     regenerable,
     newYearDiscountPercent: orderRows.length > 0 ? NEW_YEAR_DISCOUNT_PERCENT : null,
+    codeExpired: false,
+    codeExpiresAt: expiry,
   };
 }
 
 // ─── 선물 코드 리딤 ─────────────────────────────────────────────────────────
 
-export type RedeemOutcome = 'redeemed' | 'not_found' | 'already_redeemed';
+export type RedeemOutcome = 'redeemed' | 'not_found' | 'already_redeemed' | 'expired';
 
 /**
  * 미사용 선물 코드에 수령자의 명식을 채운다.
  * UPDATE ... WHERE myeongsik IS NULL 원자 조건으로 이중 리딤을 차단한다.
+ * 무료 제공 시기 발급 코드(유료 주문 이력 없음)는 발급 1년 경과 시 리딤 불가.
  */
 export async function redeemGiftCode(
   db: Db,
@@ -176,15 +205,21 @@ export async function redeemGiftCode(
   assertNoPersonalKeys(myeongsik as unknown as Record<string, unknown>);
   const code = rawCode.trim().toUpperCase();
 
+  const [codeRow] = await db.select().from(codes).where(eq(codes.code, code));
+  if (!codeRow) return 'not_found';
+  const amounts = (
+    await db.select({ amount: orders.amount }).from(orders).where(eq(orders.codeId, codeRow.id))
+  ).map((o) => o.amount);
+  const expiry = codeExpiresAt(codeRow.createdAt, amounts);
+  if (expiry !== null && expiry.getTime() <= Date.now()) return 'expired';
+
   const updated = await db
     .update(codes)
     .set({ myeongsik })
     .where(and(eq(codes.code, code), sql`${codes.myeongsik} IS NULL`))
     .returning();
-  if (updated.length > 0) return 'redeemed';
-
-  const [existing] = await db.select({ id: codes.id }).from(codes).where(eq(codes.code, code));
-  return existing ? 'already_redeemed' : 'not_found';
+  // 코드 존재는 위에서 확인됐으므로, 원자 update 실패 = 이미 리딤된 코드.
+  return updated.length > 0 ? 'redeemed' : 'already_redeemed';
 }
 
 // ─── 리포트 저장 (결제 후 생성 완료분) ──────────────────────────────────────
@@ -213,13 +248,15 @@ export async function saveReport(
   const none = (reason: SaveReportOutcome['reason']): SaveReportOutcome =>
     ({ ok: false, reason, reportId: null, expiresAt: null });
 
-  const [codeRow] = await db.select({ id: codes.id }).from(codes).where(eq(codes.code, code));
+  const [codeRow] = await db.select().from(codes).where(eq(codes.code, code));
   if (!codeRow) return none('order_not_found');
 
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(and(eq(orders.id, orderId), eq(orders.codeId, codeRow.id)));
+  // 코드 만료(무료 제공 시기 발급 + 1년 경과) 시 저장 불가 — 조회와 동일 정책.
+  const allOrders = await db.select().from(orders).where(eq(orders.codeId, codeRow.id));
+  const expiry = codeExpiresAt(codeRow.createdAt, allOrders.map((o) => o.amount));
+  if (expiry !== null && expiry.getTime() <= Date.now()) return none('order_not_eligible');
+
+  const order = allOrders.find((o) => o.id === orderId);
   if (!order) return none('order_not_found');
   if (order.status === 'refunded') return none('order_not_eligible');
 
@@ -260,8 +297,17 @@ export interface FollowupOutcome {
  */
 export async function consumeFollowup(db: Db, rawCode: string, orderId: string): Promise<FollowupOutcome> {
   const code = rawCode.trim().toUpperCase();
-  const [codeRow] = await db.select({ id: codes.id }).from(codes).where(eq(codes.code, code));
+  const [codeRow] = await db.select().from(codes).where(eq(codes.code, code));
   if (!codeRow) return { ok: false, reason: 'order_not_found', remaining: 0 };
+
+  // 코드 만료(무료 제공 시기 발급 + 1년 경과) 시 후속 질문 불가 — 조회와 동일 정책.
+  const amounts = (
+    await db.select({ amount: orders.amount }).from(orders).where(eq(orders.codeId, codeRow.id))
+  ).map((o) => o.amount);
+  const codeExpiry = codeExpiresAt(codeRow.createdAt, amounts);
+  if (codeExpiry !== null && codeExpiry.getTime() <= Date.now()) {
+    return { ok: false, reason: 'order_not_found', remaining: 0 };
+  }
 
   const updated = await db
     .update(orders)
