@@ -37,6 +37,8 @@ export interface MemberProfile {
   pushEnabled?: boolean;
   /** FCM 디바이스 토큰 목록 */
   fcmTokens?: string[];
+  /** 계정에 보관한 사주 코드 (옵트인 — 디폴트는 고객 직접 보관, 분실 대비용) */
+  savedCodes?: string[];
   createdAt?: any;
   updatedAt?: any;
   lastLoginAt?: any;
@@ -113,4 +115,39 @@ export const addFcmToken = async (uid: string, token: string): Promise<void> => 
 export const removeFcmToken = async (uid: string, token: string): Promise<void> => {
   const ref = doc(db, COLLECTION, uid);
   await updateDoc(ref, { fcmTokens: arrayRemove(token), updatedAt: serverTimestamp() });
+};
+
+// ─── 사주 코드 보관 (옵트인 — 코드 분실 대비) ────────────────────────────────
+
+/**
+ * 사주 코드는 재열람의 유일한 열쇠라 분실하면 복구할 수 없다. 원하는 회원에 한해
+ * 계정(members/{uid})에 코드 문자열만 보관해 둔다.
+ *
+ * ⚠️ 보관 대상은 코드 문자열뿐 — 명식·주문·리포트는 Postgres에 익명으로 남고
+ * 여기에 복제하지 않는다(개인정보 무저장 원칙 유지). 코드↔계정 연결은 회원이
+ * 언제든 removeSavedCode로 끊을 수 있다.
+ */
+export const addSavedCode = async (uid: string, code: string): Promise<void> => {
+  const ref = doc(db, COLLECTION, uid);
+  // updateDoc은 문서가 없으면 실패하므로, 프로필 미생성 상태도 안전하게 처리한다.
+  await setDoc(
+    ref,
+    { uid, savedCodes: arrayUnion(code.trim().toUpperCase()), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+};
+
+/** 보관 해제 — 계정과 코드의 연결만 끊고, 코드 자체는 그대로 유효하다. */
+export const removeSavedCode = async (uid: string, code: string): Promise<void> => {
+  const ref = doc(db, COLLECTION, uid);
+  await setDoc(
+    ref,
+    { uid, savedCodes: arrayRemove(code.trim().toUpperCase()), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+};
+
+export const getSavedCodes = async (uid: string): Promise<string[]> => {
+  const profile = await getMemberProfile(uid);
+  return profile?.savedCodes ?? [];
 };

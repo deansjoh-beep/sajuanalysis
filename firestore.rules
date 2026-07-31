@@ -31,6 +31,12 @@ service cloud.firestore {
               request.auth.token.email == "dean.sj.oh@gmail.com");
     }
 
+    // 회원이 보관한 사주 코드 목록 — 없으면 통과, 있으면 문자열 리스트 + 개수 제한
+    function isValidSavedCodes(data) {
+      return !('savedCodes' in data.keys()) ||
+             (data.savedCodes is list && data.savedCodes.size() <= 50);
+    }
+
     function isValidBlogPost(data) {
       return data.keys().hasAll(['title', 'content', 'category', 'date', 'createdAt', 'authorUid']) &&
              data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
@@ -230,11 +236,14 @@ service cloud.firestore {
     // 회원 프로필
     // - 본인(uid 일치)만 자신의 문서 읽기/쓰기 가능
     // - 관리자는 전체 읽기 가능(운영용); 배치 생성은 Admin SDK가 규칙을 우회
+    // - savedCodes: 본인이 보관한 사주 코드 목록(옵트인). 코드 문자열만 허용하며
+    //   개수·길이를 제한한다(임의 데이터 적재 방지).
     match /members/{uid} {
       allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == uid);
       allow create, update: if isAuthenticated() &&
                             request.auth.uid == uid &&
-                            request.resource.data.uid == uid;
+                            request.resource.data.uid == uid &&
+                            isValidSavedCodes(request.resource.data);
       allow delete: if isAdmin();
     }
 

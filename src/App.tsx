@@ -1273,6 +1273,8 @@ const App: React.FC = () => {
                 <LazyCodeLookupTab
                   initialCode={lookupAutoCode ?? undefined}
                   onWriteReview={() => setReviewModalOpen(true)}
+                  memberUid={user?.uid ?? null}
+                  onRequestLogin={() => setLoginModalOpen(true)}
                 />
               </Suspense>
             )
@@ -1290,6 +1292,7 @@ const App: React.FC = () => {
                   currentSeoulYear={currentSeoulYear}
                   onBirthConfirmed={handleCheckoutBirthConfirmed}
                   onReportReady={handleReportReady}
+                  memberUid={user?.uid ?? null}
                 />
               </Suspense>
             )

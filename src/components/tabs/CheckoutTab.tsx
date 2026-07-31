@@ -6,6 +6,7 @@ import { PaperBackground } from '../welcome/PaperBackground';
 import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
 import type { BirthFormInput, ReportAskInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth } from '../../lib/buildMyeongsik';
+import { addSavedCode } from '../../lib/memberStore';
 import { BirthInputFields, userDataToBirthStrings } from '../BirthInputFields';
 import type { UserData } from '../../types/app';
 import { PRODUCT_ACCESS } from '@/db/productAccess';
@@ -107,6 +108,7 @@ function CheckoutDone({
   birth,
   ask,
   onReportReady,
+  memberUid,
 }: {
   code: string;
   orderId: string;
@@ -114,8 +116,25 @@ function CheckoutDone({
   birth: BirthFormInput;
   ask?: ReportAskInput;
   onReportReady?: (code: string) => void;
+  memberUid?: string | null;
 }) {
   const [sections, setSections] = useState<ReportSection[] | null>(null);
+  // 코드 보관(옵트인) — 로그인 회원만. 실패해도 발급 흐름을 막지 않는다.
+  const [codeSaved, setCodeSaved] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+
+  const saveCode = async () => {
+    if (!memberUid) return;
+    setSaveBusy(true);
+    try {
+      await addSavedCode(memberUid, code);
+      setCodeSaved(true);
+    } catch {
+      // 보관 실패는 조용히 무시 — 코드는 화면에 그대로 있고 조회 탭에서 다시 시도할 수 있다.
+    } finally {
+      setSaveBusy(false);
+    }
+  };
 
   const handleComplete = (s: ReportSection[]) => {
     setSections(s);
@@ -145,6 +164,32 @@ function CheckoutDone({
           {FREE_OPEN &&
             ' 무료 제공 기간에 발급된 코드는 발급일로부터 1년간 유효하며, 이후 유료 구매 이력이 생기면 기한 없이 유지됩니다.'}
         </p>
+
+        {/* 코드 보관 (옵트인) — 로그인 회원에게만 노출. 기본은 고객이 직접 보관. */}
+        {memberUid && (
+          <div className="border-t border-ink-300/20 pt-3 space-y-2">
+            {codeSaved ? (
+              <p className="text-[12px] text-ink-500 leading-relaxed">
+                이 코드를 내 계정에 보관했습니다. 코드를 잊어버려도 로그인 후 ‘리포트 조회’에서 다시
+                찾을 수 있습니다.
+              </p>
+            ) : (
+              <>
+                <p className="text-[12px] text-ink-500 leading-relaxed">
+                  코드를 잊어버릴까 걱정되시면 내 계정에 함께 보관해 두세요. 보관하는 것은 코드뿐이며,
+                  사주와 리포트는 계정과 연결되지 않습니다.
+                </p>
+                <button
+                  onClick={() => void saveCode()}
+                  disabled={saveBusy}
+                  className="px-4 py-2 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold disabled:opacity-40"
+                >
+                  {saveBusy ? '보관 중...' : '내 계정에 코드 보관'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       {sections ? (
@@ -191,6 +236,8 @@ interface CheckoutTabProps {
   onBirthConfirmed?: (u: UserData) => void;
   /** 리포트 생성 완료 시 — App이 조회 탭으로 자동 이동해 코드를 자동 조회한다. */
   onReportReady?: (code: string) => void;
+  /** 로그인한 회원의 uid — 코드 보관(옵트인) 기능 노출 조건 */
+  memberUid?: string | null;
 }
 
 export default function CheckoutTab({
@@ -200,6 +247,7 @@ export default function CheckoutTab({
   currentSeoulYear,
   onBirthConfirmed,
   onReportReady,
+  memberUid,
 }: CheckoutTabProps) {
   const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY as string | undefined;
 
@@ -564,6 +612,7 @@ export default function CheckoutTab({
               birth={done.birth}
               ask={done.ask}
               onReportReady={onReportReady}
+              memberUid={memberUid}
             />
           )}
 

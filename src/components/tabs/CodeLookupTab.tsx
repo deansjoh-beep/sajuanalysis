@@ -9,6 +9,7 @@ import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from 
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst } from '../../lib/iljinCalendar';
+import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 
 // 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
@@ -507,7 +508,15 @@ function buildPdfHtml(code: string, myeongsik: MyeongsikParams | null, report: L
 export default function CodeLookupTab({
   initialCode,
   onWriteReview,
-}: { initialCode?: string; onWriteReview?: () => void } = {}) {
+  memberUid,
+  onRequestLogin,
+}: {
+  initialCode?: string;
+  onWriteReview?: () => void;
+  /** 로그인한 회원의 uid — 코드 보관(옵트인) 기능 노출 조건 */
+  memberUid?: string | null;
+  onRequestLogin?: () => void;
+} = {}) {
   const [codeInput, setCodeInput] = useState('');
   const [code, setCode] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
@@ -519,6 +528,9 @@ export default function CodeLookupTab({
   const [pdfSaved, setPdfSaved] = useState(false);
   const [iljinBusy, setIljinBusy] = useState(false);
   const [iljinSaved, setIljinSaved] = useState(false);
+  // 계정에 보관한 코드 목록 (옵트인 — 로그인 회원만)
+  const [savedCodes, setSavedCodes] = useState<string[]>([]);
+  const [saveBusy, setSaveBusy] = useState(false);
   // 리딤/복구 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
   const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType; autoStart?: boolean } | null>(null);
 
@@ -552,6 +564,43 @@ export default function CodeLookupTab({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 로그인 상태가 확인되면 계정에 보관된 코드 목록을 불러온다(실패는 무시 — 부가 기능).
+  useEffect(() => {
+    if (!memberUid) {
+      setSavedCodes([]);
+      return;
+    }
+    let cancelled = false;
+    getSavedCodes(memberUid)
+      .then((codes) => {
+        if (!cancelled) setSavedCodes(codes);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [memberUid]);
+
+  const isCodeSaved = Boolean(code) && savedCodes.includes(code);
+
+  const toggleSaveCode = async () => {
+    if (!memberUid || !code) return;
+    setSaveBusy(true);
+    try {
+      if (isCodeSaved) {
+        await removeSavedCode(memberUid, code);
+        setSavedCodes((prev) => prev.filter((c) => c !== code));
+      } else {
+        await addSavedCode(memberUid, code);
+        setSavedCodes((prev) => [...prev, code]);
+      }
+    } catch {
+      setError('코드 보관 상태를 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSaveBusy(false);
+    }
+  };
 
   // 리딤 성공 → 재조회로 주문 확보 → 리포트 없는 주문이면 생성 단계로 진입.
   const handleRedeemed = async (birth: BirthFormInput) => {
@@ -725,6 +774,27 @@ export default function CodeLookupTab({
               </button>
             </div>
             {error && <p className="mt-3 text-[12px] text-red-600">{error}</p>}
+
+            {/* 계정에 보관된 코드 — 분실 대비 옵트인 보관함 */}
+            {memberUid && savedCodes.length > 0 && (
+              <div className="mt-4 border-t border-ink-300/20 pt-4">
+                <p className="text-[12px] text-ink-500">내 계정에 보관된 코드</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {savedCodes.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        setCodeInput(c);
+                        void lookup(c);
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold tracking-wider"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* 코드 만료 — 무료 제공 시기 발급 코드는 1년 유효 */}
@@ -803,6 +873,41 @@ export default function CodeLookupTab({
                     ? `코드 유효기간: ${new Date(result.codeExpiresAt).toLocaleDateString('ko-KR')}까지 — 무료 제공 기간에 발급된 코드는 1년간 유효하며, 유료 구매 이력이 생기면 기한 없이 유지됩니다.`
                     : '코드 유효기간: 제한 없음 — 유료 구매 이력이 있는 코드는 기한 없이 유지됩니다.'}
                 </p>
+
+                {/* 코드 보관 (옵트인) — 기본은 고객이 직접 보관, 원하면 계정에 남겨 분실에 대비 */}
+                <div className="border-t border-ink-300/20 pt-3 space-y-2">
+                  {memberUid ? (
+                    <>
+                      <p className="text-[12px] text-ink-500 leading-relaxed">
+                        {isCodeSaved
+                          ? '이 코드를 내 계정에 보관 중입니다. 코드를 잊어버려도 로그인하면 다시 찾을 수 있습니다.'
+                          : '코드를 잊어버릴까 걱정되시면 내 계정에 보관해 두세요. 보관하는 것은 코드뿐이며, 사주와 리포트는 계정과 연결되지 않습니다.'}
+                      </p>
+                      <button
+                        onClick={() => void toggleSaveCode()}
+                        disabled={saveBusy}
+                        className="px-4 py-2 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold disabled:opacity-40"
+                      >
+                        {saveBusy ? '처리 중...' : isCodeSaved ? '보관 해제' : '내 계정에 코드 보관'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[12px] text-ink-500 leading-relaxed">
+                        로그인하시면 이 코드를 계정에 보관해 둘 수 있습니다. 코드를 잊어버려도 다시 찾을 수
+                        있으며, 보관하는 것은 코드뿐입니다.
+                      </p>
+                      {onRequestLogin && (
+                        <button
+                          onClick={onRequestLogin}
+                          className="px-4 py-2 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold"
+                        >
+                          로그인하고 코드 보관하기
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </section>
 
               {/* 결제 후 미생성 주문 복구 — 명식 일치 검증 후 무료 생성 */}
