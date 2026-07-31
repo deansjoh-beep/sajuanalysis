@@ -1270,7 +1270,10 @@ const App: React.FC = () => {
               <ComingSoon title="리포트 조회" />
             ) : (
               <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
-                <LazyCodeLookupTab initialCode={lookupAutoCode ?? undefined} />
+                <LazyCodeLookupTab
+                  initialCode={lookupAutoCode ?? undefined}
+                  onWriteReview={() => setReviewModalOpen(true)}
+                />
               </Suspense>
             )
           )}

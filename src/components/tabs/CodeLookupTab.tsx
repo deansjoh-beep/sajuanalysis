@@ -328,7 +328,16 @@ const FEEDBACK_QUESTIONS: Array<{ key: string; label: string; options: string[] 
   { key: 'recommend', label: '주변에 추천할 의향이 있나요?', options: ['추천하겠다', '보통이다', '추천하지 않겠다'] },
 ];
 
-function FeedbackForm({ code, product }: { code: string; product: string }) {
+function FeedbackForm({
+  code,
+  product,
+  onWriteReview,
+}: {
+  code: string;
+  product: string;
+  /** 공개 후기 작성 모달 열기 — 제출 완료 후에만 안내한다(익명 피드백과 별개 절차). */
+  onWriteReview?: () => void;
+}) {
   const [rating, setRating] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [comment, setComment] = useState('');
@@ -361,8 +370,25 @@ function FeedbackForm({ code, product }: { code: string; product: string }) {
 
   if (done) {
     return (
-      <section className={`${PAPER_CARD} p-6`}>
+      <section className={`${PAPER_CARD} p-6 space-y-4`}>
         <p className="text-[14px] text-ink-700">소중한 의견 감사합니다. 더 나은 풀이로 보답하겠습니다.</p>
+        {onWriteReview && (
+          <div className="border-t border-ink-300/20 pt-4 space-y-3">
+            <p className="text-[14px] text-ink-700 leading-relaxed">
+              방금 남기신 의견은 품질 개선에만 쓰이는 익명 응답입니다. 다른 분들께도 도움이 되도록,
+              사이트에 공개되는 후기를 따로 남겨주시겠어요?
+            </p>
+            <p className="text-[12px] text-ink-500 leading-relaxed">
+              공개 후기는 닉네임과 함께 첫 화면에 실리며, 검토 후 게시됩니다.
+            </p>
+            <button
+              onClick={onWriteReview}
+              className="px-5 py-2.5 rounded-xl border border-ink-300/40 text-ink-700 text-[14px] font-bold"
+            >
+              후기 남기기
+            </button>
+          </div>
+        )}
       </section>
     );
   }
@@ -473,7 +499,10 @@ function buildPdfHtml(code: string, myeongsik: MyeongsikParams | null, report: L
 
 // ─── 메인 탭 ────────────────────────────────────────────────────────────────
 
-export default function CodeLookupTab({ initialCode }: { initialCode?: string } = {}) {
+export default function CodeLookupTab({
+  initialCode,
+  onWriteReview,
+}: { initialCode?: string; onWriteReview?: () => void } = {}) {
   const [codeInput, setCodeInput] = useState('');
   const [code, setCode] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
@@ -838,7 +867,7 @@ export default function CodeLookupTab({ initialCode }: { initialCode?: string } 
 
           {/* 리포트 말미 피드백 (베타) */}
           {result && !result.giftPending && activeReport && (
-            <FeedbackForm code={code} product={activeReport.product} />
+            <FeedbackForm code={code} product={activeReport.product} onWriteReview={onWriteReview} />
           )}
 
           {/* 절입 달력 — 코드 없이도 받을 수 있는 공용 달력 */}
