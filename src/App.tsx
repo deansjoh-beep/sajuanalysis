@@ -1199,6 +1199,7 @@ const App: React.FC = () => {
               isAdmin={isAdmin}
               onLoginClick={() => setLoginModalOpen(true)}
               onLogout={logoutMember}
+              onOpenSavedCodes={() => setActiveTab("lookup")}
             />
             <button
               onClick={handleReset}

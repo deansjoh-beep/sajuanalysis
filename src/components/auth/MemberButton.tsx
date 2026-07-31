@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LogIn, LogOut, User as UserIcon, Loader2 } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Loader2, Ticket } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 interface MemberButtonProps {
@@ -8,6 +8,8 @@ interface MemberButtonProps {
   isAdmin?: boolean;
   onLoginClick: () => void;
   onLogout: () => Promise<void> | void;
+  /** '보관된 코드' 메뉴 클릭 — 리포트 조회 탭으로 이동(계정 보관 코드 목록이 그곳에 뜬다). */
+  onOpenSavedCodes?: () => void;
 }
 
 /**
@@ -15,7 +17,7 @@ interface MemberButtonProps {
  * - 비로그인: "로그인" 버튼 → 로그인 모달 오픈
  * - 로그인: 이름/아바타 → 드롭다운(로그아웃)
  */
-export const MemberButton: React.FC<MemberButtonProps> = ({ user, isAdmin, onLoginClick, onLogout }) => {
+export const MemberButton: React.FC<MemberButtonProps> = ({ user, isAdmin, onLoginClick, onLogout, onOpenSavedCodes }) => {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -82,6 +84,18 @@ export const MemberButton: React.FC<MemberButtonProps> = ({ user, isAdmin, onLog
               </span>
             )}
           </div>
+          {onOpenSavedCodes && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenSavedCodes();
+              }}
+              className="w-full px-4 py-3 text-left text-[13px] font-bold text-ink-700 hover:bg-paper-100 transition-colors flex items-center gap-2 border-b border-ink-300/20"
+            >
+              <Ticket className="w-4 h-4" />
+              보관된 코드
+            </button>
+          )}
           <button
             onClick={handleLogout}
             disabled={loggingOut}
