@@ -20,10 +20,6 @@
   },
   "crons": [
     {
-      "path": "/api/member",
-      "schedule": "0 21 * * *"
-    },
-    {
       "path": "/api/code",
       "schedule": "0 18 * * *"
     }
