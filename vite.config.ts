@@ -72,7 +72,10 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
     },
     test: {
-      exclude: ['e2e/**', 'test-results/**', 'node_modules/**', 'dist/**'],
+      // '.claude/**' — 에이전트 worktree(.claude/worktrees/*)에는 레포 전체 사본이 들어 있어
+      // 그 안의 e2e 스펙까지 vitest가 수집한다(최상위 'e2e/**'로는 안 걸림). Playwright 스펙이
+      // vitest에서 실행되면 test.describe() 오류로 스위트가 실패하므로 통째로 제외한다.
+      exclude: ['e2e/**', '.claude/**', 'test-results/**', 'node_modules/**', 'dist/**'],
       // PGlite(WASM) 스위트 다수가 병렬 초기화될 때 10s 기본값을 넘길 수 있음
       hookTimeout: 60_000,
       coverage: {
