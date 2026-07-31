@@ -8,6 +8,7 @@ import type { BirthFormInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from '../../lib/buildMyeongsik';
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
+import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst } from '../../lib/iljinCalendar';
 
 // 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
@@ -516,6 +517,8 @@ export default function CodeLookupTab({
   const [pdfBusy, setPdfBusy] = useState(false);
   // PDF 저장 직후 저장 위치 안내를 노출한다(요청 시점에만).
   const [pdfSaved, setPdfSaved] = useState(false);
+  const [iljinBusy, setIljinBusy] = useState(false);
+  const [iljinSaved, setIljinSaved] = useState(false);
   // 리딤/복구 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
   const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType; autoStart?: boolean } | null>(null);
 
@@ -637,6 +640,41 @@ export default function CodeLookupTab({
       setError(e instanceof Error ? e.message : 'PDF 생성에 실패했습니다.');
     } finally {
       setPdfBusy(false);
+    }
+  };
+
+  // 다음 달 일진 캘린더 (무료 부가) — 구매 이력(환불 제외) 보유 코드에만 제공.
+  const iljinEligible = useMemo(
+    () => Boolean(result?.myeongsik) && (result?.orders.some((o) => o.status !== 'refunded') ?? false),
+    [result],
+  );
+
+  const downloadIljin = async () => {
+    if (!result?.myeongsik) return;
+    setIljinBusy(true);
+    setIljinSaved(false);
+    try {
+      const { year, month } = getNextMonthKst();
+      const dayPillar = result.myeongsik.pillars.day;
+      const html = buildIljinCalendarHtml(getMonthIljin(year, month, dayPillar), dayPillar, code);
+      const res = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html, fileName: `일진캘린더_${year}년${month}월_${code.replace(/[^A-Z0-9-]/g, '')}` }),
+      });
+      if (!res.ok) throw new Error('일진 캘린더 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `일진캘린더_${year}년${month}월_${code}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setIljinSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '일진 캘린더 생성에 실패했습니다.');
+    } finally {
+      setIljinBusy(false);
     }
   };
 
@@ -881,6 +919,36 @@ export default function CodeLookupTab({
                     </div>
                   ) : (
                     <TextBlock text={activeReport!.content} />
+                  )}
+                </section>
+              )}
+
+              {/* 다음 달 일진 캘린더 — 구매 이력 보유 코드 무료 부가 서비스 */}
+              {iljinEligible && (
+                <section className={`${PAPER_CARD} p-6 space-y-3`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-serif text-[18px] font-bold text-ink-900">
+                        {getNextMonthKst().year}년 {getNextMonthKst().month}월 일진 캘린더
+                      </h3>
+                      <p className="text-[12px] text-ink-500 mt-1">
+                        리포트 구매자께 매달 무료로 드립니다. 이 코드의 일주 기준으로 하루하루의
+                        간지·십성·길흉을 벽걸이 달력 형태의 PDF 한 장에 담았습니다.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => void downloadIljin()}
+                      disabled={iljinBusy}
+                      className="px-4 py-2 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold disabled:opacity-40"
+                    >
+                      {iljinBusy ? '생성 중...' : 'PDF 내려받기'}
+                    </button>
+                  </div>
+                  {iljinSaved && (
+                    <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
+                      PDF를 내려받았습니다. PC는 ‘다운로드’ 폴더, 휴대폰은 ‘파일’ 또는 ‘다운로드’ 앱에서
+                      확인하실 수 있습니다. 인쇄해 책상 앞에 붙여두시면 한 달 계획에 쓰기 좋습니다.
+                    </p>
                   )}
                 </section>
               )}

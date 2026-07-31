@@ -9,6 +9,7 @@ import { WhenToUseSection } from '../welcome/WhenToUseSection';
 import { HowToUseSection } from '../welcome/HowToUseSection';
 import { DifferentiationTable } from '../welcome/DifferentiationTable';
 import { PremiumProductsSection } from '../welcome/PremiumProductsSection';
+import { IljinCalendarPromo } from '../welcome/IljinCalendarPromo';
 import { FinalCTASection } from '../welcome/FinalCTASection';
 import { WelcomeFooter } from '../welcome/WelcomeFooter';
 import { ReviewsSection } from '../ReviewsSection';
@@ -26,6 +27,8 @@ type ActiveTab =
   | 'blog'
   | 'premium'
   | 'order'
+  | 'daily'
+  | 'lookup'
   | 'checkout';
 
 interface UserData {
@@ -161,6 +164,11 @@ export default function WelcomeTab({
             <div ref={productsRef}>
               <PremiumProductsSection onProductClick={handleProductClick} />
             </div>
+
+            <IljinCalendarPromo
+              onGetReport={() => setActiveTab('checkout')}
+              onGoLookup={() => setActiveTab('lookup')}
+            />
 
             {/* 후기 — 화선지 톤에 맞춰 컨테이너만 살짝 조정 */}
             <section className="relative px-4 py-16 md:py-20 bg-paper-100/30">
