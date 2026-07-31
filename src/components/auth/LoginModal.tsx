@@ -57,7 +57,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
             </div>
             <div>
               <h2 className="text-[16px] font-bold text-ink-900">로그인</h2>
-              <p className="text-[12px] text-ink-500">로그인하면 매일 오늘의 운세를 무료로 받아요</p>
+              {/* 로그인으로 실제 열리는 기능만 적는다. '오늘의 운세'는 화면이 앱에 연결돼 있지 않아 제외. */}
+              <p className="text-[12px] text-ink-500">로그인하면 사주 코드를 계정에 보관해 둘 수 있어요</p>
             </div>
           </div>
           <button
