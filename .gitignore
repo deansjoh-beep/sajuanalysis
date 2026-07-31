@@ -8,6 +8,8 @@ bench-output/
 .env*
 !.env.example
 service-account.json
+# 메일 발송 자격증명 메모 (Resend API 키·DKIM) — 커밋 금지, 값은 .env.local로
+resend.txt
 .claude/settings.local.json
 .vercel/
 .pglite/
