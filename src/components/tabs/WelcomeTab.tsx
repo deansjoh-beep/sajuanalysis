@@ -151,6 +151,12 @@ export default function WelcomeTab({
               onOpenCheckout={handleOpenCheckout}
             />
 
+            {/* 첫 화면 바로 아래 — 생년월일시 입력 직후에 무료 제공 혜택을 먼저 알린다. */}
+            <IljinCalendarPromo
+              onGetReport={() => setActiveTab('checkout')}
+              onGoLookup={() => setActiveTab('lookup')}
+            />
+
             <div ref={philosophyRef}>
               <PhilosophySection />
             </div>
@@ -164,11 +170,6 @@ export default function WelcomeTab({
             <div ref={productsRef}>
               <PremiumProductsSection onProductClick={handleProductClick} />
             </div>
-
-            <IljinCalendarPromo
-              onGetReport={() => setActiveTab('checkout')}
-              onGoLookup={() => setActiveTab('lookup')}
-            />
 
             {/* 후기 — 화선지 톤에 맞춰 컨테이너만 살짝 조정 */}
             <section className="relative px-4 py-16 md:py-20 bg-paper-100/30">
