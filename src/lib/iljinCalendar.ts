@@ -10,6 +10,7 @@ import {
   isWonjin,
 } from '../utils/saju';
 import { getSeoulTodayParts } from './seoulDateGanji';
+import { PDF_SANS_FONT_LINKS, PDF_SANS_STACK } from './pdfFonts';
 import { getWolunData } from './manseryeok/wolun';
 
 /**
@@ -286,11 +287,13 @@ export function buildIljinCalendarHtml(m: IljinMonth, dayPillar: string, code: s
   const jeolipText = m.jeolip ? ` · ${m.jeolip.name} ${m.month}/${m.jeolip.day} 절입(${m.jeolip.ganzhi}월)` : '';
   const subtitle = `${esc(dayPillar)}(${esc(toHangul(dayPillar))}) 일주 기준${esc(jeolipText)} · 사주 코드 ${esc(code)}`;
 
+  // 폰트 링크는 반드시 실어 보낸다 — 서버리스 Chromium에는 한글 시스템 폰트가 없다(pdfFonts.ts 참고).
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
+${PDF_SANS_FONT_LINKS}
 <style>
 @page { size: A4 landscape; margin: 10mm 12mm; }
 * { box-sizing: border-box; }
-body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; margin: 0; color: #2a2a2a; }
+body { font-family: ${PDF_SANS_STACK}; margin: 0; color: #2a2a2a; }
 .title-bar { display: flex; justify-content: space-between; align-items: baseline;
   border-bottom: 3px solid #8a1f1f; padding-bottom: 6px; margin-bottom: 8px; }
 .title-bar h1 { font-size: 21px; margin: 0; color: #8a1f1f; letter-spacing: 1px; }

@@ -17,6 +17,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as fs from 'fs';
 import * as path from 'path';
 import { checkVercelRateLimit, pdfLimiter } from './_lib/rate-limit.js';
+import { PDF_ALL_FONT_URLS, PDF_SERIF_STACK, buildFontLinkTags } from '../src/lib/pdfFonts.js';
 
 // --- Firebase Admin Utils (inlined) ---
 const VERIFIED_REPORTS_BUCKET = 'gen-lang-client-0938860351-reports';
@@ -297,13 +298,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       request.abort();
     });
 
-    // 한자 폰트 링크를 서버에서 직접 주입 (클라이언트 HTML에 없더라도 온전히 적용)
+    // 한글·한자 폰트 링크를 서버에서도 주입한다 (클라이언트 HTML에 없더라도 최소한 한글은 나오도록).
+    //
+    // ⚠️ 예전에는 Noto Serif/Sans **SC**(간체)를 `body, * { ... !important }`로 강제했는데,
+    //    SC 계열에는 한글 글리프가 없어서 서버리스 Chromium(한글 시스템 폰트 없음)에서
+    //    리포트 한글이 통째로 두부 글자로 나갔다. KR 계열로 바꾸고, 문서가 스스로 정한
+    //    명조/고딕 의도를 덮지 않도록 <head> 맨 앞에 낮은 우선순위로 넣는다.
+    //    (문서 자신의 규칙이 뒤에 오므로 이긴다 — pdfFonts.ts 참고)
     const serverFontInjection = `
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=block">
+${buildFontLinkTags(PDF_ALL_FONT_URLS)}
 <style>
-body, * { font-family: "Noto Serif SC", "Noto Sans SC", "Nanum Myeongjo", serif !important; }
+body { font-family: ${PDF_SERIF_STACK}; }
 </style>`;
-    const processedHtml = html.replace(/<\/head>/, `${serverFontInjection}</head>`);
+    const processedHtml = /<head[^>]*>/i.test(html)
+      ? html.replace(/<head[^>]*>/i, (headTag) => `${headTag}${serverFontInjection}`)
+      : `${serverFontInjection}${html}`;
 
     // HTML 주입 후 폰트 로딩까지 대기
     // networkidle0: 모든 네트워크 요청(폰트 다운로드 포함) 완료 후
@@ -312,9 +321,10 @@ body, * { font-family: "Noto Serif SC", "Noto Sans SC", "Nanum Myeongjo", serif 
     try {
       await page.evaluate(async () => {
         await (document as any).fonts.ready;
-        const cjkChars = '甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥';
-        const weights = ['400', '600', '700'];
-        const fonts = ['Noto Serif SC', 'Noto Sans SC'];
+        // 한글·한자를 함께 물려 서브셋이 전부 내려오도록 강제한다.
+        const cjkChars = '甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥갑을병정무기경신임계';
+        const weights = ['400', '700'];
+        const fonts = ['Noto Serif KR', 'Noto Sans KR'];
         await Promise.allSettled(
           fonts.flatMap(f => weights.map(w => (document as any).fonts.load(`${w} 1em "${f}"`, cjkChars)))
         );
@@ -330,14 +340,16 @@ body, * { font-family: "Noto Serif SC", "Noto Sans SC", "Nanum Myeongjo", serif 
       format: 'A4',
       printBackground: true,
       displayHeaderFooter: true,
+      // ⚠️ 머리말·꼬리말은 본문과 별개 문서로 렌더링돼 페이지가 받아온 웹폰트가 닿지 않는다.
+      //    컨테이너에 한글 시스템 폰트가 없으므로 여기에 한글을 쓰면 두부 글자로 나간다 — 영문만 쓸 것.
       headerTemplate: `
-        <div style="width:100%; padding:0 12mm; font-size:9px; color:#8b6b3e; font-family:'Noto Serif SC','Nanum Myeongjo',serif; display:flex; justify-content:space-between; align-items:center;">
-          <span>인생가이드북 리포트</span>
+        <div style="width:100%; padding:0 12mm; font-size:9px; color:#8b6b3e; font-family:serif; display:flex; justify-content:space-between; align-items:center;">
+          <span>UI Saju Report</span>
           <span>${issueDate}</span>
         </div>
       `,
       footerTemplate: `
-        <div style="width:100%; padding:0 12mm; font-size:9px; color:#9a7a4a; font-family:'Noto Serif SC','Nanum Myeongjo',serif; display:flex; justify-content:space-between; align-items:center;">
+        <div style="width:100%; padding:0 12mm; font-size:9px; color:#9a7a4a; font-family:serif; display:flex; justify-content:space-between; align-items:center;">
           <span>UI Saju Premium Report</span>
           <span><span class="pageNumber"></span> / <span class="totalPages"></span></span>
         </div>

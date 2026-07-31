@@ -412,14 +412,17 @@ async function startServer() {
         format: 'A4',
         printBackground: true,
         displayHeaderFooter: true,
+        // ⚠️ 머리말·꼬리말은 본문과 별개 문서로 렌더링돼 페이지가 받아온 웹폰트가 닿지 않는다.
+        //    프로덕션 컨테이너에는 한글 시스템 폰트가 없으므로 한글을 쓰면 두부 글자로 나간다 —
+        //    개발/프로덕션 결과를 맞추기 위해 여기도 영문만 쓴다(api/generate-pdf.ts와 동일).
         headerTemplate: `
-          <div style="width:100%; padding:0 12mm; font-size:9px; color:#8b6b3e; font-family:'Noto Serif KR','Apple SD Gothic Neo',serif; display:flex; justify-content:space-between; align-items:center;">
-            <span>인생가이드북 리포트</span>
+          <div style="width:100%; padding:0 12mm; font-size:9px; color:#8b6b3e; font-family:serif; display:flex; justify-content:space-between; align-items:center;">
+            <span>UI Saju Report</span>
             <span>${new Date().toISOString().slice(0, 10)}</span>
           </div>
         `,
         footerTemplate: `
-          <div style="width:100%; padding:0 12mm; font-size:9px; color:#9a7a4a; font-family:'Noto Serif KR','Apple SD Gothic Neo',serif; display:flex; justify-content:space-between; align-items:center;">
+          <div style="width:100%; padding:0 12mm; font-size:9px; color:#9a7a4a; font-family:serif; display:flex; justify-content:space-between; align-items:center;">
             <span>UI Saju Premium Report</span>
             <span><span class="pageNumber"></span> / <span class="totalPages"></span></span>
           </div>

@@ -8,6 +8,7 @@ import type { BirthFormInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from '../../lib/buildMyeongsik';
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
+import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 
@@ -482,10 +483,12 @@ function buildPdfHtml(code: string, myeongsik: MyeongsikParams | null, report: L
     )
     .join('');
   // 표지: 명식(간지 8자)·코드만 — 생년월일 원문은 표기하지 않는다 (2-4 원칙)
+  // 폰트 링크는 반드시 실어 보낸다 — 서버리스 Chromium에는 한글 시스템 폰트가 없다(pdfFonts.ts 참고).
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
+${PDF_SERIF_FONT_LINKS}
 <style>
   @page { size: A4 portrait; margin: 18mm 16mm; }
-  body { font-family: 'Batang', 'Noto Serif KR', serif; color: #1f2430; font-size: 11pt; line-height: 1.75; }
+  body { font-family: ${PDF_SERIF_STACK}; color: #1f2430; font-size: 11pt; line-height: 1.75; }
   .cover { text-align: center; padding: 120px 0 60px; page-break-after: always; }
   .cover h1 { font-size: 24pt; margin-bottom: 24px; }
   .cover .pillars { font-size: 14pt; letter-spacing: 2px; }

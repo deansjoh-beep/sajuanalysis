@@ -7,6 +7,7 @@ import {
 import { User as FirebaseUser } from 'firebase/auth';
 import { ReportInputData, ReportSection, DaeunBlock } from '../../lib/premiumOrderStore';
 import { elementMap, yinYangMap, hanjaToHangul } from '../../utils/saju';
+import { PDF_SERIF_FONT_LINKS } from '../../lib/pdfFonts';
 // ─── 오행 데이터 유틸리티 ──────────────────────────────────────────────────
 const ELEM_KO: Record<string, string> = { wood: '목(木)', fire: '화(火)', earth: '토(土)', metal: '금(金)', water: '수(水)' };
 const ELEM_COLORS: Record<string, string> = { wood: '#22c55e', fire: '#ef4444', earth: '#d97706', metal: '#a1a1aa', water: '#3b82f6' };
@@ -876,8 +877,10 @@ export const PremiumReportPreview: React.FC<PremiumReportPreviewProps> = ({
         .filter(l => l.href.includes('fonts.googleapis.com'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`)
         .join('\n');
-      // 한자(甲乙丙丁...) 글리프 누락 방지를 위해 CJK 폰트를 강제 포함
-      const hanjaFallbackFontLink = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=block">';
+      // 한글·한자(甲乙丙丁...) 글리프 누락 방지를 위해 한국어 CJK 폰트를 강제 포함.
+      // ⚠️ 예전에는 Noto Serif/Sans **SC**(간체)를 넣었는데, SC에는 한글 글리프가 없어
+      //    서버리스 Chromium(한글 시스템 폰트 없음)에서 한글이 전부 깨졌다. pdfFonts.ts 참고.
+      const hanjaFallbackFontLink = PDF_SERIF_FONT_LINKS;
       // 나머지(Vite 번들 CSS 등)는 fetch해서 인라인화
       const localCssResults = await Promise.allSettled(
         allLinkEls
@@ -891,7 +894,7 @@ export const PremiumReportPreview: React.FC<PremiumReportPreviewProps> = ({
       const printCss = `
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: #f5efe0; overflow: visible !important; }
-        body, [data-pdf-root] { font-family: "MaruBuri", "Nanum Myeongjo", "Noto Serif SC", "Apple SD Gothic Neo", "Malgun Gothic", serif !important; }
+        body, [data-pdf-root] { font-family: "MaruBuri", "Nanum Myeongjo", "Noto Serif KR", "Apple SD Gothic Neo", "Malgun Gothic", serif !important; }
         [data-pdf-root] { overflow: visible !important; height: auto !important; max-height: none !important; }
         [data-pdf-block] { page-break-inside: auto; break-inside: auto; margin-bottom: 5mm; }
         [data-pdf-block="dashboard"], [data-pdf-block="separator"], [data-pdf-block="fourpillars"], [data-pdf-block="daeun"], [data-pdf-block="hapchung"], [data-pdf-block="fields"] { page-break-inside: avoid; break-inside: avoid-page; }
