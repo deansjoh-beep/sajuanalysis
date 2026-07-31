@@ -9,7 +9,6 @@ import { WhenToUseSection } from '../welcome/WhenToUseSection';
 import { HowToUseSection } from '../welcome/HowToUseSection';
 import { DifferentiationTable } from '../welcome/DifferentiationTable';
 import { PremiumProductsSection } from '../welcome/PremiumProductsSection';
-import { PreparationChecklist } from '../welcome/PreparationChecklist';
 import { FinalCTASection } from '../welcome/FinalCTASection';
 import { WelcomeFooter } from '../welcome/WelcomeFooter';
 import { ReviewsSection } from '../ReviewsSection';
@@ -162,8 +161,6 @@ export default function WelcomeTab({
             <div ref={productsRef}>
               <PremiumProductsSection onProductClick={handleProductClick} />
             </div>
-
-            <PreparationChecklist />
 
             {/* 후기 — 화선지 톤에 맞춰 컨테이너만 살짝 조정 */}
             <section className="relative px-4 py-16 md:py-20 bg-paper-100/30">
