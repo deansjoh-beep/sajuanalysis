@@ -10,6 +10,7 @@ import { generateReportKeywords } from '../../lib/generateReportKeywords';
 import { isRetryableModelError } from '../../lib/modelUtils';
 import { parseReport, type ParsedReport } from '../manse/reportSectionUtils';
 import { selectCoreHook, formatHookPct, type CoreHook } from '../../lib/hookEngine';
+import { getNextMonthKst } from '../../lib/iljinCalendar';
 import { ReportAccordion } from './ReportAccordion';
 
 const FiveElementsPieChart = React.lazy(() => import('../FiveElementsPieChart'));
@@ -50,6 +51,8 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // 무료 제공 안내용 다음 달(KST) — 하단 IljinCalendarPromo와 같은 출처를 쓴다.
+  const { month: nextMonth } = getNextMonthKst();
 
   // 무료 기본 리포트 — 2단계 지연 생성.
   // 1단계: 제출 시 키워드 6개만(저렴·빠름) → 아코디언 헤더.
@@ -284,6 +287,11 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
             >
               무료로 사주 보기
             </button>
+
+            {/* 다음 달 캘린더 무료 제공 안내 — 아래 IljinCalendarPromo 섹션과 같은 달을 쓴다. */}
+            <p className="text-center text-[12px] text-ink-700">
+              {nextMonth}월 운세 캘린더를 무료로 드립니다.
+            </p>
 
             <p className="text-center text-[12px] text-ink-500">
               입력 정보는 저장되지 않습니다.
