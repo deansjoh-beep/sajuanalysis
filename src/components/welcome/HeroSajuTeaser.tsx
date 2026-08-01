@@ -282,7 +282,7 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
               onClick={handleSubmit}
               className="w-full py-4 min-h-[48px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold text-[14px] shadow-lg shadow-ink-700/20 active:scale-95 transition-all"
             >
-              무료로 사주 보기
+              간단히 내 사주 보기
             </button>
 
             {/* 캘린더 무료 제공 안내는 바로 아래 IljinCalendarPromo 섹션이 담당한다(문구 중복 방지). */}
@@ -389,6 +389,12 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
               더 자세한 당신의 운세는 만세력(FREE)과 유료 리포트에서 확인하세요.
             </p>
 
+            <ul className="space-y-1 text-[14px] text-ink-700 leading-relaxed list-disc pl-5">
+              <li>궁금한 점이나 고민을 직접 물어볼 수 있어요.</li>
+              <li>재물발복·건강·인연·성취, 네 가지 지수를 인생 전체 흐름으로 보여드려요.</li>
+              <li>앞으로 이 사이트에 추가되는 서비스(개발 중)도 모두 이용할 수 있어요.</li>
+            </ul>
+
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
               <button
                 onClick={() => onOpenManse(input)}
@@ -400,7 +406,7 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
                 onClick={onOpenCheckout}
                 className="flex-1 py-3 min-h-[44px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold text-[14px] shadow-lg shadow-ink-700/20 transition-all"
               >
-                리포트로 깊이 보기
+                내 인생 깊이 보기 - 사주리포트 유료 결제
               </button>
             </div>
 

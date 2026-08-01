@@ -74,6 +74,11 @@ export function PremiumProductsSection({ onProductClick }: PremiumProductsSectio
           <p className="text-[13px] md:text-[14px] text-ink-500 max-w-xl mx-auto leading-relaxed">
             지금 가장 필요한 한 권을 고르세요.
           </p>
+          <ul className="inline-block text-left text-[13px] md:text-[14px] text-ink-700 leading-relaxed list-disc pl-5 space-y-1">
+            <li>궁금한 점이나 고민을 직접 물어볼 수 있어요.</li>
+            <li>재물발복·건강·인연·성취, 네 가지 지수를 인생 전체 흐름으로 보여드려요.</li>
+            <li>앞으로 이 사이트에 추가되는 서비스(개발 중)도 모두 이용할 수 있어요.</li>
+          </ul>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
