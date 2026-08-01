@@ -9,7 +9,7 @@ import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from 
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
 import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
-import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst } from '../../lib/iljinCalendar';
+import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 import LifeIndexCard from '../lifeIndex/LifeIndexCard';
 
@@ -696,18 +696,20 @@ export default function CodeLookupTab({
     }
   };
 
-  // 다음 달 일진 캘린더 (무료 부가) — 구매 이력(환불 제외) 보유 코드에만 제공.
+  // 이번 달·다음 달 일진 캘린더 (무료 부가) — 구매 이력(환불 제외) 보유 코드에만 제공. 고객이 선택.
   const iljinEligible = useMemo(
     () => Boolean(result?.myeongsik) && (result?.orders.some((o) => o.status !== 'refunded') ?? false),
     [result],
   );
+  const [iljinTarget, setIljinTarget] = useState<'current' | 'next'>('next');
+  const iljinTargetMonth = iljinTarget === 'current' ? getThisMonthKst() : getNextMonthKst();
 
   const downloadIljin = async () => {
     if (!result?.myeongsik) return;
     setIljinBusy(true);
     setIljinSaved(false);
     try {
-      const { year, month } = getNextMonthKst();
+      const { year, month } = iljinTargetMonth;
       const dayPillar = result.myeongsik.pillars.day;
       const html = buildIljinCalendarHtml(getMonthIljin(year, month, dayPillar), dayPillar, code);
       const res = await fetch('/api/generate-pdf', {
@@ -1035,19 +1037,34 @@ export default function CodeLookupTab({
                 </section>
               )}
 
-              {/* 다음 달 일진 캘린더 — 구매 이력 보유 코드 무료 부가 서비스 */}
+              {/* 이번 달·다음 달 일진 캘린더 — 구매 이력 보유 코드 무료 부가 서비스, 고객이 월 선택 */}
               {iljinEligible && (
                 <section className={`${PAPER_CARD} p-6 space-y-3`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="font-serif text-[18px] font-bold text-ink-900">
-                        {getNextMonthKst().year}년 {getNextMonthKst().month}월 일진 캘린더
+                        {iljinTargetMonth.year}년 {iljinTargetMonth.month}월 일진 캘린더
                       </h3>
                       <p className="text-[12px] text-ink-500 mt-1">
                         리포트 구매자께 매달 무료로 드립니다. 이 코드의 일주 기준으로 하루하루의
                         간지·십성·길흉을 벽걸이 달력 형태의 PDF 한 장에 담았습니다.
                       </p>
                     </div>
+                    <div className="flex gap-1">
+                      {(['current', 'next'] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => { setIljinTarget(t); setIljinSaved(false); }}
+                          className={`px-3 py-1.5 rounded-xl text-[13px] font-bold ${
+                            t === iljinTarget ? 'bg-ink-900 text-paper-50' : 'border border-ink-300/40 text-ink-700'
+                          }`}
+                        >
+                          {t === 'current' ? '이번 달' : '다음 달'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
                     <button
                       onClick={() => void downloadIljin()}
                       disabled={iljinBusy}

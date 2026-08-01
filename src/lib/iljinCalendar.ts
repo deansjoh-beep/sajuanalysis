@@ -187,6 +187,12 @@ export function getMonthIljin(year: number, month: number, dayPillar: string): I
   return { year, month, jeolip: findJeolip(year, month), days };
 }
 
+/** 서울 기준 이번 달 { year, month } */
+export function getThisMonthKst(): { year: number; month: number } {
+  const { year, month } = getSeoulTodayParts();
+  return { year, month };
+}
+
 /** 서울 기준 다음 달 { year, month } */
 export function getNextMonthKst(): { year: number; month: number } {
   const { year, month } = getSeoulTodayParts();
