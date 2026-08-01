@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`회귀 방지 스냅샷 > 고정 명식의 재물·건강 지수 곡선(10년 간격) 1`] = `
+[
+  {
+    "age": 0,
+    "career": 0,
+    "daeun": null,
+    "health": 59.7,
+    "love": 1.1,
+    "wealth": 5.4,
+  },
+  {
+    "age": 10,
+    "career": 1,
+    "daeun": "己亥",
+    "health": 66,
+    "love": 2.7,
+    "wealth": 22.4,
+  },
+  {
+    "age": 20,
+    "career": 4,
+    "daeun": "庚子",
+    "health": 83,
+    "love": 7.1,
+    "wealth": 14.3,
+  },
+  {
+    "age": 30,
+    "career": 4.5,
+    "daeun": "辛丑",
+    "health": 56.9,
+    "love": 4.4,
+    "wealth": 20.9,
+  },
+  {
+    "age": 40,
+    "career": 4.5,
+    "daeun": "壬寅",
+    "health": 84,
+    "love": 5.1,
+    "wealth": 15,
+  },
+  {
+    "age": 50,
+    "career": 6,
+    "daeun": "癸卯",
+    "health": 92,
+    "love": 8.2,
+    "wealth": 13,
+  },
+  {
+    "age": 60,
+    "career": 1.1,
+    "daeun": "甲辰",
+    "health": 61.7,
+    "love": 1.1,
+    "wealth": 5.6,
+  },
+  {
+    "age": 70,
+    "career": 2.1,
+    "daeun": "乙巳",
+    "health": 61.7,
+    "love": 1.1,
+    "wealth": 5.6,
+  },
+  {
+    "age": 80,
+    "career": 0.3,
+    "daeun": "丙午",
+    "health": 59.6,
+    "love": 1.1,
+    "wealth": 5.6,
+  },
+  {
+    "age": 90,
+    "career": 4.5,
+    "daeun": "丁未",
+    "health": 46.7,
+    "love": 5.9,
+    "wealth": 16.8,
+  },
+]
+`;

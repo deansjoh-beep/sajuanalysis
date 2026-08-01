@@ -11,6 +11,7 @@ import { buildJeolipIcs } from '../../lib/jeolipIcs';
 import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
+import LifeIndexCard from '../lifeIndex/LifeIndexCard';
 
 // 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
@@ -912,6 +913,9 @@ export default function CodeLookupTab({
                   )}
                 </div>
               </section>
+
+              {/* 인생 100년 지수 — 재물·인연·관운·건강. 저장된 명식만으로 계산(LLM 미사용, 원가 0) */}
+              {result.myeongsik && <LifeIndexCard myeongsik={result.myeongsik} />}
 
               {/* 결제 후 미생성 주문 복구 — 명식 일치 검증 후 무료 생성 */}
               {recoverTarget && !pendingGen && result.myeongsik && (
