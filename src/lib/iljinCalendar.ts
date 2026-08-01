@@ -199,6 +199,15 @@ export function getNextMonthKst(): { year: number; month: number } {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
+/**
+ * 랜딩 홍보 문구에 보여줄 달 — 15일까지는 이번 달, 16일부터는 다음 달.
+ * 월 후반에는 이번 달이 얼마 남지 않아 다음 달을 먼저 보여주는 것이 더 매력적이다.
+ */
+export function getPromoMonthKst(): { year: number; month: number } {
+  const { day } = getSeoulTodayParts();
+  return day <= 15 ? getThisMonthKst() : getNextMonthKst();
+}
+
 // ─── 캘린더 HTML (A4 가로 1장 · 벽걸이 달력형) ─────────────────────────────
 
 const RATING_COLORS: Record<string, string> = {

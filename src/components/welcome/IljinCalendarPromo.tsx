@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
-import { getMonthIljin, getNextMonthKst } from '../../lib/iljinCalendar';
+import { getMonthIljin, getPromoMonthKst } from '../../lib/iljinCalendar';
 
 /**
- * 랜딩 — 다음 달 일진 캘린더 무료 제공 안내 (구매자 부가 서비스 홍보).
- * 샘플은 실제 다음 달 일진(간지는 만인 공통)을 예시 일간(甲) 기준 십성·등급으로 보여준다.
- * 계산은 전부 정적 — LLM·API 호출 없음.
+ * 랜딩 — 일진 캘린더 무료 제공 안내 (구매자 부가 서비스 홍보).
+ * 안내 달은 15일까지 이번 달, 16일부터 다음 달(getPromoMonthKst) — 월 후반에는
+ * 이번 달이 얼마 남지 않아 다음 달을 먼저 보여주는 것이 더 매력적이다.
+ * 실제 다운로드(리포트 조회 탭)는 이번 달·다음 달을 고객이 직접 고른다.
+ * 샘플은 예시 일간(甲) 기준 십성·등급으로 보여준다. 계산은 전부 정적 — LLM·API 호출 없음.
  */
 
 const SAMPLE_DAY_PILLAR = '甲子';
@@ -17,7 +19,7 @@ interface IljinCalendarPromoProps {
 }
 
 export function IljinCalendarPromo({ onGetReport, onGoLookup }: IljinCalendarPromoProps) {
-  const { year, month } = getNextMonthKst();
+  const { year, month } = getPromoMonthKst();
   // 샘플 첫 7일 — 렌더당 1회 계산이면 충분하다.
   const sample = useMemo(() => getMonthIljin(year, month, SAMPLE_DAY_PILLAR).days.slice(0, 7), [year, month]);
 
@@ -29,9 +31,9 @@ export function IljinCalendarPromo({ onGetReport, onGoLookup }: IljinCalendarPro
             {month}월 일진 캘린더를 무료로 드립니다
           </h2>
           <p className="text-[13px] md:text-[14px] text-ink-500 max-w-xl mx-auto leading-relaxed">
-            리포트를 받으신 분께는 매달, 다음 달의 하루하루를 내 일간 기준으로 풀이한 일진표를
-            벽걸이 달력 형태의 PDF로 드립니다. 발급받은 사주 코드로 ‘리포트 조회’에서 언제든
-            내려받을 수 있습니다.
+            리포트를 받으신 분께는 매달, 하루하루를 내 일간 기준으로 풀이한 일진표를
+            벽걸이 달력 형태의 PDF로 드립니다. 발급받은 사주 코드로 ‘리포트 조회’에서 이번 달·다음 달
+            중 원하는 달을 골라 언제든 내려받을 수 있습니다.
           </p>
         </div>
 
