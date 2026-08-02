@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { buildTeaserSummary, fetchTeaserComment, teaserInputToDateStrings, type TeaserInput, type TeaserSummary } from '../../lib/landingTeaser';
 import { toOhaengChartData } from '../../constants/ohaengColors';
@@ -10,9 +10,12 @@ import { generateReportKeywords } from '../../lib/generateReportKeywords';
 import { isRetryableModelError } from '../../lib/modelUtils';
 import { parseReport, type ParsedReport } from '../manse/reportSectionUtils';
 import { selectCoreHook, formatHookPct, type CoreHook } from '../../lib/hookEngine';
+import { buildMyeongsikFromBirth, type MyeongsikParams } from '../../lib/buildMyeongsik';
+import { computeLifeIndices, summarizeLifeIndexPeaks } from '../../lib/analysis/lifeIndex';
 import { ReportAccordion } from './ReportAccordion';
 
 const FiveElementsPieChart = React.lazy(() => import('../FiveElementsPieChart'));
+const LazyLifeIndexChart = React.lazy(() => import('../lifeIndex/LifeIndexChart'));
 
 /**
  * 히어로 무료 사주 요약 티저 (사이트 개편).
@@ -46,6 +49,8 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
   const [summary, setSummary] = useState<TeaserSummary | null>(null);
   // 엔진 선정 핵심 훅 — AI 호출 없이 제출 즉시 결정론적으로 계산·노출.
   const [coreHook, setCoreHook] = useState<CoreHook | null>(null);
+  // 인생 100년 재물발복지수(합충 반영) 무료 미리보기 — 유료 카드(LifeIndexCard)와 동일 엔진 재사용.
+  const [lifeMyeongsik, setLifeMyeongsik] = useState<MyeongsikParams | null>(null);
   const [aiComment, setAiComment] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +97,17 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
     } catch (e) {
       console.warn('[teaser] core hook failed:', e);
       setCoreHook(null);
+    }
+
+    // 재물발복지수(인생 100년, 합충 반영) — 유료 카드와 동일 규칙 엔진(v1.5)으로 계산.
+    try {
+      const { dateStr, timeStr, isLunar, isLeap } = teaserInputToDateStrings(input);
+      setLifeMyeongsik(
+        buildMyeongsikFromBirth({ dateStr, timeStr, isLunar, isLeap, gender: input.gender, unknownTime: input.unknownTime }),
+      );
+    } catch (e) {
+      console.warn('[teaser] life index failed:', e);
+      setLifeMyeongsik(null);
     }
 
     // 이전 진행분 취소 + 2단계 결과 폐기.
@@ -184,6 +200,16 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
   };
 
   const chartData = summary ? toOhaengChartData(summary.ohaeng) : [];
+
+  const wealthPoints = useMemo(() => (lifeMyeongsik ? computeLifeIndices(lifeMyeongsik) : []), [lifeMyeongsik]);
+  const wealthCurrentAge = useMemo(() => {
+    const birthYearInt = parseInt(input.birthYear, 10);
+    return isNaN(birthYearInt) ? null : currentSeoulYear - birthYearInt;
+  }, [input.birthYear, currentSeoulYear]);
+  const wealthSummary = useMemo(
+    () => (wealthPoints.length > 0 ? summarizeLifeIndexPeaks(wealthPoints, 'wealth', wealthCurrentAge ?? undefined) : null),
+    [wealthPoints, wealthCurrentAge],
+  );
 
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -330,6 +356,19 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
               )}
             </div>
 
+            {wealthSummary && (
+              <div className="border-t border-ink-300/20 pt-3 space-y-2">
+                <p className="text-[12px] text-ink-500">인생 100년 재물발복지수 (합충 반영)</p>
+                <Suspense fallback={<div className="h-[140px]" />}>
+                  <LazyLifeIndexChart points={wealthPoints} activeKey="wealth" currentAge={wealthCurrentAge} color="#a88a4a" />
+                </Suspense>
+                <p className="text-[14px] text-ink-700 leading-relaxed">{wealthSummary.high.sentence}</p>
+                <p className="text-[12px] text-ink-500">
+                  유료 리포트에서는 인생 성공지수·건강지수·인연지수까지 네 가지 모두 확인할 수 있습니다.
+                </p>
+              </div>
+            )}
+
             {(aiLoading || aiComment) && (
               <div className="border-t border-ink-300/20 pt-3 space-y-2">
                 <p className="text-[12px] text-ink-500">AI 핵심 요약</p>
@@ -416,6 +455,7 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
                 reportReqRef.current++; // 진행 중 키워드·리포트 생성 결과 폐기
                 setSummary(null);
                 setCoreHook(null);
+                setLifeMyeongsik(null);
                 setAiComment(null);
                 setAiLoading(false);
                 setKeywords(null);
