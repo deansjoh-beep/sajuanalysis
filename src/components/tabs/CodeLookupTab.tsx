@@ -387,7 +387,7 @@ function FeedbackForm({
               사이트에 공개되는 후기를 따로 남겨주시겠어요?
             </p>
             <p className="text-[12px] text-ink-500 leading-relaxed">
-              공개 후기는 닉네임과 함께 첫 화면에 실리며, 검토 후 게시됩니다.
+              공개 후기는 닉네임과 함께 첫 화면에 실립니다.
             </p>
             <button
               onClick={onWriteReview}
@@ -1034,6 +1034,27 @@ export default function CodeLookupTab({
                   ) : (
                     <TextBlock text={activeReport!.content} />
                   )}
+                </section>
+              )}
+
+              {/* 후기 요청 — 무료 제공 기간, 리포트 통독 직후 바로 노출 (익명 피드백과 별개) */}
+              {activeReport && onWriteReview && (
+                <section className={`${PAPER_CARD} p-6 flex flex-wrap items-center justify-between gap-3`}>
+                  <div className="flex-1 min-w-60">
+                    <p className="text-[14px] text-ink-900 leading-relaxed">
+                      리포트가 도움이 되셨나요? 지금은 무료 제공 기간입니다 — 짧은 한 줄 후기가
+                      다음 분들께 큰 도움이 됩니다.
+                    </p>
+                    <p className="text-[12px] text-ink-500 mt-1">
+                      후기는 닉네임과 함께 첫 화면에 실립니다.
+                    </p>
+                  </div>
+                  <button
+                    onClick={onWriteReview}
+                    className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
+                  >
+                    후기 남기기
+                  </button>
                 </section>
               )}
 
