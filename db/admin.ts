@@ -9,6 +9,7 @@
 import { and, eq, gte, notExists, sql } from 'drizzle-orm';
 import type { Db } from './client.js';
 import { codes, orders, reportReviews, reports } from './schema.js';
+import { getUsageStats, type UsageStats } from './usage.js';
 
 /** 검증 실패 기준 — 품질 평가기 점수 80 미만 (프로덕션 보정 트리거와 동일) */
 export const QUALITY_PASS_SCORE = 80;
@@ -22,6 +23,8 @@ export interface DailyStatRow {
 
 export interface AdminStats {
   daily: DailyStatRow[];
+  /** 이용현황(활동 지표) — 일별 발급·주문·생성·열람 + 누적 요약 */
+  usage: UsageStats;
   totals: {
     revenue: number;
     orderCount: number;
@@ -80,8 +83,11 @@ export async function getAdminStats(db: Db, days = 14): Promise<AdminStats> {
     })
     .from(reportReviews);
 
+  const usage = await getUsageStats(db, days);
+
   return {
     daily,
+    usage,
     totals: {
       revenue: orderTotals.revenue,
       orderCount: orderTotals.orderCount,

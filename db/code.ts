@@ -20,6 +20,7 @@ import {
   reports,
   type MyeongsikParams,
 } from './schema.js';
+import { recordUsageEvent } from './usage.js';
 
 /** I, O, L, 0, 1 제외 — 육안 혼동 방지 */
 export const CODE_CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -143,6 +144,9 @@ export async function lookupCode(db: Db, rawCode: string, now: Date = new Date()
   const code = rawCode.trim().toUpperCase();
   const [codeRow] = await db.select().from(codes).where(eq(codes.code, code));
   if (!codeRow) return EMPTY_LOOKUP;
+
+  // 이용현황 지표 — 실재 코드 조회만 열람 1건으로 집계(실패해도 조회 흐름은 계속).
+  await recordUsageEvent(db, 'lookup');
 
   const orderRows = await db.select().from(orders).where(eq(orders.codeId, codeRow.id));
 

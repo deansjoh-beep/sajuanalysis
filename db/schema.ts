@@ -16,6 +16,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -230,6 +231,22 @@ export const feedback = pgTable(
     // 코드당 상품별 1회 (재제출은 덮어쓰기)
     uniqueIndex('feedback_code_product_idx').on(table.codeId, table.product),
   ],
+);
+
+/**
+ * 이용현황 일별 카운터 (활동 지표 대시보드) — 개인정보·코드 식별자 없이
+ * (KST 날짜, 이벤트)당 건수만 누적한다. 이벤트 예: 'lookup'(코드 조회 성공).
+ * 발급·주문·리포트 생성은 기존 테이블 created_at으로 집계하므로 여기 넣지 않는다.
+ */
+export const usageEvents = pgTable(
+  'usage_events',
+  {
+    /** KST 날짜 YYYY-MM-DD */
+    day: varchar('day', { length: 10 }).notNull(),
+    event: varchar('event', { length: 32 }).notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.event] })],
 );
 
 export const codesRelations = relations(codes, ({ many }) => ({

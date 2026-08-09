@@ -10,8 +10,27 @@ import { BarChart3, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-reac
  */
 
 interface DailyStatRow { date: string; orderCount: number; revenue: number; refunds: number }
+interface UsageDailyRow {
+  date: string;
+  codesIssued: number;
+  ordersFree: number;
+  ordersPaid: number;
+  reportsGenerated: number;
+  lookups: number;
+}
+interface UsageStats {
+  daily: UsageDailyRow[];
+  totals: {
+    codes: number;
+    activeCodes: number;
+    reports: number;
+    lookups: number;
+    ordersByProduct: Record<string, number>;
+  };
+}
 interface AdminStats {
   daily: DailyStatRow[];
+  usage?: UsageStats;
   totals: {
     revenue: number;
     orderCount: number;
@@ -211,6 +230,78 @@ export const SalesReviewPanel: React.FC = () => {
               <p className="text-[16px] font-bold text-zinc-900 mt-1">{c.value}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 이용현황 (무료 오픈 기간 활동 지표) */}
+      {stats?.usage && (
+        <div className={CARD}>
+          <p className="text-[13px] font-bold text-zinc-800 mb-1">이용현황 (최근 14일)</p>
+          <p className="text-[11px] text-zinc-500 mb-4">
+            발급 = 새 사주 코드 · 무료/유료 = 주문(환불 제외) · 생성 = 리포트 생성 · 열람 = 코드 조회 성공 횟수
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {[
+              { label: '누적 코드 (명식 등록)', value: `${stats.usage.totals.codes}개 (${stats.usage.totals.activeCodes})` },
+              { label: '누적 리포트 생성', value: `${stats.usage.totals.reports}건` },
+              { label: '누적 열람(조회)', value: `${stats.usage.totals.lookups}회` },
+              {
+                label: '오늘 활동 (발급·생성·열람)',
+                value: (() => {
+                  const today = stats.usage.daily[stats.usage.daily.length - 1];
+                  return today ? `${today.codesIssued} · ${today.reportsGenerated} · ${today.lookups}` : '—';
+                })(),
+              },
+            ].map((c) => (
+              <div key={c.label} className="rounded-xl border border-zinc-200 bg-white/70 p-3">
+                <p className="text-[11px] text-zinc-500">{c.label}</p>
+                <p className="text-[16px] font-bold text-zinc-900 mt-1">{c.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="text-left text-[11px] text-zinc-500 border-b border-zinc-200">
+                  <th className="py-2 pr-4">날짜</th>
+                  <th className="py-2 pr-4">코드 발급</th>
+                  <th className="py-2 pr-4">무료 주문</th>
+                  <th className="py-2 pr-4">유료 주문</th>
+                  <th className="py-2 pr-4">리포트 생성</th>
+                  <th className="py-2">열람</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.usage.daily.map((d) => {
+                  const empty =
+                    d.codesIssued === 0 && d.ordersFree === 0 && d.ordersPaid === 0 &&
+                    d.reportsGenerated === 0 && d.lookups === 0;
+                  return (
+                    <tr key={d.date} className={`border-b border-zinc-100 ${empty ? 'text-zinc-400' : 'text-zinc-700'}`}>
+                      <td className="py-2 pr-4">{d.date}</td>
+                      <td className="py-2 pr-4">{d.codesIssued}</td>
+                      <td className="py-2 pr-4">{d.ordersFree}</td>
+                      <td className="py-2 pr-4">{d.ordersPaid}</td>
+                      <td className="py-2 pr-4 font-bold">{d.reportsGenerated}</td>
+                      <td className="py-2">{d.lookups}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {Object.keys(stats.usage.totals.ordersByProduct).length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {Object.entries(stats.usage.totals.ordersByProduct).map(([product, n]) => (
+                <span key={product} className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-700">
+                  {PRODUCT_LABEL[product] ?? product} <b>{n}건</b>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
