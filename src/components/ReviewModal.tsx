@@ -4,6 +4,19 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 
+/**
+ * 후기 작성 진입점. Firestore `reviews.sourcePage`에 그대로 저장되며,
+ * "어느 동선이 후기를 만들어내는가"를 사후에 집계하는 유일한 근거다.
+ * 탭 이름(activeTab)을 그대로 쓰면 헤더 상시 버튼과 탭 내부 유도 카드가
+ * 구분되지 않으므로, 진입점마다 고유한 값을 넘긴다.
+ */
+export type ReviewSource =
+  | 'header'           // 헤더 상시 '후기 남기기' 버튼 (어느 탭에서든)
+  | 'welcome-teaser'   // 랜딩 무료 사주 요약 통독 직후 카드
+  | 'welcome-reviews'  // 랜딩 후기 섹션 자체의 작성 버튼
+  | 'lookup-report'    // 리포트 조회 탭 — 리포트 본문 직후 카드
+  | 'lookup-feedback'; // 리포트 조회 탭 — 익명 피드백 제출 완료 후
+
 interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;

@@ -27,6 +27,8 @@ export interface HeroSajuTeaserProps {
   currentSeoulYear: number;
   onOpenManse: (input: TeaserInput) => void;
   onOpenCheckout: () => void;
+  /** 무료 요약을 다 읽은 직후 공개 후기 작성 모달을 연다 (리포트 조회 탭과 동일 동선) */
+  onWriteReview: () => void;
 }
 
 const FIELD =
@@ -35,7 +37,7 @@ const FIELD =
 const SEG_ON = 'bg-ink-900 text-paper-50 shadow-md';
 const SEG_OFF = 'text-ink-500';
 
-export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }: HeroSajuTeaserProps) {
+export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, onWriteReview }: HeroSajuTeaserProps) {
   const [input, setInput] = useState<TeaserInput>({
     name: DEFAULT_USER_DATA.name,
     birthYear: DEFAULT_USER_DATA.birthYear,
@@ -446,6 +448,24 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout }
                 className="flex-1 py-3 min-h-[44px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold text-[14px] shadow-lg shadow-ink-700/20 transition-all"
               >
                 내 인생 깊이 보기 - 사주리포트 유료 결제
+              </button>
+            </div>
+
+            {/* 후기 요청 — 무료 요약 통독 직후. 리포트 조회 탭의 동일 카드와 짝을 이룬다. */}
+            <div className="rounded-2xl border border-ink-300/30 bg-white px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex-1 min-w-52 text-left">
+                <p className="text-[14px] text-ink-900 leading-relaxed">
+                  무료 사주 요약이 도움이 되셨나요? 짧은 한 줄 후기가 다음 분들께 큰 도움이 됩니다.
+                </p>
+                <p className="text-[12px] text-ink-500 mt-1">
+                  후기는 닉네임과 함께 첫 화면에 실립니다.
+                </p>
+              </div>
+              <button
+                onClick={onWriteReview}
+                className="px-5 py-2.5 min-h-[44px] rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
+              >
+                후기 남기기
               </button>
             </div>
 

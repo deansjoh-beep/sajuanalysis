@@ -10,6 +10,7 @@ interface HeroSectionProps {
   currentSeoulYear: number;
   onOpenManse: (input: TeaserInput) => void;
   onOpenCheckout: () => void;
+  onWriteReview: () => void;
 }
 
 export function HeroSection({
@@ -17,6 +18,7 @@ export function HeroSection({
   currentSeoulYear,
   onOpenManse,
   onOpenCheckout,
+  onWriteReview,
 }: HeroSectionProps) {
   return (
     <section className="relative min-h-[88vh] flex flex-col items-center justify-center px-4 py-16 md:py-24">
@@ -59,6 +61,7 @@ export function HeroSection({
             currentSeoulYear={currentSeoulYear}
             onOpenManse={onOpenManse}
             onOpenCheckout={onOpenCheckout}
+            onWriteReview={onWriteReview}
           />
 
           <button

@@ -15,6 +15,7 @@ import { WelcomeFooter } from '../welcome/WelcomeFooter';
 import { ReviewsSection } from '../ReviewsSection';
 import { BirthInputFields } from '../BirthInputFields';
 import type { TeaserInput } from '../../lib/landingTeaser';
+import type { ReviewSource } from '../ReviewModal';
 
 type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 type ActiveTab =
@@ -60,7 +61,8 @@ interface WelcomeTabProps {
   setIsAgreed: (v: boolean) => void;
   setActiveTab: (t: ActiveTab) => void;
   setOrderProductType: (t: ProductType) => void;
-  setReviewModalOpen: (v: boolean) => void;
+  /** 후기 작성 모달 열기 — 진입점을 sourcePage로 남겨 동선별 유입을 집계한다 */
+  openReviewModal: (source: ReviewSource) => void;
   /** 후기 작성 완료 후 ReviewsSection 재로드용 카운터 */
   reviewsRefreshKey?: number;
   recommendedPosts: BlogPostLite[];
@@ -85,7 +87,7 @@ export default function WelcomeTab({
   setIsAgreed,
   setActiveTab,
   setOrderProductType,
-  setReviewModalOpen,
+  openReviewModal,
   reviewsRefreshKey,
   recommendedPosts,
   onPostClick,
@@ -149,6 +151,7 @@ export default function WelcomeTab({
               currentSeoulYear={currentSeoulYear}
               onOpenManse={onTeaserManse}
               onOpenCheckout={handleOpenCheckout}
+              onWriteReview={() => openReviewModal('welcome-teaser')}
             />
 
             {/* 첫 화면 바로 아래 — 생년월일시 입력 직후에 무료 제공 혜택을 먼저 알린다. */}
@@ -175,7 +178,7 @@ export default function WelcomeTab({
             <section className="relative px-4 py-16 md:py-20 bg-paper-100/30">
               <div className="max-w-6xl mx-auto">
                 <ReviewsSection
-                  onWriteReview={() => setReviewModalOpen(true)}
+                  onWriteReview={() => openReviewModal('welcome-reviews')}
                   refreshKey={reviewsRefreshKey}
                 />
               </div>

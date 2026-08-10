@@ -118,7 +118,7 @@ const LazyPremiumOrdersPanel = React.lazy(() => import("./components/PremiumOrde
 const LazyReportTabContent = React.lazy(() => import("./components/tabs/ReportTabContent").then((mod) => ({ default: mod.ReportTabContent })));
 const LazyGuideTabContent = React.lazy(() => import("./components/tabs/GuideTabContent").then((mod) => ({ default: mod.GuideTabContent })));
 const LazyPremiumOrderForm = React.lazy(() => import("./components/PremiumOrderForm").then((mod) => ({ default: mod.PremiumOrderForm })));
-import { ReviewModal } from "./components/ReviewModal";
+import { ReviewModal, type ReviewSource } from "./components/ReviewModal";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { LoginModal } from "./components/auth/LoginModal";
 import { MemberButton } from "./components/auth/MemberButton";
@@ -145,6 +145,12 @@ const App: React.FC = () => {
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "refund" | "about" | "contact" | "taekil">("main");
   const isDarkMode = false;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  // 후기 작성 진입점 — reviews.sourcePage로 저장돼 동선별 유입을 집계하는 근거가 된다.
+  const [reviewSource, setReviewSource] = useState<ReviewSource>('header');
+  const openReviewModal = useCallback((source: ReviewSource) => {
+    setReviewSource(source);
+    setReviewModalOpen(true);
+  }, []);
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   // State
@@ -1186,7 +1192,7 @@ const App: React.FC = () => {
             )}
             {/* 후기 남기기 버튼 */}
             <button
-              onClick={() => setReviewModalOpen(true)}
+              onClick={() => openReviewModal('header')}
               className="p-2 md:px-3 md:py-1.5 rounded-lg hover:bg-white/10 text-amber-400/70 hover:text-amber-300 transition-all flex items-center gap-2"
               title="후기 남기기"
             >
@@ -1239,7 +1245,7 @@ const App: React.FC = () => {
               setIsAgreed={setIsAgreed}
               setActiveTab={setActiveTab}
               setOrderProductType={setOrderProductType}
-              setReviewModalOpen={setReviewModalOpen}
+              openReviewModal={openReviewModal}
               reviewsRefreshKey={reviewsRefreshKey}
               recommendedPosts={recommendedPosts}
               onPostClick={blogTab.handlePostClick}
@@ -1276,7 +1282,7 @@ const App: React.FC = () => {
               <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-paper-50 text-ink-500 text-[14px]">불러오는 중...</div>}>
                 <LazyCodeLookupTab
                   initialCode={lookupAutoCode ?? undefined}
-                  onWriteReview={() => setReviewModalOpen(true)}
+                  onWriteReview={openReviewModal}
                   memberUid={user?.uid ?? null}
                   onRequestLogin={() => setLoginModalOpen(true)}
                 />
@@ -1490,7 +1496,7 @@ const App: React.FC = () => {
       <ReviewModal
         isOpen={reviewModalOpen}
         onClose={() => setReviewModalOpen(false)}
-        sourcePage={activeTab}
+        sourcePage={reviewSource}
         onSubmitted={() => setReviewsRefreshKey(k => k + 1)}
       />
       <LoginModal

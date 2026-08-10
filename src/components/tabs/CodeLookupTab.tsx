@@ -12,6 +12,7 @@ import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 import LifeIndexCard from '../lifeIndex/LifeIndexCard';
+import type { ReviewSource } from '../ReviewModal';
 
 // 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
@@ -344,7 +345,7 @@ function FeedbackForm({
   code: string;
   product: string;
   /** 공개 후기 작성 모달 열기 — 제출 완료 후에만 안내한다(익명 피드백과 별개 절차). */
-  onWriteReview?: () => void;
+  onWriteReview?: (source: ReviewSource) => void;
 }) {
   const [rating, setRating] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -390,7 +391,7 @@ function FeedbackForm({
               공개 후기는 닉네임과 함께 첫 화면에 실립니다.
             </p>
             <button
-              onClick={onWriteReview}
+              onClick={() => onWriteReview('lookup-feedback')}
               className="px-5 py-2.5 rounded-xl border border-ink-300/40 text-ink-700 text-[14px] font-bold"
             >
               후기 남기기
@@ -516,7 +517,7 @@ export default function CodeLookupTab({
   onRequestLogin,
 }: {
   initialCode?: string;
-  onWriteReview?: () => void;
+  onWriteReview?: (source: ReviewSource) => void;
   /** 로그인한 회원의 uid — 코드 보관(옵트인) 기능 노출 조건 */
   memberUid?: string | null;
   onRequestLogin?: () => void;
@@ -1050,7 +1051,7 @@ export default function CodeLookupTab({
                     </p>
                   </div>
                   <button
-                    onClick={onWriteReview}
+                    onClick={() => onWriteReview('lookup-report')}
                     className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
                   >
                     후기 남기기
