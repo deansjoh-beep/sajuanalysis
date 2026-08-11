@@ -20,12 +20,20 @@ const ROWS: RowData[] = [
     solution: '진태양시 보정·역사적 시간대까지 반영한 정밀 만세력',
   },
   {
+    problem: '글로만 풀어놓아 흐름이 눈에 안 들어오는 총평',
+    solution: '재물발복·승진·성공·인연·건강의 시기를 인생 전체 지수 그래프로 보여드립니다',
+  },
+  {
     problem: '수만 원대 상담에 부적·굿 같은 추가 결제 유도',
     solution: '일년운세·직업·연애 4,900원, 평생 리포트 9,900원 — 1회 결제로 끝',
   },
   {
     problem: '한 번 보고 끝나는 결과지',
     solution: '리포트 구매 시 제공되는 코드는 꼭 저장해 두세요. 다음에 활용하면 리포트 재구매 시 30% 할인 및 추가 혜택을 제공합니다',
+  },
+  {
+    problem: '리포트를 받은 뒤로는 다시 찾아올 이유가 없는 서비스',
+    solution: '리포트 구매자에게는 매달 내 일간 기준으로 풀이한 일진 캘린더를 무료로 제공합니다',
   },
 ];
 
@@ -42,7 +50,7 @@ export function DifferentiationTable() {
             왜 유아이인가요.
           </InkRevealText>
           <p className="text-[13px] md:text-[14px] text-ink-500 max-w-xl mx-auto leading-relaxed">
-            다섯 가지가 다릅니다.
+            일곱 가지가 다릅니다.
           </p>
         </div>
 

@@ -5,8 +5,6 @@ import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
 import { HeroSection } from '../welcome/HeroSection';
 import { PhilosophySection } from '../welcome/PhilosophySection';
-import { WhenToUseSection } from '../welcome/WhenToUseSection';
-import { HowToUseSection } from '../welcome/HowToUseSection';
 import { DifferentiationTable } from '../welcome/DifferentiationTable';
 import { PremiumProductsSection } from '../welcome/PremiumProductsSection';
 import { IljinCalendarPromo } from '../welcome/IljinCalendarPromo';
@@ -163,10 +161,6 @@ export default function WelcomeTab({
             <div ref={philosophyRef}>
               <PhilosophySection />
             </div>
-
-            <WhenToUseSection />
-
-            <HowToUseSection />
 
             <DifferentiationTable />
 
