@@ -71,7 +71,7 @@ export async function issueCode(
   throw new Error(`사주 코드 발급 실패 — ${maxAttempts}회 연속 충돌`);
 }
 
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   const e = error as { code?: string; message?: string };
   return e?.code === '23505' || /duplicate key|unique/i.test(String(e?.message || ''));
 }

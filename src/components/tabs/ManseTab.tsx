@@ -51,9 +51,7 @@ type ActiveTab =
   | 'chat'
   | 'report'
   | 'guide'
-  | 'blog'
-  | 'premium'
-  | 'order';
+  | 'blog';
 
 interface UserData {
   name: string;

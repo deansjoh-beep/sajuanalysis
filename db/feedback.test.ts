@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { issueBetaCodes } from './beta.ts';
 import { lookupCode } from './code.ts';
-import { getFeedbackStats, submitFeedback } from './feedback.ts';
+import { getFeedbackStats, redactPii, submitFeedback } from './feedback.ts';
 import * as schema from './schema.ts';
 import { codes, feedback, orders, type MyeongsikParams } from './schema.ts';
 
@@ -108,6 +108,28 @@ describe('베타 인프라 — 피드백·코드 발급 (PGlite)', () => {
     expect(stats.ratingDist).toEqual([0, 1, 0, 1, 1]);
     expect(stats.answerDist.accuracy).toEqual({ '잘 맞았다': 2, '잘 맞지 않았다': 1 });
     expect(stats.recentComments).toHaveLength(2); // 빈 서술 제외
+  });
+
+  it('submitFeedback: 자유 서술의 PII(이메일·전화·주민번호)는 저장 전 마스킹', async () => {
+    await db.insert(codes).values({ code: 'FB-444444', myeongsik });
+    await submitFeedback(db, {
+      code: 'FB-444444',
+      product: 'yearly2026',
+      rating: 5,
+      answers: {},
+      comment: '연락처 010-1234-5678, me@example.com, 950101-1234567 로 연락주세요',
+    });
+    const saved = (await db.select().from(feedback))[0];
+    expect(saved.comment).not.toContain('010-1234-5678');
+    expect(saved.comment).not.toContain('me@example.com');
+    expect(saved.comment).not.toContain('950101-1234567');
+    expect(saved.comment).toContain('[삭제됨]');
+  });
+
+  it('redactPii: 일반 문장은 보존하고 PII 패턴만 치환', () => {
+    expect(redactPii('올해 운세가 잘 맞았어요 2024년 좋았습니다')).toBe('올해 운세가 잘 맞았어요 2024년 좋았습니다');
+    expect(redactPii('전화 010-1111-2222')).toBe('전화 [삭제됨]');
+    expect(redactPii('메일 a.b+c@test.co.kr')).toBe('메일 [삭제됨]');
   });
 
   // ─── 베타 코드 발급 ───────────────────────────────────────────────────
