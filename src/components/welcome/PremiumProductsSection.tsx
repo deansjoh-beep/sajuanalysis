@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Book, Calendar, Briefcase, Heart } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { InkRevealText } from './InkRevealText';
+import { TossTestModeNotice } from '../TossTestModeNotice';
 
 type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 
@@ -79,6 +80,8 @@ export function PremiumProductsSection({ onProductClick }: PremiumProductsSectio
             <li>재물발복·건강·인연·성취, 네 가지 지수를 인생 전체 흐름으로 보여드려요.</li>
             <li>앞으로 이 사이트에 추가되는 서비스(개발 중)도 모두 이용할 수 있어요.</li>
           </ul>
+          {/* 가격 카드 바로 위 — 금액을 보기 전에 테스트 결제 구간임을 먼저 알린다. */}
+          <TossTestModeNotice className="max-w-xl mx-auto text-left" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
