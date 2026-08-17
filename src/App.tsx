@@ -287,7 +287,9 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 외부 진입 처리: 푸시 딥링크(?tab=daily) + 카카오 로그인 콜백(?code=)
+  // 외부 진입 처리: 푸시 딥링크(?tab=daily) + 정책 페이지 딥링크(?policy=refund) + 카카오 로그인 콜백(?code=)
+  // ⚠️ ?tab=checkout(상품 페이지)·?policy=refund(취소·환불 정책)는 PG 심사에서 요구하는 직접 접속 URL이다.
+  //    탭 이름을 바꾸거나 허용 목록에서 빼면 심사 제출 URL이 깨진다.
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -306,9 +308,18 @@ const App: React.FC = () => {
         return;
       }
 
-      // 푸시 알림 딥링크
+      // 정책 페이지 딥링크 (?policy=refund|terms|privacy|about|contact)
+      const policy = params.get('policy');
+      const allowedPolicies = ['refund', 'terms', 'privacy', 'about', 'contact'] as const;
+      if (policy && (allowedPolicies as readonly string[]).includes(policy)) {
+        setGuideSubPage(policy as (typeof allowedPolicies)[number]);
+        setActiveTab('guide');
+        return;
+      }
+
+      // 푸시 알림 딥링크 + 외부 제출용 직접 접속 URL
       const tab = params.get('tab');
-      const allowed = ['welcome', 'dashboard', 'chat', 'report', 'guide', 'blog'];
+      const allowed = ['welcome', 'dashboard', 'chat', 'report', 'guide', 'blog', 'checkout', 'lookup', 'taekil', 'daily'];
       if (tab && allowed.includes(tab)) {
         setActiveTab(tab as any);
       }
