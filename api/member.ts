@@ -54,17 +54,21 @@ async function handleKakao(req: VercelRequest, res: VercelResponse) {
   if (!restKey) {
     return res.status(500).json({ error: 'KAKAO_NOT_CONFIGURED', message: 'KAKAO_REST_API_KEY 미설정' });
   }
+  // 콘솔에서 [보안 > Client Secret] 을 "사용함" 으로 켰다면 반드시 함께 보내야 한다 (미전달 시 KOE010).
+  const clientSecret = String(process.env.KAKAO_CLIENT_SECRET || '').trim();
   try {
     // 1. 인가 코드 → 액세스 토큰 교환
+    const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: restKey,
+      redirect_uri: redirectUri,
+      code,
+    });
+    if (clientSecret) tokenParams.set('client_secret', clientSecret);
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: restKey,
-        redirect_uri: redirectUri,
-        code,
-      }).toString(),
+      body: tokenParams.toString(),
     });
     if (!tokenRes.ok) {
       const errText = await tokenRes.text().catch(() => '');
