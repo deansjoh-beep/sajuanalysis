@@ -62,7 +62,7 @@ export function IljinCalendarPromo({ onGetReport, onGoLookup }: IljinCalendarPro
             onClick={onGetReport}
             className="px-6 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
           >
-            무료로 리포트 받기
+            리포트 받기
           </button>
           <button
             onClick={onGoLookup}
