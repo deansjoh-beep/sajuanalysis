@@ -419,6 +419,11 @@ export default function CheckoutTab({
   // 무료 개방 중에는 토스 clientKey가 없어도 진행 가능. 정식 결제(FREE_OPEN=false) 시에만 키가 필요하다.
   const paymentBlocked = !FREE_OPEN && !clientKey;
 
+  // 토스 가맹 승인 전이라 테스트 키로 결제창을 띄우는 구간. 결제창은 정상 노출되지만 실제 승인은
+  // 일어나지 않아 고객은 사실상 무료로 리포트를 받는다. 이 사실을 고지하지 않으면 소비자 오인이다.
+  // 라이브 키(live_ck_)로 교체해 재배포하면 조건이 스스로 꺼지므로 별도 정리가 필요 없다.
+  const tossTestMode = !FREE_OPEN && Boolean(clientKey?.startsWith('test_'));
+
   return (
     <motion.div
       key="checkout"
@@ -447,6 +452,18 @@ export default function CheckoutTab({
           {paymentBlocked && step !== 'done' && (
             <section className={`${PAPER_CARD} p-6`}>
               <p className="text-[14px] text-ink-700">결제 준비 중입니다. 잠시 후 다시 이용해 주세요.</p>
+            </section>
+          )}
+
+          {tossTestMode && step !== 'done' && (
+            <section className={`${PAPER_CARD} p-6`}>
+              <p className="text-[14px] text-ink-700 leading-relaxed">
+                지금은 토스페이먼츠 가맹 승인 절차 중이라 고객님께 테스트 결제창이 열립니다. 실제 결제는
+                이루어지지 않습니다.{' '}
+                <strong className="font-bold text-ink-900">
+                  테스트 결제를 실제로 진행하셔도 유료 리포트는 무료로 발급됩니다.
+                </strong>
+              </p>
             </section>
           )}
 
