@@ -54,7 +54,7 @@ export const DEFAULT_GUIDE_TERMS = `# 이용약관 (Terms of Service)
 
 export const DEFAULT_GUIDE_REFUND = `# 취소·환불 정책 (Cancellation & Refund Policy)
 
-유아이 사주상담(운영: 유아이트레이딩(주))의 유료 리포트 상품에 적용되는 취소·환불 기준입니다.
+유아이 사주상담(운영: 유아이트레이딩)의 유료 리포트 상품에 적용되는 취소·환불 기준입니다.
 
 ## 1. 리포트 생성 전 (청약철회)
 - 결제 후 리포트 생성이 시작되기 전에는 **전액 환불**이 가능합니다.

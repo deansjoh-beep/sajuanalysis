@@ -161,7 +161,7 @@ export function WelcomeFooter({
         <div className="space-y-6 border-t border-ink-300/30 pt-14 md:pt-16">
           <h3 className="font-serif font-bold text-[16px] md:text-[18px] text-ink-900">회사 정보</h3>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3">
-            <CompanyInfoRow label="상호" value="유아이트레이딩(주)" />
+            <CompanyInfoRow label="상호" value="유아이트레이딩" />
             <CompanyInfoRow label="대표자" value="오세진" />
             <CompanyInfoRow label="사업자등록번호" value="446-09-01872" />
             <CompanyInfoRow label="통신판매업신고" value="신고 예정" />
@@ -194,7 +194,7 @@ export function WelcomeFooter({
               취소·환불 정책
             </button>
           </div>
-          <p className="text-[12px] text-ink-500">© 2026 유아이트레이딩(주). All rights reserved.</p>
+          <p className="text-[12px] text-ink-500">© 2026 유아이트레이딩. All rights reserved.</p>
         </div>
       </div>
     </footer>
