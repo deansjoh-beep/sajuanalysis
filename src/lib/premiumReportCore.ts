@@ -18,6 +18,7 @@ import {
   JOB_CAREER_GUIDELINE,
   LOVE_MARRIAGE_GUIDELINE,
   GOLDEN_LIFENAV_EXAMPLE,
+  REPORT_WRITING_STYLE_GUIDELINE,
 } from '../constants/guidelines';
 import { getCurrentYearPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
 import {
@@ -559,5 +560,7 @@ export const assemblePremiumReportPrompt = (
     ].join('\n');
   }
 
-  return { system: `${SAJU_GUIDELINE}\n\n${system}`, user, analysis };
+  // 서술 3원칙(OWNER 승인 2026-08-17)은 유료 4종 공통. 상품별 지침·골든셋 예시와
+  // 문체 규정이 충돌할 때 이 원칙이 이기도록 system 말미에 배치한다.
+  return { system: `${SAJU_GUIDELINE}\n\n${system}\n\n${REPORT_WRITING_STYLE_GUIDELINE}`, user, analysis };
 };

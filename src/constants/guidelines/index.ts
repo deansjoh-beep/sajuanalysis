@@ -11,6 +11,7 @@
  *   리포트지침(공통) → report-common.ts
  *   리포트지침(기본) → report-basic.ts
  *   리포트지침(고급) → report-advanced.ts
+ *   유료 리포트 서술 3원칙 → report-writing-style.ts
  *   직업운 리포트    → job-career.ts
  *   연애결혼운 리포트 → love-marriage.ts
  *   골든셋 모범예시(인생네비) → golden-lifenav.ts
@@ -23,6 +24,7 @@ export { CONSULTING_SCENARIO_GUIDELINE } from './consulting-scenario';
 export { REPORT_GUIDELINE } from './report-common';
 export { BASIC_REPORT_GUIDELINE } from './report-basic';
 export { ADVANCED_REPORT_GUIDELINE } from './report-advanced';
+export { REPORT_WRITING_STYLE_GUIDELINE } from './report-writing-style';
 export { YEARLY_FORTUNE_2026_GUIDELINE } from './yearly-fortune-2026';
 export { JOB_CAREER_GUIDELINE } from './job-career';
 export { LOVE_MARRIAGE_GUIDELINE } from './love-marriage';

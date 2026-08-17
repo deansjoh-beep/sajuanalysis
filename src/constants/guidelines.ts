@@ -8,6 +8,7 @@
  *   리포트지침(공통) → src/constants/guidelines/report-common.ts
  *   리포트지침(기본) → src/constants/guidelines/report-basic.ts
  *   리포트지침(고급) → src/constants/guidelines/report-advanced.ts
+ *   유료 리포트 서술 3원칙 → src/constants/guidelines/report-writing-style.ts
  *   직업운 리포트    → src/constants/guidelines/job-career.ts
  *   연애결혼운 리포트 → src/constants/guidelines/love-marriage.ts
  */
@@ -20,6 +21,7 @@ export {
   REPORT_GUIDELINE,
   BASIC_REPORT_GUIDELINE,
   ADVANCED_REPORT_GUIDELINE,
+  REPORT_WRITING_STYLE_GUIDELINE,
   YEARLY_FORTUNE_2026_GUIDELINE,
   JOB_CAREER_GUIDELINE,
   LOVE_MARRIAGE_GUIDELINE,
