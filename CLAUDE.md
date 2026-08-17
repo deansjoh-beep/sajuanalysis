@@ -30,7 +30,7 @@ Node **20.x** is required (`engines` in package.json).
 
 - `.env` / `.env.local` are loaded by `server.ts` via dotenv (`.env.local` does not override existing values).
 - `GEMINI_API_KEY` — exposed to the browser at build time via `vite.config.ts` `define` as `process.env.GEMINI_API_KEY`, and also served at runtime from `/api/runtime-config`.
-- `service-account.json` at repo root enables Firebase Admin (Firestore DB id is hardcoded to `ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9`). Without it, premium-order admin endpoints degrade.
+- `service-account.json` at repo root enables Firebase Admin (Firestore DB id is hardcoded to `ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9`). Without it, Firebase Admin features (PDF report upload to Storage, blog admin) degrade.
 - `FIREBASE_STORAGE_BUCKET`, `PDF_API_TOKEN`, `CHROME_PATH`, `KASI_API_KEY`, `APP_URL` — see server.ts and `.env.example`.
 - `DISABLE_HMR=true` disables Vite HMR (used inside AI Studio to stop file-watch flicker during agent edits — see `vite.config.ts`).
 
@@ -38,8 +38,8 @@ Node **20.x** is required (`engines` in package.json).
 
 ### Two runtime shapes for the same API surface
 
-- **Dev/local**: everything runs under `server.ts`. It boots Firebase Admin, mounts Vite in middleware mode, and hosts all `/api/*` routes directly (health, `runtime-config`, `generate-pdf`, premium-order CRUD, premium-report upload/email, taekil engine).
-- **Prod (Vercel)**: `vercel.json` points Vite at `dist/` and exposes the functions in `api/` (e.g. `api/generate-pdf.ts`, `api/premium-order/*.ts`, `api/premium-report/*.ts`). `api/_lib/firebase-admin-utils.ts` is the shared Admin bootstrap for these.
+- **Dev/local**: everything runs under `server.ts`. It boots Firebase Admin, mounts Vite in middleware mode, and hosts all `/api/*` routes directly (health, `runtime-config`, `generate-pdf`, member auth, payment/code, taekil engine).
+- **Prod (Vercel)**: `vercel.json` points Vite at `dist/` and exposes the functions in `api/` (e.g. `api/generate-pdf.ts`, `api/payment.ts`, `api/code.ts`, `api/member.ts`). `api/_lib/firebase-admin-utils.ts` is the shared Admin bootstrap for these.
 
 When adding an endpoint, wire it **both** into `server.ts` (for dev) and as a file under `api/` (for prod). The shapes must match; clients call `/api/...` identically.
 
@@ -76,7 +76,7 @@ These are treated as product content, not code comments. Edits to tone, section 
 
 ### Admin / premium order flow
 
-`isAdminRoute()` swaps the shell for `AdminPage`. Admin can manage premium orders (Firestore `premiumOrders`) and generate the long-form PDF report via `api/generate-pdf.ts` (Puppeteer with `@sparticuz/chromium-min` on Vercel, local Chrome path fallback in dev). Reports are uploaded to Storage (`api/premium-report/upload.ts` / `upload-url.ts`) and emailed (`sendPremiumReportEmail.ts`, Resend). Firestore security is in `firestore.rules`; the Firestore **database id** is non-default — always pass `'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9'` when building new admin queries.
+`isAdminRoute()` swaps the shell for `AdminPage`. Admin generates the long-form PDF report via `api/generate-pdf.ts` (Puppeteer with `@sparticuz/chromium-min` on Vercel, local Chrome path fallback in dev). Firestore security is in `firestore.rules`; the Firestore **database id** is non-default — always pass `'ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9'` when building new admin queries. (The legacy customer premium-order flow — Firestore `premiumOrders`, `api/premium-order(s)`, `api/premium-report/*`, order form / orders panel — was removed for security; sales/review admin now runs on the Postgres `SalesReviewPanel` path.)
 
 ### Postgres data layer (Phase 2)
 
@@ -90,7 +90,7 @@ These are treated as product content, not code comments. Edits to tone, section 
 - Viewer (Phase 2-4): `src/components/tabs/CodeLookupTab.tsx` (lazy `lookup` tab) — code lookup → 명식/orders summary, report section tabs, 월운 캘린더 (절입 구간 from `getWolunData`), gift-redeem form (builds `MyeongsikParams` client-side via `buildSajuAnalysis`), PDF via existing `/api/generate-pdf` (cover shows 간지+code only — never raw birth data), 절입 `.ics` download (`src/lib/jeolipIcs.ts`, pure client). Local PGlite dir `.pglite/` can go stale after a killed dev server or migration rewrite — delete it and re-run.
 - Migrations: `npx drizzle-kit generate` (offline) → SQL in `drizzle/`; apply with `npx drizzle-kit migrate` once a DB is provisioned. If the local PGlite dev DB predates a migration rewrite, delete `.pglite/` and let it re-migrate.
 - Payments (Phase 2-2): `api/_lib/toss.ts` (Toss confirm/cancel client, needs `TOSS_SECRET_KEY` — 503 until set), `db/payment.ts` (server-side price table `PRODUCT_PRICES` — placeholder until OWNER pricing lands; confirm flow = amount check → idempotent order_no guard → Toss confirm → issue code + insert order, auto-cancel on persistence failure), `db/code.ts` (saju code generator, charset excludes I/O/L/0/1). Endpoint: `api/payment.ts` (`/api/payment/confirm|refund` via rewrite; refund needs `x-admin-token` = `ADMIN_ACCESS_TOKEN`; post-generation refunds are denied by policy (403 `REFUND_NOT_ALLOWED`, OWNER 확정 2026-07-17) — 하자·오류 예외만 `force: true`로 환불). Express twins live in `server.ts`.
-- ⚠️ Vercel Hobby caps serverless functions at **12** and `api/` is now exactly at the cap (premium-order was consolidated to one file for this — path preserved by a `vercel.json` rewrite). New endpoints must be consolidated into existing function files (see `api/member.ts`, `api/premium-order.ts`, `api/payment.ts` for the pattern) until the plan is upgraded.
+- ⚠️ Vercel Hobby caps serverless functions at **12**. Removing the legacy premium-order/premium-report functions freed several slots, but stay mindful of the cap: prefer consolidating new endpoints into existing function files via a `vercel.json` rewrite (see `api/member.ts`, `api/payment.ts`, `api/code.ts` for the `?action=` dispatch pattern) rather than adding new files.
 
 ### Security layer
 

@@ -14,7 +14,6 @@ import {
   Settings,
   Loader2,
   Sparkles,
-  Ticket,
   Star,
   BarChart3,
 } from 'lucide-react';
@@ -30,10 +29,6 @@ import { BlogAdminPanel } from '../blog/BlogAdminPanel';
 
 const PremiumReportMakerPage = React.lazy(() =>
   import('./PremiumReportMakerPage').then((mod) => ({ default: mod.PremiumReportMakerPage }))
-);
-
-const LazyPremiumOrdersPanel = React.lazy(() =>
-  import('../PremiumOrdersPanel').then((mod) => ({ default: mod.PremiumOrdersPanel }))
 );
 
 // Guideline document IDs in Firestore system_config collection
@@ -67,12 +62,12 @@ const GUIDELINE_LABELS: Record<GuidelineKey, string> = {
   guideContact: '문의하기 (Contact)',
 };
 
-type AdminSection = 'dashboard' | 'guidelines' | 'blog' | 'guide_editor' | 'board' | 'report_maker' | 'premium_orders' | 'reviews' | 'sales_review';
+type AdminSection = 'dashboard' | 'guidelines' | 'blog' | 'guide_editor' | 'board' | 'report_maker' | 'reviews' | 'sales_review';
 
 const getInitialAdminSection = (): AdminSection => {
   if (typeof window === 'undefined') return 'dashboard';
   const section = new URLSearchParams(window.location.search).get('section');
-  const allowed: AdminSection[] = ['dashboard', 'guidelines', 'blog', 'guide_editor', 'board', 'report_maker', 'premium_orders', 'reviews', 'sales_review'];
+  const allowed: AdminSection[] = ['dashboard', 'guidelines', 'blog', 'guide_editor', 'board', 'report_maker', 'reviews', 'sales_review'];
   return allowed.includes(section as AdminSection) ? (section as AdminSection) : 'dashboard';
 };
 
@@ -553,7 +548,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const navItems: { section: AdminSection; icon: React.FC<any>; label: string }[] = [
     { section: 'dashboard', icon: Settings, label: '대시보드' },
     { section: 'sales_review', icon: BarChart3, label: '매출·검수' },
-    { section: 'premium_orders', icon: Ticket, label: '프리미엄 주문' },
     { section: 'reviews', icon: Star, label: '고객 후기' },
     { section: 'guidelines', icon: BookOpen, label: '지침 관리' },
     { section: 'blog', icon: Newspaper, label: '블로그 관리' },
@@ -629,22 +623,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           onLogout={onLogout}
           onBack={() => setActiveSection('dashboard')}
         />
-      </React.Suspense>
-    );
-  }
-
-  if (activeSection === 'premium_orders') {
-    return (
-      <React.Suspense
-        fallback={
-          <div className="h-screen bg-gradient-to-br from-slate-100 via-cyan-50/60 to-indigo-100/70 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-          </div>
-        }
-      >
-        <div className="w-full h-screen">
-          <LazyPremiumOrdersPanel isDarkMode={false} user={user} onLogout={onLogout} />
-        </div>
       </React.Suspense>
     );
   }

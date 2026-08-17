@@ -25,6 +25,22 @@ export interface FeedbackOutcome {
   reason: 'saved' | 'code_not_found' | 'invalid_rating' | 'invalid_answer';
 }
 
+/**
+ * 자유 서술의 개인정보(이메일·주민번호 유사·전화번호 패턴)를 저장 전에 마스킹한다.
+ * 스키마의 no-PII 원칙(assertNoPersonalKeys가 myeongsik JSONB에 강제하는 것)을
+ * 자유 텍스트 컬럼에도 서버측에서 적용 — 집계·검수 화면에 원문 PII가 남지 않게 한다.
+ * 과잉 마스킹(생일 유사 숫자 등)은 허용 — 민감정보 유출보다 안전한 방향이다.
+ */
+export function redactPii(text: string): string {
+  return text
+    // 이메일
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[삭제됨]')
+    // 주민등록번호 유사 (6자리 + 7자리)
+    .replace(/\b\d{6}[-\s]?\d{7}\b/g, '[삭제됨]')
+    // 전화번호 (0으로 시작하는 국내 번호 / +82) — 날짜 유사 숫자 오탐 방지 위해 선행 0/+82 요구
+    .replace(/(?:\+?82[-.\s]?)?0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g, '[삭제됨]');
+}
+
 export async function submitFeedback(
   db: Db,
   input: {
@@ -59,14 +75,14 @@ export async function submitFeedback(
       product: input.product,
       rating: input.rating,
       answers,
-      comment: input.comment.slice(0, 2000),
+      comment: redactPii(input.comment).slice(0, 2000),
     })
     .onConflictDoUpdate({
       target: [feedback.codeId, feedback.product],
       set: {
         rating: input.rating,
         answers,
-        comment: input.comment.slice(0, 2000),
+        comment: redactPii(input.comment).slice(0, 2000),
         createdAt: new Date(),
       },
     });

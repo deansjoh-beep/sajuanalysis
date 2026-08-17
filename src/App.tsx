@@ -83,11 +83,6 @@ const LazyCheckoutTab = React.lazy(() => import("./components/tabs/CheckoutTab")
 // 전체를 다시 "준비 중"으로 닫으려면 true로 되돌린다.
 const REPORTS_COMING_SOON = false;
 
-// 레거시 프리미엄 리포트(네이버스토어 구매 → 관리자 수동 생성/딜리버리) 노출 스위치.
-// false = 전면 숨김(주문/생성/딜리버리 코드·관리자 패널·API는 그대로 보존 — 되살리려면 true).
-// true로 바꾸면 상단 "프리미엄리포트" 탭과 랜딩 상품 클릭이 다시 레거시 주문 폼(order 탭)으로 연결된다.
-const LEGACY_PREMIUM_ORDER_ENABLED = false;
-
 // 라우트/Gemini/관리자/Firestore 에러/블로그 헬퍼/타입/renderChatPlainText
 // 는 모두 전용 모듈로 분리됨. (App.tsx 슬림화)
 import { isAdminRoute, isReportMakerRoute, isPremiumE2EMode } from "./lib/routes";
@@ -114,10 +109,8 @@ import type { TeaserInput } from "./lib/landingTeaser";
 import { renderChatPlainText } from "./components/chat/renderChatPlainText";
 
 const LazyPremiumReportMakerPage = React.lazy(() => import("./components/admin/PremiumReportMakerPage").then((mod) => ({ default: mod.PremiumReportMakerPage })));
-const LazyPremiumOrdersPanel = React.lazy(() => import("./components/PremiumOrdersPanel").then((mod) => ({ default: mod.PremiumOrdersPanel })));
 const LazyReportTabContent = React.lazy(() => import("./components/tabs/ReportTabContent").then((mod) => ({ default: mod.ReportTabContent })));
 const LazyGuideTabContent = React.lazy(() => import("./components/tabs/GuideTabContent").then((mod) => ({ default: mod.GuideTabContent })));
-const LazyPremiumOrderForm = React.lazy(() => import("./components/PremiumOrderForm").then((mod) => ({ default: mod.PremiumOrderForm })));
 import { ReviewModal, type ReviewSource } from "./components/ReviewModal";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { LoginModal } from "./components/auth/LoginModal";
@@ -132,7 +125,7 @@ const App: React.FC = () => {
   const [showReportMakerPage] = useState(isReportMakerRoute);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "premium" | "order" | "daily" | "lookup" | "checkout">(
+  const [activeTab, setActiveTab] = useState<"welcome" | "dashboard" | "taekil" | "chat" | "report" | "guide" | "blog" | "daily" | "lookup" | "checkout">(
     // 토스 결제 후 successUrl/failUrl로 복귀하면 결제 탭에서 승인 처리를 이어받는다.
     typeof window !== "undefined" && /[?&]checkout=(return|fail)/.test(window.location.search) ? "checkout" : "welcome"
   );
@@ -356,12 +349,6 @@ const App: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (activeTab === "premium" && !isAdmin) {
-      setActiveTab("welcome");
-    }
-  }, [activeTab, isAdmin]);
 
   const blogTab = useBlogTabState({
     activeTab,
@@ -1168,10 +1155,8 @@ const App: React.FC = () => {
               { id: "welcome", label: "HOME" },
               { id: "dashboard", label: "만세력" },
               { id: "chat", label: "상담" },
-              ...(LEGACY_PREMIUM_ORDER_ENABLED ? [{ id: "report", label: "프리미엄리포트" }] : []),
               { id: "checkout", label: "리포트 구매" },
               { id: "lookup", label: "리포트 조회" },
-              ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),
               { id: "blog", label: "블로그" },
               { id: "guide", label: "HELP" }
             ].map((tab) => (
@@ -1263,7 +1248,6 @@ const App: React.FC = () => {
               currentSeoulYear={currentSeoulYear}
               handleStart={handleStart}
               onTeaserManse={handleTeaserToManse}
-              legacyOrderEnabled={LEGACY_PREMIUM_ORDER_ENABLED}
               onOpenPolicy={(page) => {
                 setGuideSubPage(page);
                 setActiveTab('guide');
@@ -1382,10 +1366,10 @@ const App: React.FC = () => {
                 setConsultationMode={setConsultationMode}
                 setReportContent={setReportContent}
                 handleGenerateReport={handleGenerateReport}
-                onGoToOrder={() => { setOrderProductType('premium'); setActiveTab("order"); }}
-                onGoToYearlyOrder={() => { setOrderProductType('yearly2026'); setActiveTab("order"); }}
-                onGoToJobCareer={() => { setOrderProductType('jobCareer'); setActiveTab("order"); }}
-                onGoToLoveMarriage={() => { setOrderProductType('loveMarriage'); setActiveTab("order"); }}
+                onGoToOrder={() => { setOrderProductType('premium'); setActiveTab("checkout"); }}
+                onGoToYearlyOrder={() => { setOrderProductType('yearly2026'); setActiveTab("checkout"); }}
+                onGoToJobCareer={() => { setOrderProductType('jobCareer'); setActiveTab("checkout"); }}
+                onGoToLoveMarriage={() => { setOrderProductType('loveMarriage'); setActiveTab("checkout"); }}
               />
             </Suspense>
           )}
@@ -1425,37 +1409,6 @@ const App: React.FC = () => {
             </Suspense>
           )}
 
-          {activeTab === "premium" && isAdmin && (
-            <motion.div 
-              key="premium"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col overflow-hidden bg-white dark:bg-black"
-            >
-              <Suspense fallback={<div className="h-full flex items-center justify-center text-[13px] text-zinc-500">프리미엄 패널 불러오는 중...</div>}>
-                <LazyPremiumOrdersPanel isDarkMode={isDarkMode} />
-              </Suspense>
-            </motion.div>
-          )}
-
-          {activeTab === "order" && (
-            <motion.div
-              key="order"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 overflow-y-auto bg-gradient-to-b from-slate-50 to-indigo-50/30"
-            >
-              <Suspense fallback={<div className="h-full flex items-center justify-center text-[13px] text-zinc-500">주문 폼 불러오는 중...</div>}>
-                {/* 레거시 주문 폼은 항상 상품이 필요하다 — 미선택 진입 시 종전 기본값을 유지한다. */}
-                <LazyPremiumOrderForm
-                  productType={orderProductType ?? 'premium'}
-                  initialUserData={userData.name ? userData : undefined}
-                />
-              </Suspense>
-            </motion.div>
-          )}
         </AnimatePresence>
       </main>
 
@@ -1476,10 +1429,8 @@ const App: React.FC = () => {
             { id: "welcome", label: "HOME" },
             { id: "dashboard", label: "만세력" },
             { id: "chat", label: "상담" },
-            ...(LEGACY_PREMIUM_ORDER_ENABLED ? [{ id: "report", label: "리포트" }] : []),
             { id: "checkout", label: "구매" },
             { id: "lookup", label: "조회" },
-            ...(isAdmin ? [{ id: "premium", label: "프리미엄" }] : []),
             { id: "blog", label: "블로그" },
             { id: "guide", label: "HELP" }
           ].map((tab) => (
