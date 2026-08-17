@@ -538,6 +538,11 @@ export default function CodeLookupTab({
   const [saveBusy, setSaveBusy] = useState(false);
   // 리딤/복구 직후 생성 대기 상태 — 생년월일이 메모리에 있는 세션에서만 유효.
   const [pendingGen, setPendingGen] = useState<{ birth: BirthFormInput; orderId: string; product: ProductType; autoStart?: boolean } | null>(null);
+  // 생성 직후 자동 진입(initialCode) 시 조회가 끝나면 리포트 섹션으로 바로 스크롤한다.
+  // 뷰포트가 페이지 상단(코드 입력·명식 카드)에 머물면 리포트가 안 보여 "한 번 더 눌러야
+  // 나온다"로 느껴지기 때문. 수동 조회에는 적용하지 않는다.
+  const [pendingAutoScroll, setPendingAutoScroll] = useState(false);
+  const reportViewRef = useRef<HTMLElement | null>(null);
 
   const normalized = codeInput.trim().toUpperCase().replace(/^([A-Z0-9]{2})([A-Z0-9]{6})$/, '$1-$2');
 
@@ -565,10 +570,21 @@ export default function CodeLookupTab({
   useEffect(() => {
     if (initialCode) {
       setCodeInput(initialCode);
+      setPendingAutoScroll(true);
       void lookup(initialCode);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 자동 진입 조회가 끝나 리포트 섹션이 마운트되면 그 위치로 즉시 이동한다.
+  // (중첩 스크롤 컨테이너에서는 smooth 동작이 무시돼 즉시 이동으로 처리한다.)
+  useEffect(() => {
+    if (!pendingAutoScroll || !result) return;
+    if (result.reports.length > 0) {
+      reportViewRef.current?.scrollIntoView({ block: 'start' });
+    }
+    setPendingAutoScroll(false);
+  }, [pendingAutoScroll, result]);
 
   // 로그인 상태가 확인되면 계정에 보관된 코드 목록을 불러온다(실패는 무시 — 부가 기능).
   useEffect(() => {
@@ -949,7 +965,7 @@ export default function CodeLookupTab({
 
               {/* 리포트 열람 */}
               {result.reports.length > 0 && (
-                <section className={`${PAPER_CARD} p-6 space-y-5`}>
+                <section ref={reportViewRef} className={`${PAPER_CARD} p-6 space-y-5 scroll-mt-6`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       {result.reports.length > 1 ? (
