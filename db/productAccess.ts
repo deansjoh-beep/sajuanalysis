@@ -11,6 +11,19 @@
  */
 export type CommerceProduct = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 
+/**
+ * 무료 개방 모드 — 프론트(CheckoutTab 결제 UI)와 서버(무료 발급 엔드포인트)가 공유하는 단일 스위치.
+ *
+ * - true  : 결제 없이 코드 발급. `POST /api/payment/free` 허용, 구매 화면은 가격 대신 '무료' 표기.
+ * - false : 토스 결제 필수. `POST /api/payment/free`는 403으로 닫히고 결제창 경로가 활성화된다.
+ *
+ * ⚠️ 프론트만 false로 두면 무료 발급 API가 그대로 열려 유료 상품을 공짜로 받을 수 있다.
+ *    반드시 이 상수 한 곳만 바꿔 양쪽이 함께 전환되게 할 것.
+ * ⚠️ false로 배포하기 전에 Vercel 빌드 환경에 VITE_TOSS_CLIENT_KEY가 설정돼 있어야 한다.
+ *    없으면 구매 탭이 상품 목록 대신 '결제 준비 중'만 표시한다(CheckoutTab paymentBlocked).
+ */
+export const FREE_OPEN = true;
+
 export type ProductAccess = 'open' | 'soon';
 
 export const PRODUCT_ACCESS: Record<CommerceProduct, ProductAccess> = {

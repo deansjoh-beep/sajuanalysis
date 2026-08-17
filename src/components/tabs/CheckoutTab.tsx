@@ -9,16 +9,15 @@ import { buildMyeongsikFromBirth } from '../../lib/buildMyeongsik';
 import { addSavedCode } from '../../lib/memberStore';
 import { BirthInputFields, userDataToBirthStrings } from '../BirthInputFields';
 import type { UserData } from '../../types/app';
-import { PRODUCT_ACCESS } from '@/db/productAccess';
+import { PRODUCT_ACCESS, FREE_OPEN } from '@/db/productAccess';
 
 const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerationProgress'));
 
 const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
 
-// 토스페이먼츠 정식 승인 전까지 무료 개방(결제 없이 코드 발급 → 즉시 생성). 상품별 개방 여부는
-// db/productAccess.ts PRODUCT_ACCESS가 단일 소스다. 승인 후 이 값을 false로 바꾸면 아래 토스 결제
-// 경로가 그대로 활성화된다(결제 코드는 보존).
-const FREE_OPEN = true;
+// 무료 개방 여부(FREE_OPEN)와 상품별 개방 여부(PRODUCT_ACCESS)는 모두 db/productAccess.ts가 단일
+// 소스다. FREE_OPEN을 false로 바꾸면 아래 토스 결제 경로가 활성화되고, 서버의 무료 발급 API도
+// 함께 닫힌다(프론트만 바꾸면 무료 발급 구멍이 남는다).
 
 // ⚠️ 가격은 서버 db/payment.ts PRODUCT_PRICES와 반드시 동기화(OWNER 확정 2026-07-09). 개방 상태는
 //    db/productAccess.ts PRODUCT_ACCESS와 동기화. 무료 개방 중에는 가격 대신 '무료'로 표기한다.

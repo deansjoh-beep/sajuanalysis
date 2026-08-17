@@ -32,7 +32,7 @@ import {
   refundOrder,
   RefundNotAllowedError,
 } from "./db/payment.ts";
-import { isOpenProduct } from "./db/productAccess.ts";
+import { FREE_OPEN, isOpenProduct } from "./db/productAccess.ts";
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
@@ -940,6 +940,12 @@ async function startServer() {
   app.post("/api/payment/free", expressRateLimit(paymentLimiter), async (req, res) => {
     if (!isDbConfigured()) {
       return res.status(503).json({ error: 'DB_NOT_CONFIGURED', message: '데이터베이스가 아직 구성되지 않았습니다.' });
+    }
+    if (!FREE_OPEN) {
+      return res.status(403).json({
+        error: 'FREE_ISSUE_CLOSED',
+        message: '무료 개방이 종료되었습니다. 결제 후 이용해 주세요.',
+      });
     }
     try {
       const body = (req.body || {}) as Record<string, unknown>;

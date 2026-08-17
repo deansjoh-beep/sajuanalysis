@@ -10,7 +10,7 @@ import {
   refundOrder,
   RefundNotAllowedError,
 } from '../db/payment.js';
-import { isOpenProduct } from '../db/productAccess.js';
+import { FREE_OPEN, isOpenProduct } from '../db/productAccess.js';
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 import { getAdminStats } from '../db/admin.js';
 import { getFeedbackStats } from '../db/feedback.js';
@@ -61,6 +61,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 무료 개방 발급 — 토스 없이 코드+주문(₩0) 기록. 토스 미설정 환경에서도 동작해야 하므로
   // isTossConfigured() 가드보다 먼저 처리한다(승인 전 주간 단계적 무료 오픈 워크플로).
   if (action === 'free') {
+    if (!FREE_OPEN) {
+      return res.status(403).json({
+        error: 'FREE_ISSUE_CLOSED',
+        message: '무료 개방이 종료되었습니다. 결제 후 이용해 주세요.',
+      });
+    }
     const body = (req.body || {}) as Record<string, unknown>;
     const product = String(body.product || '');
     const myeongsik = body.myeongsik as MyeongsikParams | undefined;
