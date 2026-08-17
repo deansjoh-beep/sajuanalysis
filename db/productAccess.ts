@@ -22,7 +22,7 @@ export type CommerceProduct = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarr
  * ⚠️ false로 배포하기 전에 Vercel 빌드 환경에 VITE_TOSS_CLIENT_KEY가 설정돼 있어야 한다.
  *    없으면 구매 탭이 상품 목록 대신 '결제 준비 중'만 표시한다(CheckoutTab paymentBlocked).
  */
-export const FREE_OPEN = true;
+export const FREE_OPEN = false;
 
 export type ProductAccess = 'open' | 'soon';
 
