@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkVercelRateLimit, codeLookupLimiter, purgeLimiter } from './_lib/rate-limit.js';
+import { safeEqual } from './_lib/safe-compare.js';
 import { getDb, isDbConfigured } from '../db/client.js';
 import { CODE_PATTERN, normalizeCode, purgeByCode, purgeExpiredReports } from '../db/purge.js';
 import { consumeFollowup, lookupCode, redeemGiftCode, saveReport } from '../db/code.js';
@@ -28,7 +29,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 /** 관리자 토큰 검사 — ADMIN_ACCESS_TOKEN 미설정 시 관리자 기능 전체 비활성 */
 export function isAdminRequest(headers: Record<string, string | string[] | undefined>): boolean {
   const token = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
-  return Boolean(token) && String(headers['x-admin-token'] || '') === token;
+  return Boolean(token) && safeEqual(String(headers['x-admin-token'] || ''), token);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -59,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!raw) {
         const cronSecret = (process.env.CRON_SECRET || '').trim();
         const auth = String(req.headers['authorization'] || '');
-        if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+        if (!cronSecret || !safeEqual(auth, `Bearer ${cronSecret}`)) {
           return res.status(401).json({ error: 'UNAUTHORIZED' });
         }
         const db = await getDb();

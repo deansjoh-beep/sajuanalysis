@@ -4,6 +4,7 @@ import { generateDailyFortuneForSaju, type MemberSajuInput, type DailyFortune } 
 import { serializeTimestamps } from './_lib/serialize.js';
 import { getSeoulTodayYmd } from '../src/lib/seoulDateGanji.js';
 import { checkVercelRateLimit, generalLimiter } from './_lib/rate-limit.js';
+import { safeEqual } from './_lib/safe-compare.js';
 
 /**
  * 회원 관련 통합 엔드포인트 (Hobby 플랜 서버리스 함수 12개 한도 대응으로 통합).
@@ -32,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const cronSecret = String(process.env.CRON_SECRET || '').trim();
 
   // 크론 배치: Authorization 이 CRON_SECRET 와 정확히 일치
-  if (cronSecret && bearer === cronSecret) {
+  if (cronSecret && safeEqual(bearer, cronSecret)) {
     return handleCron(req, res);
   }
 

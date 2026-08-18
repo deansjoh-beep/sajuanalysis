@@ -216,6 +216,10 @@ function getExpressIp(req: ExpressReq): string {
 }
 
 function getVercelIp(req: VercelReq): string {
+  // Vercel이 직접 세팅하는 x-real-ip는 위조 불가한 실제 클라이언트 IP.
+  // x-forwarded-for 최좌측은 클라이언트가 헤더를 덧붙여 위조할 수 있으므로 신뢰하지 않는다.
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) return (Array.isArray(realIp) ? realIp[0] : realIp).trim();
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
     const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
