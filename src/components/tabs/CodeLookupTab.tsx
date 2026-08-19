@@ -728,7 +728,8 @@ export default function CodeLookupTab({
     try {
       const { year, month } = iljinTargetMonth;
       const dayPillar = result.myeongsik.pillars.day;
-      const html = buildIljinCalendarHtml(getMonthIljin(year, month, dayPillar), dayPillar, code);
+      // 명식 전체를 넘긴다 — 등급에 원국 강약·용신과 대운·세운·월운까지 반영된다.
+      const html = buildIljinCalendarHtml(getMonthIljin(year, month, result.myeongsik), dayPillar, code);
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

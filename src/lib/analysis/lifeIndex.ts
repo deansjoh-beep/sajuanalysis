@@ -140,9 +140,9 @@ const stemTemp = (stem: string): number => {
   return el === 'fire' ? 1 : el === 'water' ? -1 : 0;
 };
 
-interface DaeunBand { startAge: number; gan: string; ji: string }
+export interface DaeunBand { startAge: number; gan: string; ji: string }
 
-const buildDaeunBands = (monthPillar: string, daeunsu: number, direction: 'forward' | 'backward'): DaeunBand[] => {
+export const buildDaeunBands = (monthPillar: string, daeunsu: number, direction: 'forward' | 'backward'): DaeunBand[] => {
   const monthStem = monthPillar.charAt(0);
   const monthBranch = monthPillar.charAt(1);
   let si = STEMS_CYCLE.indexOf(monthStem);
@@ -156,7 +156,7 @@ const buildDaeunBands = (monthPillar: string, daeunsu: number, direction: 'forwa
   return bands;
 };
 
-const activeBand = (bands: DaeunBand[], age: number): DaeunBand | null => {
+export const activeBand = (bands: DaeunBand[], age: number): DaeunBand | null => {
   if (age < bands[0].startAge) return null;
   for (let i = bands.length - 1; i >= 0; i--) {
     if (age >= bands[i].startAge) return bands[i];

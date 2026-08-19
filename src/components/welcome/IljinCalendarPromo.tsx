@@ -31,7 +31,7 @@ export function IljinCalendarPromo({ onGetReport, onGoLookup }: IljinCalendarPro
             {month}월 일진 캘린더를 무료로 드립니다
           </h2>
           <p className="text-[13px] md:text-[14px] text-ink-500 max-w-xl mx-auto leading-relaxed">
-            리포트를 받으신 분께는 매달, 하루하루를 내 일간 기준으로 풀이한 일진표를
+            리포트를 받으신 분께는 매달, 하루하루를 내 원국과 대운·세운·월운까지 함께 본 일진표를
             벽걸이 달력 형태의 PDF로 드립니다. 발급받은 사주 코드로 ‘리포트 조회’에서 이번 달·다음 달
             중 원하는 달을 골라 언제든 내려받을 수 있습니다.
           </p>
@@ -40,8 +40,8 @@ export function IljinCalendarPromo({ onGetReport, onGoLookup }: IljinCalendarPro
         {/* 샘플 — 다음 달 첫 주 미리보기 */}
         <div className="rounded-2xl border border-ink-300/25 bg-paper-50/60 p-5 md:p-6">
           <p className="text-[12px] text-ink-500 mb-3">
-            {year}년 {month}월 첫 주 미리보기 — 예시: 갑목(甲) 일간 기준. 실제 캘린더는 내 일간
-            기준의 십성·길흉으로 한 달 전체가 담깁니다.
+            {year}년 {month}월 첫 주 미리보기 — 예시: 갑목(甲) 일간 기준. 실제 캘린더는 내 원국의
+            강약·용신과 대운·세운·월운까지 반영한 등급으로 한 달 전체가 담깁니다.
           </p>
           <div className="grid grid-cols-7 gap-1.5">
             {sample.map((d) => (

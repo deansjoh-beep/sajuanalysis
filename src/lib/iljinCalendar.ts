@@ -11,7 +11,11 @@ import {
 } from '../utils/saju';
 import { getSeoulTodayParts } from './seoulDateGanji';
 import { PDF_SANS_FONT_LINKS, PDF_SANS_STACK } from './pdfFonts';
-import { getWolunData } from './manseryeok/wolun';
+import { getSeunGanzhi, getWolunData, type WolunMonth } from './manseryeok/wolun';
+import { activeBand, buildDaeunBands } from './analysis/lifeIndex';
+import { analyzeByRulesFromGanzhi } from './analysis/rules';
+import { branchMainStem, ELEMENT_KO, PRODUCED_BY, STEM_ELEMENT, type Ohaeng } from './analysis/rules/tables';
+import type { MyeongsikParams } from './buildMyeongsik';
 
 /**
  * 월 일진 캘린더 (무료 부가 서비스) — 코드 보유자에게 다음 달 일진표 PDF를 제공한다.
@@ -20,7 +24,14 @@ import { getWolunData } from './manseryeok/wolun';
  * (만세력 정적 원칙과 동일). 등급 어휘·레이아웃은 일진 캘린더 스킬(벽걸이 달력형
  * A4 가로 1장, ◎◎~▲▲ 5단계)을 그대로 따른다.
  *
- * ⛔ 등급 규칙표·십성 키워드는 OWNER 확정 전 임시안 — 바꿀 땐 이 파일만 수정하면 된다.
+ * 등급은 두 모드로 나뉜다:
+ *   - 컨텍스트 모드 (저장된 명식 전달) — 원국 강약·용신 + 대운·세운·월운·일진을 함께 본다.
+ *   - 샘플 모드 (일주 간지 문자열만 전달) — 일진↔일주 관계만 본다. 랜딩 홍보용.
+ *
+ * 컨텍스트 모드에 필요한 값(대운 간지 포함)은 전부 저장된 MyeongsikParams에서 유도되므로
+ * 사용자 추가 입력도, 개인정보 추가 저장도 없다. 일진 산출 자체가 순수 함수라 캐싱 구조도 그대로다.
+ *
+ * ⛔ 등급 규칙표·십성 키워드·오행 과다 임계는 OWNER 확정 전 임시안 — 바꿀 땐 이 파일만 수정하면 된다.
  */
 
 // ─── 타입 ───────────────────────────────────────────────────────────────────
@@ -35,8 +46,27 @@ export interface IljinDay {
   sipsin: string;
   /** ◎◎ | ◎ | ○ | △ | ▲ | ▲▲ */
   rating: string;
-  /** 4~10자 한줄 해설 (합충·신살 태그 우선, 없으면 십성 키워드) */
+  /** 4~10자 한줄 해설 (과다·운충 경고 우선, 다음 합충·신살, 없으면 십성 키워드) */
   note: string;
+}
+
+/**
+ * 등급 계산에 실제로 반영된 운(運) — PDF 표기·검증용.
+ * 저장된 명식에서 전부 유도되는 값이라 별도 입력도, 개인정보 저장도 필요 없다.
+ */
+export interface IljinContext {
+  /** 대운 간지 (대운 시작 전 나이면 null) */
+  daeun: string | null;
+  /** 이 달에 걸친 세운 간지 — 입춘을 넘는 달은 2개 */
+  seun: string[];
+  /** 이 달에 걸친 월운 간지 — 절입을 넘는 달은 2개 */
+  wolun: string[];
+  /** 원국 강약 분류 (신강/신약 등) */
+  strength: string;
+  /** 용신 오행 (한글) */
+  yongshin: string;
+  /** 기신 오행 (한글) */
+  gisin: string;
 }
 
 export interface IljinMonth {
@@ -45,6 +75,12 @@ export interface IljinMonth {
   /** 이 양력 월에 절입하는 절기 (예: { name: '입추', day: 7, ganzhi: '丙申' }) — 없으면 null */
   jeolip: { name: string; day: number; ganzhi: string } | null;
   days: IljinDay[];
+  /**
+   * 원국·대운·세운·월운이 등급에 반영됐는지.
+   * false = 일주 간지만 알고 부르는 샘플 모드(랜딩 홍보용) — 일진↔일주 관계만 본다.
+   */
+  contextual: boolean;
+  context: IljinContext | null;
 }
 
 // ─── 등급 규칙 (임시안) ─────────────────────────────────────────────────────
@@ -86,6 +122,19 @@ const SIPSIN_KEYWORD: Record<string, string> = {
   정인: '문서·학습',
 };
 
+/**
+ * 오행 중복 임계 — 원국(6~8자) + 대운·세운·월운·일진(8자) 중 같은 오행이 이 개수 이상 쌓이면
+ * 그 오행의 날은 길신 가산을 전부 취소하고 한 단계 내린다.
+ *
+ * 용신·조후에 필요한 오행이라도 과다는 과다다. 이 규칙이 없으면 합·귀인 가산만 누적되어
+ * 삼중 중첩일(예: 대운 午 + 세운 丙午 + 일진 丙午)이 최고 등급으로 나온다.
+ *
+ * 값 7은 OWNER 확정(2026-08-20, docs/decisions.md). 전체 16자에서 오행 하나의 기대값이
+ * 3.2자이므로 기대치의 2.2배다. 명식 120개 × 12개월(43,800일) 실측 과다 적용률 13.7%
+ * (달당 약 4일) — 6이면 30.5%로 경고가 흔해지고, 5면 54.0%에 최대 25일 연속으로 무의미해진다.
+ */
+const ELEMENT_EXCESS_THRESHOLD = 7;
+
 const shift = (rating: string, delta: number): string => {
   const idx = LADDER.indexOf(rating as (typeof LADDER)[number]);
   if (idx < 0) return rating;
@@ -107,25 +156,118 @@ const dayGanjiOf = (year: number, month: number, day: number): string => {
 
 const lastDayOf = (year: number, month: number): number => new Date(Date.UTC(year, month, 0)).getUTCDate();
 
+/** 월운 12구간은 사주 연도당 한 번만 계산한다 (절입 시각 산출이 무겁다). */
+const wolunCache = new Map<number, WolunMonth[]>();
+const wolunOf = (sajuYear: number): WolunMonth[] => {
+  let bands = wolunCache.get(sajuYear);
+  if (!bands) {
+    bands = getWolunData(sajuYear);
+    wolunCache.set(sajuYear, bands);
+  }
+  return bands;
+};
+
 /** 대상 양력 월에 절입하는 절기를 찾는다 (startKstISO는 KST 오프셋 ISO라 날짜부가 곧 KST 날짜). */
 const findJeolip = (year: number, month: number): IljinMonth['jeolip'] => {
   const prefix = `${year}-${String(month).padStart(2, '0')}-`;
   for (const sajuYear of [year, year - 1]) {
-    const w = getWolunData(sajuYear).find((m) => m.startKstISO.startsWith(prefix));
+    const w = wolunOf(sajuYear).find((m) => m.startKstISO.startsWith(prefix));
     if (w) return { name: w.jeolName, day: Number(w.startKstISO.slice(8, 10)), ganzhi: w.ganzhi };
   }
   return null;
 };
 
 /**
- * 일주(간지 2자) 기준으로 한 달의 일진·십성·등급·해설을 계산한다.
- * 입력은 코드에 저장된 명식의 일주뿐 — 생년월일 원문은 쓰지 않는다.
+ * 그 날에 걸린 사주 연도(입춘 기준)와 월운 구간.
+ * 판정 기준 시각은 그날 12:00 KST — 절입이 그날 낮 12시 이후면 직전 달로 잡히는
+ * 일 단위 근사다(절입일 자체는 캘린더 셀에 절기명으로 따로 표기된다).
  */
-export function getMonthIljin(year: number, month: number, dayPillar: string): IljinMonth {
+const runOfDay = (year: number, month: number, day: number): { sajuYear: number; wolun: WolunMonth } | null => {
+  const t = Date.UTC(year, month - 1, day, 3); // 12:00 KST = 03:00 UTC
+  for (const sajuYear of [year, year - 1]) {
+    const wolun = wolunOf(sajuYear).find((m) => t >= m.startUtcMs && t < m.endUtcMs);
+    if (wolun) return { sajuYear, wolun };
+  }
+  return null;
+};
+
+type ElementCounts = Record<Ohaeng, number>;
+
+const emptyCounts = (): ElementCounts => ({ wood: 0, fire: 0, earth: 0, metal: 0, water: 0 });
+
+/** 간지 2자를 오행 카운트에 더한다 — 천간은 그대로, 지지는 본기(本氣) 기준. */
+const addGanzhi = (counts: ElementCounts, ganzhi: string | null): void => {
+  if (!ganzhi || ganzhi.length < 2) return;
+  const stemEl = STEM_ELEMENT[ganzhi.charAt(0)];
+  if (stemEl) counts[stemEl] += 1;
+  const branchEl = STEM_ELEMENT[branchMainStem(ganzhi.charAt(1))];
+  if (branchEl) counts[branchEl] += 1;
+};
+
+const KO_TO_ELEMENT: Record<string, Ohaeng> = { 목: 'wood', 화: 'fire', 토: 'earth', 금: 'metal', 수: 'water' };
+
+interface RunContext {
+  /** 원국만의 오행 카운트 (매일 여기에 운 4주를 더해 과다를 판정한다) */
+  natalCounts: ElementCounts;
+  /** 용신 + 희신 오행 */
+  favor: Set<Ohaeng>;
+  gisin: Ohaeng | null;
+  daeun: string | null;
+  strength: string;
+  yongshinKo: string;
+  gisinKo: string;
+}
+
+/**
+ * 저장된 명식으로 등급 보정에 쓸 원국 판정(강약·용신·기신)과 대운 간지를 만든다.
+ * 대운 간지는 daeunsu·대운 방향·월주에서 결정론적으로 나오므로 사용자 입력이 필요 없다.
+ * 나이는 `대상 연도 − 출생 연도`로 잡는다(생월·생일은 저장하지 않는다 — 인생 100년 지수와 동일 관례).
+ */
+const buildRunContext = (m: MyeongsikParams, year: number): RunContext | null => {
+  const hour = m.timeUnknown ? null : m.pillars.hour;
+  const analysis = analyzeByRulesFromGanzhi({
+    year: m.pillars.year,
+    month: m.pillars.month,
+    day: m.pillars.day,
+    hour,
+  });
+  if (!analysis) return null;
+
+  const yongEl = analysis.yongshin.element;
+  const natalCounts = emptyCounts();
+  for (const gz of [m.pillars.year, m.pillars.month, m.pillars.day, hour]) addGanzhi(natalCounts, gz);
+
+  const band = activeBand(buildDaeunBands(m.pillars.month, m.daeunsu, m.daeunDirection), year - m.birthYear);
+
+  return {
+    natalCounts,
+    favor: new Set<Ohaeng>([yongEl, PRODUCED_BY[yongEl]]),
+    gisin: KO_TO_ELEMENT[analysis.yongshin.gisin] ?? null,
+    daeun: band ? `${band.gan}${band.ji}` : null,
+    strength: analysis.strength.class,
+    yongshinKo: ELEMENT_KO[yongEl],
+    gisinKo: analysis.yongshin.gisin,
+  };
+};
+
+/**
+ * 일주(간지 2자) 기준으로 한 달의 일진·십성·등급·해설을 계산한다.
+ *
+ * `source`에 저장된 명식(MyeongsikParams)을 주면 원국 강약·용신과 대운·세운·월운까지
+ * 등급에 반영한다. 일주 문자열만 주면 일진↔일주 관계만 보는 샘플 모드다(랜딩 홍보용).
+ * 어느 쪽이든 생년월일 원문은 쓰지 않는다.
+ */
+export function getMonthIljin(year: number, month: number, source: string | MyeongsikParams): IljinMonth {
+  const dayPillar = typeof source === 'string' ? source : source.pillars.day;
+  const ctx = typeof source === 'string' ? null : buildRunContext(source, year);
+
   const dayStem = dayPillar.charAt(0);
   const dayBranch = dayPillar.charAt(1);
   const guiin = getCheoneulGuiin(dayStem);
   const gongmang = getGongmang(dayStem, dayBranch);
+
+  const seunSeen: string[] = [];
+  const wolunSeen: string[] = [];
 
   const days: IljinDay[] = [];
   for (let d = 1; d <= lastDayOf(year, month); d++) {
@@ -136,43 +278,113 @@ export function getMonthIljin(year: number, month: number, dayPillar: string): I
     const stemDeity = calculateDeity(dayStem, stem) || '비견';
     const branchDeity = calculateDeity(dayStem, branch, true) || '';
 
-    const tags: string[] = [];
-    let rating = BASE_RATING[stemDeity] ?? '△';
+    // 그 날의 운 — 컨텍스트 모드에서만 쓴다.
+    const run = ctx ? runOfDay(year, month, d) : null;
+    const seun = run ? getSeunGanzhi(run.sajuYear).ganzhi : null;
+    const wolun = run ? run.wolun.ganzhi : null;
+    if (seun && !seunSeen.includes(seun)) seunSeen.push(seun);
+    if (wolun && !wolunSeen.includes(wolun)) wolunSeen.push(wolun);
 
-    if (ganji === dayPillar) {
-      // 복음(伏吟) — 일주와 동일한 날은 평으로 고정
-      rating = '△';
-      tags.push('복음');
+    const warnTags: string[] = []; // 과다·운충 — 가장 먼저 보여줄 경고
+    const negTags: string[] = [];
+    const posTags: string[] = [];
+    let bonus = 0;
+    let penalty = 0;
+
+    const base = BASE_RATING[stemDeity] ?? '△';
+    const bokeum = ganji === dayPillar;
+
+    if (bokeum) {
+      // 복음(伏吟) — 일주와 동일한 간지. 원국 합충은 자기 자신과의 관계라 보지 않는다.
+      negTags.push('복음');
     } else {
       if (STEM_HAP[dayStem] === stem) {
-        rating = shift(rating, 1);
-        tags.push('천간합');
+        bonus += 1;
+        posTags.push('천간합');
       }
       if (getYukhap(dayBranch, branch)) {
-        rating = shift(rating, 1);
-        tags.push('육합');
+        bonus += 1;
+        posTags.push('육합');
       }
       if (guiin.includes(branch)) {
-        rating = shift(rating, 1);
-        tags.push('천을귀인');
+        bonus += 1;
+        posTags.push('천을귀인');
       }
       if (isChung(dayBranch, branch)) {
-        rating = shift(rating, -2);
-        tags.push('일지충');
+        penalty -= 2;
+        negTags.push('일지충');
       }
       if (isWonjin(dayBranch, branch)) {
-        rating = shift(rating, -1);
-        tags.push('원진');
+        penalty -= 1;
+        negTags.push('원진');
       }
       if (isHyeong(dayBranch, branch)) {
-        rating = shift(rating, -1);
-        tags.push('형살');
+        penalty -= 1;
+        negTags.push('형살');
       }
       if (gongmang.includes(branch)) {
-        rating = shift(rating, -1);
-        tags.push('공망');
+        penalty -= 1;
+        negTags.push('공망');
       }
     }
+
+    let rating: string;
+
+    if (!ctx) {
+      // 샘플 모드 — 원국·운을 모르므로 일진↔일주 관계만으로 매긴다.
+      rating = bokeum ? '△' : shift(base, bonus + penalty);
+    } else {
+      const dayEls = [STEM_ELEMENT[stem], STEM_ELEMENT[branchMainStem(branch)]].filter(Boolean) as Ohaeng[];
+
+      // 원국 용신·기신 — 십성 이름이 아니라 일간이 실제로 필요로 하는 오행으로 본다.
+      if (!bokeum) {
+        if (dayEls.some((el) => ctx.favor.has(el))) {
+          bonus += 1;
+          posTags.push('용신');
+        } else if (ctx.gisin && dayEls.includes(ctx.gisin)) {
+          penalty -= 1;
+          negTags.push('기신');
+        }
+      }
+
+      // 운(대운·세운·월운) 지지와의 충 — 원국 일지만 보던 기존 판정의 공백.
+      // 대운·세운 지지가 같으면(예: 대운 午 + 세운 丙午) 충은 하나다. 같은 충을 두 번
+      // 세면 감점이 실제보다 두 배가 되므로 지지 기준으로 중복을 걷어낸다.
+      const runBranches = [
+        ctx.daeun ? { label: '대운충', branch: ctx.daeun.charAt(1) } : null,
+        seun ? { label: '세운충', branch: seun.charAt(1) } : null,
+        wolun ? { label: '월운충', branch: wolun.charAt(1) } : null,
+      ].filter(Boolean) as Array<{ label: string; branch: string }>;
+      const chungSeen = new Set<string>();
+      for (const r of runBranches) {
+        if (chungSeen.has(r.branch) || !isChung(r.branch, branch)) continue;
+        chungSeen.add(r.branch);
+        penalty -= 1;
+        warnTags.push(r.label);
+      }
+
+      // 오행 과다 — 원국 + 대운·세운·월운·일진 누적.
+      const counts = { ...ctx.natalCounts };
+      addGanzhi(counts, ctx.daeun);
+      addGanzhi(counts, seun);
+      addGanzhi(counts, wolun);
+      addGanzhi(counts, ganji);
+      const excess = dayEls.find((el) => counts[el] >= ELEMENT_EXCESS_THRESHOLD);
+
+      if (excess) {
+        // 길신 가산을 전부 취소하고 한 단계 내린다 — 용신이라도 과다는 과다다.
+        bonus = 0;
+        penalty -= 1;
+        warnTags.unshift(`${ELEMENT_KO[excess]}과다`);
+        // 가산이 취소됐는데 '용신'을 길한 표시로 남겨두면 해설이 서로 모순된다.
+        const yong = posTags.indexOf('용신');
+        if (yong >= 0) posTags.splice(yong, 1);
+      }
+
+      rating = shift(bokeum ? '△' : base, bonus + penalty);
+    }
+
+    const tags = [...warnTags, ...negTags, ...posTags];
 
     days.push({
       day: d,
@@ -184,7 +396,23 @@ export function getMonthIljin(year: number, month: number, dayPillar: string): I
     });
   }
 
-  return { year, month, jeolip: findJeolip(year, month), days };
+  return {
+    year,
+    month,
+    jeolip: findJeolip(year, month),
+    days,
+    contextual: Boolean(ctx),
+    context: ctx
+      ? {
+          daeun: ctx.daeun,
+          seun: seunSeen,
+          wolun: wolunSeen,
+          strength: ctx.strength,
+          yongshin: ctx.yongshinKo,
+          gisin: ctx.gisinKo,
+        }
+      : null,
+  };
 }
 
 /** 서울 기준 이번 달 { year, month } */
@@ -300,7 +528,13 @@ export function buildIljinCalendarHtml(m: IljinMonth, dayPillar: string, code: s
   ).join('');
 
   const jeolipText = m.jeolip ? ` · ${m.jeolip.name} ${m.month}/${m.jeolip.day} 절입(${m.jeolip.ganzhi}월)` : '';
-  const subtitle = `${esc(dayPillar)}(${esc(toHangul(dayPillar))}) 일주 기준${esc(jeolipText)} · 사주 코드 ${esc(code)}`;
+  // 반영된 운을 표기해 등급 근거를 드러낸다 — 전부 간지라 생년월일 원문은 노출되지 않는다.
+  const runText = m.context
+    ? ` · ${[m.context.daeun ? `대운 ${m.context.daeun}` : null, `세운 ${m.context.seun.join('·')}`]
+        .filter(Boolean)
+        .join(' · ')} 반영`
+    : '';
+  const subtitle = `${esc(dayPillar)}(${esc(toHangul(dayPillar))}) 일주 기준${esc(jeolipText)}${esc(runText)} · 사주 코드 ${esc(code)}`;
 
   // 폰트 링크는 반드시 실어 보낸다 — 서버리스 Chromium에는 한글 시스템 폰트가 없다(pdfFonts.ts 참고).
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
@@ -357,6 +591,10 @@ ${rows}
   <div><span class="mark">▲</span>주의</div>
   <div><span class="mark">▲▲</span>최대주의</div>
 </div>
-<div class="footer-note">등급·해설은 일간 기준 십성과 합충 조견표에 따른 참고 정보입니다. 간지와 사주 코드 외 개인정보는 포함되지 않습니다.</div>
+<div class="footer-note">${
+    m.context
+      ? `등급·해설은 원국(강약·용신)과 대운·세운·월운·일진을 함께 본 참고 정보입니다. 같은 오행이 과다하게 겹치는 날은 길신이라도 등급을 내립니다.`
+      : `등급·해설은 일간 기준 십성과 합충 조견표에 따른 참고 정보입니다.`
+  } 간지와 사주 코드 외 개인정보는 포함되지 않습니다.</div>
 </body></html>`;
 }
