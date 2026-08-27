@@ -1,4 +1,5 @@
 import type { UserData } from '../types/app';
+import { BirthTimeQuiz } from './BirthTimeQuiz';
 
 /**
  * 생년월일시 공용 입력 필드 — 랜딩 무료운세 입력 폼(WelcomeTab)에서 추출.
@@ -119,6 +120,16 @@ export function BirthInputFields({
             생시를 몰라요
           </label>
         </div>
+
+        {value.unknownTime && !disabled && (
+          <div className="ml-1">
+            <BirthTimeQuiz
+              onSelect={(hour) =>
+                set({ birthHour: String(hour), birthMinute: '0', unknownTime: false })
+              }
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

@@ -12,6 +12,7 @@ import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 import LifeIndexCard from '../lifeIndex/LifeIndexCard';
+import { BirthTimeQuiz } from '../BirthTimeQuiz';
 import type { ReviewSource } from '../ReviewModal';
 
 // 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
@@ -211,6 +212,13 @@ function BirthFields({ birth, onChange }: { birth: BirthFormInput; onChange: (b:
           <input type="checkbox" checked={birth.unknownTime} onChange={(e) => set('unknownTime', e.target.checked)} /> 시간 모름
         </label>
       </div>
+      {birth.unknownTime && (
+        <BirthTimeQuiz
+          onSelect={(hour) =>
+            onChange({ ...birth, timeStr: `${String(hour).padStart(2, '0')}:00`, unknownTime: false })
+          }
+        />
+      )}
     </>
   );
 }
