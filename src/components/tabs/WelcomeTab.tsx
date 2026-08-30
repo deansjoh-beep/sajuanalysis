@@ -24,8 +24,6 @@ type ActiveTab =
   | 'report'
   | 'guide'
   | 'blog'
-  | 'premium'
-  | 'order'
   | 'daily'
   | 'lookup'
   | 'checkout';
@@ -69,9 +67,6 @@ interface WelcomeTabProps {
   handleStart: () => void;
   /** 랜딩 티저 → 만세력 직행 (이름 없이) */
   onTeaserManse: (input: TeaserInput) => void;
-  /** 레거시 프리미엄 주문(order 탭) 노출 여부 (App.tsx LEGACY_PREMIUM_ORDER_ENABLED).
-   *  false면 상품 클릭이 신규 무료 체크아웃(checkout)으로 연결된다. */
-  legacyOrderEnabled: boolean;
   /** 푸터 약관·정책 링크 → 가이드 서브페이지로 이동 */
   onOpenPolicy: (page: 'terms' | 'privacy' | 'refund') => void;
 }
@@ -92,7 +87,6 @@ export default function WelcomeTab({
   currentSeoulYear,
   handleStart,
   onTeaserManse,
-  legacyOrderEnabled,
   onOpenPolicy,
 }: WelcomeTabProps) {
   // 첫 섹션 다음으로 스크롤할 때 사용
@@ -104,18 +98,14 @@ export default function WelcomeTab({
     philosophyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // 상품 클릭 → 선택 상품을 넘기고 신규 무료 체크아웃으로. (레거시 되살림 시엔 종전 주문 폼으로.)
+  // 상품 클릭 → 선택 상품을 넘기고 체크아웃으로.
   const handleProductClick = (type: ProductType) => {
     setOrderProductType(type);
-    setActiveTab(legacyOrderEnabled ? 'order' : 'checkout');
+    setActiveTab('checkout');
   };
 
-  // 티저 [리포트로 깊이 보기] → 신규 체크아웃. (레거시 되살림 시엔 상품 진열 섹션으로 스크롤.)
+  // 티저 [리포트로 깊이 보기] → 체크아웃.
   const handleOpenCheckout = () => {
-    if (legacyOrderEnabled) {
-      productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
     setActiveTab('checkout');
   };
 

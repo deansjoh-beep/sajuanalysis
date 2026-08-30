@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkVercelRateLimit, paymentLimiter } from './_lib/rate-limit.js';
 import { createTossClient, isTossConfigured, TossApiError } from './_lib/toss.js';
+import { safeEqual } from './_lib/safe-compare.js';
 import { getDb, isDbConfigured } from '../db/client.js';
 import {
   confirmPaymentAndPersist,
@@ -143,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'refund') {
       const adminToken = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
       const provided = String(req.headers['x-admin-token'] || '');
-      if (!adminToken || provided !== adminToken) {
+      if (!adminToken || !safeEqual(provided, adminToken)) {
         return res.status(401).json({ error: 'UNAUTHORIZED', message: '환불은 관리자 토큰이 필요합니다.' });
       }
 

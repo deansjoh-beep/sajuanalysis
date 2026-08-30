@@ -10,7 +10,7 @@
 import { eq } from 'drizzle-orm';
 import type { TossClient } from '../api/_lib/toss.js';
 import type { Db } from './client.js';
-import { issueCode, type IssueCodeOptions } from './code.js';
+import { issueCode, isUniqueViolation, type IssueCodeOptions } from './code.js';
 import { codes, orders, type MyeongsikParams } from './schema.js';
 
 /**
@@ -106,6 +106,17 @@ export async function confirmPaymentAndPersist(
       .returning();
     return { alreadyProcessed: false, code: issued.code, orderId: orderRow.id };
   } catch (error) {
+    // 동시 중복 confirm 레이스: 다른 요청이 이미 같은 order_no로 주문을 기록해
+    // unique 위반이 난 경우 — 여기서 취소하면 방금 성공한 정상 결제를 취소하게 되므로,
+    // 기존 주문을 재조회해 멱등 응답한다(취소 금지).
+    if (isUniqueViolation(error)) {
+      const [dup] = await db
+        .select({ orderId: orders.id, code: codes.code })
+        .from(orders)
+        .innerJoin(codes, eq(orders.codeId, codes.id))
+        .where(eq(orders.orderNo, orderNo));
+      if (dup) return { alreadyProcessed: true, code: dup.code, orderId: dup.orderId };
+    }
     // 승인은 됐는데 기록에 실패 — 돈만 나간 상태를 만들지 않도록 자동 취소
     console.error(`[payment] 승인 후 영속 실패 — 자동 취소 시도 (orderNo=${orderNo}):`, error);
     try {

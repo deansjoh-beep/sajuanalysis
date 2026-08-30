@@ -9,10 +9,6 @@
       "memory": 1024,
       "maxDuration": 120
     },
-    "api/premium-report/upload-url.ts": {
-      "memory": 512,
-      "maxDuration": 30
-    },
     "api/member.ts": {
       "memory": 1024,
       "maxDuration": 60
@@ -82,10 +78,6 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/premium-order/:action",
-      "destination": "/api/premium-order?action=:action"
-    },
     {
       "source": "/api/payment/:action",
       "destination": "/api/payment?action=:action"

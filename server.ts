@@ -9,9 +9,6 @@ import { runTaekilEngine, TaekilRequest } from "./src/utils/taekilEngine.ts";
 import {
   expressRateLimit,
   pdfLimiter,
-  emailLimiter,
-  uploadLimiter,
-  orderCreateLimiter,
   taekilLimiter,
   generalLimiter,
   purgeLimiter,
@@ -35,6 +32,7 @@ import {
 import { FREE_OPEN, isOpenProduct } from "./db/productAccess.ts";
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
+import { safeEqual } from "./api/_lib/safe-compare.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
 import { claudeStreamAggregate } from "./api/_lib/claude-stream.ts";
 import { getSeoulTodayYmd } from "./src/lib/seoulDateGanji.ts";
@@ -263,7 +261,7 @@ async function startServer() {
     const dateYmd = getSeoulTodayYmd();
 
     // 배치(cron) 모드
-    if (cronSecret && bearer === cronSecret) {
+    if (cronSecret && safeEqual(bearer, cronSecret)) {
       const started = Date.now();
       try {
         const membersSnap = await adminDb.collection('members').get();
@@ -369,7 +367,7 @@ async function startServer() {
   app.post('/api/generate-pdf', expressRateLimit(pdfLimiter, (req) => {
     // PDF_API_TOKEN 인증 성공 시 rate limit 스킵 (관리자 요청)
     const pdfToken = String(process.env.PDF_API_TOKEN || '').trim();
-    return pdfToken !== '' && req.headers['x-pdf-token'] === pdfToken;
+    return pdfToken !== '' && safeEqual(String(req.headers['x-pdf-token'] || ''), pdfToken);
   }), async (req, res) => {
     const html = typeof req.body?.html === 'string' ? req.body.html : '';
     const fileName = typeof req.body?.fileName === 'string' ? req.body.fileName : 'report';
@@ -381,7 +379,7 @@ async function startServer() {
     const pdfToken = String(process.env.PDF_API_TOKEN || '').trim();
     if (pdfToken) {
       const provided = String(req.header('x-pdf-token') || '');
-      if (provided !== pdfToken) {
+      if (!safeEqual(provided, pdfToken)) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
     }
@@ -449,145 +447,6 @@ async function startServer() {
     }
   });
 
-  app.post('/api/premium-report/upload', expressRateLimit(uploadLimiter), express.raw({ type: 'application/pdf', limit: '100mb' }), async (req, res) => {
-    try {
-      const reportDir = path.join(__dirname, '.tmp', 'premium-reports');
-      if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
-
-      const bucketCandidates = [
-        process.env.FIREBASE_STORAGE_BUCKET,
-        firebaseConfig?.storageBucket,
-        adminProjectId ? `${adminProjectId}.appspot.com` : undefined,
-        adminProjectId ? `${adminProjectId}.firebasestorage.app` : undefined,
-      ].filter(Boolean) as string[];
-
-      let bucketName = '';
-      if (adminStorage) {
-        for (const candidate of bucketCandidates) {
-          try {
-            const [exists] = await adminStorage.bucket(candidate).exists();
-            if (exists) {
-              bucketName = candidate;
-              break;
-            }
-          } catch {
-            // try next candidate
-          }
-        }
-      }
-
-      const body = req.body as Buffer;
-      if (!body || !Buffer.isBuffer(body) || body.length === 0) {
-        return res.status(400).json({ error: 'PDF_BODY_REQUIRED', message: 'PDF binary body is required' });
-      }
-
-      const originalName = String(req.header('x-file-name') || 'premium-report.pdf');
-      const safeName = originalName.replace(/[^a-zA-Z0-9가-힣_.-]/g, '_');
-      const fileName = `${Date.now()}_${safeName}`;
-
-      // 1) Cloud bucket 업로드 시도
-      if (adminStorage && bucketName) {
-        try {
-          const objectPath = `lifeNavReports/${fileName}`;
-          const bucket = adminStorage.bucket(bucketName);
-          const file = bucket.file(objectPath);
-          await file.save(body, {
-            metadata: { contentType: 'application/pdf' },
-            resumable: false,
-          });
-
-          const [signedUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: '2100-01-01',
-          });
-
-          return res.json({ success: true, url: signedUrl, path: objectPath, storage: 'gcs' });
-        } catch (cloudErr) {
-          console.warn('Cloud storage upload failed. Falling back to local file storage.', cloudErr);
-        }
-      }
-
-      // 2) 로컬 파일 저장 폴백
-      const localPath = path.join(reportDir, fileName);
-      fs.writeFileSync(localPath, body);
-      const localUrl = `${req.protocol}://${req.get('host')}/api/premium-report/files/${encodeURIComponent(fileName)}`;
-      return res.json({ success: true, url: localUrl, path: localPath, storage: 'local' });
-    } catch (error: any) {
-      console.error('Failed to upload premium report PDF:', error);
-      return res.status(500).json({
-        error: 'UPLOAD_FAILED',
-        message: error?.message || 'Failed to upload PDF',
-      });
-    }
-  });
-
-  app.post('/api/premium-report/send-email', expressRateLimit(emailLimiter), async (req, res) => {
-    try {
-      const apiKey = String(process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY || '').trim();
-      const fromEmail = String(process.env.FROM_EMAIL || process.env.VITE_FROM_EMAIL || 'noreply@example.com').trim();
-      if (!apiKey) {
-        return res.status(500).json({
-          error: 'RESEND_API_KEY_MISSING',
-          message: 'Resend API key is not configured on server',
-        });
-      }
-
-      const to = String(req.body?.to || '').trim();
-      const subject = String(req.body?.subject || '').trim();
-      const html = String(req.body?.html || '').trim();
-      if (!to || !subject || !html) {
-        return res.status(400).json({
-          error: 'INVALID_EMAIL_PAYLOAD',
-          message: 'to, subject, html are required',
-        });
-      }
-
-      const resendResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to,
-          subject,
-          html,
-        }),
-      });
-
-      const raw = await resendResponse.text().catch(() => '');
-      if (!resendResponse.ok) {
-        let detail = raw;
-        try {
-          const parsed = JSON.parse(raw);
-          detail = parsed?.message || parsed?.error || raw;
-        } catch {
-          // keep raw text
-        }
-        return res.status(resendResponse.status).json({
-          error: 'RESEND_SEND_FAILED',
-          message: detail || 'Failed to send email',
-        });
-      }
-
-      let messageId = '';
-      try {
-        const parsed = JSON.parse(raw);
-        messageId = String(parsed?.id || '');
-      } catch {
-        // ignore parse failure
-      }
-      return res.json({ success: true, messageId });
-    } catch (error: any) {
-      console.error('Failed to send premium report email:', error);
-      return res.status(500).json({
-        error: 'EMAIL_SEND_FAILED',
-        message: error?.message || 'Failed to send email',
-      });
-    }
-  });
-
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!err) return next();
     const isApi = String(req.path || '').startsWith('/api/');
@@ -604,25 +463,6 @@ async function startServer() {
       error: err.code || 'API_ERROR',
       message: err.message || '서버 처리 중 오류가 발생했습니다.',
     });
-  });
-
-  app.get('/api/premium-report/files/:fileName', (req, res) => {
-    try {
-      const fileName = String(req.params.fileName || '');
-      if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
-        return res.status(400).send('Invalid file name');
-      }
-
-      const reportDir = path.join(__dirname, '.tmp', 'premium-reports');
-      const filePath = path.join(reportDir, fileName);
-      if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`);
-      return res.sendFile(filePath);
-    } catch (error: any) {
-      return res.status(500).send(error?.message || 'Failed to read file');
-    }
   });
 
   // ── Phase 2-1: 파기 API — api/code.ts(Vercel)와 동일 형상 유지 ──────────
@@ -666,7 +506,7 @@ async function startServer() {
       }
       const cronSecret = (process.env.CRON_SECRET || '').trim();
       const auth = String(req.headers['authorization'] || '');
-      if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+      if (!cronSecret || !safeEqual(auth, `Bearer ${cronSecret}`)) {
         return res.status(401).json({ error: 'UNAUTHORIZED' });
       }
       const db = await getDb();
@@ -685,7 +525,7 @@ async function startServer() {
   // 관리자 토큰 검사 (2-5) — ADMIN_ACCESS_TOKEN 미설정 시 관리자 기능 전체 비활성
   const isAdminReq = (req: any): boolean => {
     const token = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
-    return Boolean(token) && String(req.headers['x-admin-token'] || '') === token;
+    return Boolean(token) && safeEqual(String(req.headers['x-admin-token'] || ''), token);
   };
 
   // ── Phase 2-5: 관리자 통계·검수 — api/payment.ts(stats)·api/code.ts(sample/review)와 동일 형상 ──
@@ -745,7 +585,7 @@ async function startServer() {
         // 코드 없는 GET = 만료 청소 크론 (프로덕션 vercel.json crons와 동일 경로)
         const cronSecret = (process.env.CRON_SECRET || '').trim();
         const auth = String(req.headers['authorization'] || '');
-        if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+        if (!cronSecret || !safeEqual(auth, `Bearer ${cronSecret}`)) {
           return res.status(401).json({ error: 'UNAUTHORIZED' });
         }
         const db = await getDb();
@@ -1016,7 +856,7 @@ async function startServer() {
     try {
       const adminToken = (process.env.ADMIN_ACCESS_TOKEN || '').trim();
       const provided = String(req.headers['x-admin-token'] || '');
-      if (!adminToken || provided !== adminToken) {
+      if (!adminToken || !safeEqual(provided, adminToken)) {
         return res.status(401).json({ error: 'UNAUTHORIZED', message: '환불은 관리자 토큰이 필요합니다.' });
       }
       const orderNo = String(req.body?.orderNo || '').trim();
@@ -1140,216 +980,6 @@ async function startServer() {
         error: "TAEKIL_ENGINE_ERROR",
         message: error?.message || "택일 추천 처리 중 오류가 발생했습니다."
       });
-    }
-  });
-
-  // Premium Order Creation API - uses Firebase Admin SDK (bypasses security rules)
-  app.post("/api/premium-order/create", expressRateLimit(orderCreateLimiter), async (req, res) => {
-    try {
-      if (!adminDb) {
-        console.error('Firebase Admin SDK not initialized. Place service-account.json in project root.');
-        return res.status(500).json({
-          error: "ADMIN_SDK_UNAVAILABLE",
-          message: "서버 설정 오류: service-account.json 파일이 없습니다. 관리자에게 문의하세요."
-        });
-      }
-
-      const order = req.body;
-      console.log('Creating premium order via Admin SDK:', { name: order.name, email: order.email });
-
-      // Validate required fields (use != null to allow false and 0)
-      const required = ['name', 'email', 'birthDate', 'birthTime', 'gender', 'isLunar', 'tier', 'price'];
-      const missing = required.filter((k) => order[k] == null || order[k] === '');
-      if (missing.length > 0) {
-        console.warn('Missing required fields:', missing);
-        return res.status(400).json({
-          error: "MISSING_REQUIRED_FIELDS",
-          message: `Required fields missing: ${missing.join(", ")}`
-        });
-      }
-
-      const rawProductType = String(order.productType || 'premium');
-      const productType = rawProductType === 'yearly2026'
-        ? 'yearly2026'
-        : rawProductType === 'jobCareer'
-          ? 'jobCareer'
-          : rawProductType === 'loveMarriage'
-            ? 'loveMarriage'
-            : 'premium';
-
-      // Write directly to Firestore via Admin SDK (bypasses all security rules)
-      const docRef = await adminDb.collection('premiumOrders').add({
-        name: String(order.name),
-        email: String(order.email),
-        birthDate: String(order.birthDate),
-        birthTime: String(order.birthTime),
-        gender: String(order.gender),
-        isLunar: Boolean(order.isLunar),
-        isLeap: Boolean(order.isLeap ?? false),
-        unknownTime: Boolean(order.unknownTime ?? false),
-        tier: String(order.tier),
-        price: Number(order.price),
-        productType,
-        currentJob: String(order.currentJob || ''),
-        workHistory: String(order.workHistory || ''),
-        relationshipStatus: String(order.relationshipStatus || ''),
-        concern: String(order.concern || ''),
-        interest: String(order.interest || ''),
-        reportLevel: String(order.reportLevel || 'basic'),
-        lifeEvents: Array.isArray(order.lifeEvents) ? order.lifeEvents : [],
-        adminNotes: String(order.adminNotes || ''),
-        status: 'submitted',
-        version: 1,
-        createdAt: FieldValue.serverTimestamp(),
-        generatedAt: null,
-        sentAt: null,
-      });
-
-      console.log('Premium order created successfully:', docRef.id);
-      return res.json({
-        success: true,
-        orderId: docRef.id,
-        message: "Premium order created successfully"
-      });
-
-    } catch (error: any) {
-      console.error('Premium order creation error:', error);
-      return res.status(500).json({
-        error: "SERVER_ERROR",
-        message: error?.message || "Failed to create premium order"
-      });
-    }
-  });
-
-  // Premium Order List API - reads from Firestore via Admin SDK
-  app.get("/api/premium-orders", expressRateLimit(generalLimiter), async (req, res) => {
-    try {
-      if (!adminDb) {
-        return res.status(500).json({
-          error: "ADMIN_SDK_UNAVAILABLE",
-          message: "Server not initialized"
-        });
-      }
-
-      const status = req.query.status as string | undefined;
-      const productType = req.query.productType as string | undefined;
-      let collectionRef = adminDb.collection('premiumOrders');
-
-      let snapshot;
-      if (status && status !== 'all') {
-        snapshot = await collectionRef
-          .where('status', '==', status)
-          .orderBy('createdAt', 'desc')
-          .get();
-      } else {
-        snapshot = await collectionRef
-          .orderBy('createdAt', 'desc')
-          .get();
-      }
-
-      let orders = snapshot.docs.map(doc => ({
-        orderId: doc.id,
-        ...doc.data()
-      }));
-
-      if (productType && productType !== 'all') {
-        orders = orders.filter((o: any) => (o.productType || 'premium') === productType);
-      }
-
-      console.log(`Retrieved ${orders.length} premium orders (status=${status}, productType=${productType})`);
-      return res.json({
-        success: true,
-        orders: serializeTimestamps(orders)
-      });
-
-    } catch (error: any) {
-      console.error('Failed to retrieve premium orders:', error);
-      return res.status(500).json({
-        error: "SERVER_ERROR",
-        message: error?.message || "Failed to retrieve orders"
-      });
-    }
-  });
-
-  // Premium Order Update API - writes via Admin SDK
-  app.post('/api/premium-order/update', async (req, res) => {
-    try {
-      if (!adminDb) {
-        return res.status(500).json({
-          error: 'ADMIN_SDK_UNAVAILABLE',
-          message: 'Server not initialized',
-        });
-      }
-
-      const orderId = String(req.body?.orderId || '');
-      const updates = (req.body?.updates || {}) as Record<string, any>;
-      if (!orderId) {
-        return res.status(400).json({ error: 'ORDER_ID_REQUIRED', message: 'orderId is required' });
-      }
-      if (!updates || typeof updates !== 'object' || Array.isArray(updates) || Object.keys(updates).length === 0) {
-        return res.status(400).json({ error: 'UPDATES_REQUIRED', message: 'updates is required' });
-      }
-
-      const docRef = adminDb.collection('premiumOrders').doc(orderId);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: 'Order not found' });
-      }
-
-      const payload: Record<string, any> = { ...updates };
-      if (updates.status === 'reviewing' && !updates.generatedAt) {
-        payload.generatedAt = FieldValue.serverTimestamp();
-      }
-      if (updates.status === 'delivered' && !updates.sentAt) {
-        payload.sentAt = FieldValue.serverTimestamp();
-      }
-
-      await docRef.update(payload);
-      return res.json({ success: true });
-    } catch (error: any) {
-      console.error('Failed to update premium order:', error);
-      return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || 'Failed to update order' });
-    }
-  });
-
-  // Premium Order Reject API - writes via Admin SDK
-  app.post('/api/premium-order/reject', async (req, res) => {
-    try {
-      if (!adminDb) {
-        return res.status(500).json({
-          error: 'ADMIN_SDK_UNAVAILABLE',
-          message: 'Server not initialized',
-        });
-      }
-
-      const orderId = String(req.body?.orderId || '');
-      const rejectReason = String(req.body?.rejectReason || '').trim();
-      if (!orderId) {
-        return res.status(400).json({ error: 'ORDER_ID_REQUIRED', message: 'orderId is required' });
-      }
-      if (!rejectReason) {
-        return res.status(400).json({ error: 'REJECT_REASON_REQUIRED', message: 'rejectReason is required' });
-      }
-
-      const docRef = adminDb.collection('premiumOrders').doc(orderId);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: 'Order not found' });
-      }
-
-      const currentVersion = Number(docSnap.data()?.version || 1);
-      await docRef.update({
-        status: 'rejected',
-        rejectReason,
-        version: currentVersion + 1,
-        reportText: null,
-        pdfUrl: null,
-      });
-
-      return res.json({ success: true });
-    } catch (error: any) {
-      console.error('Failed to reject premium order:', error);
-      return res.status(500).json({ error: 'SERVER_ERROR', message: error?.message || 'Failed to reject order' });
     }
   });
 

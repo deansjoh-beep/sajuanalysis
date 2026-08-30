@@ -17,6 +17,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as fs from 'fs';
 import * as path from 'path';
 import { checkVercelRateLimit, pdfLimiter } from './_lib/rate-limit.js';
+import { safeEqual } from './_lib/safe-compare.js';
 import { PDF_ALL_FONT_URLS, PDF_SERIF_STACK, buildFontLinkTags } from '../src/lib/pdfFonts.js';
 
 // --- Firebase Admin Utils (inlined) ---
@@ -215,14 +216,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Rate Limiting (인증 토큰이 있으면 스킵) ─────────────────────────
   const PDF_TOKEN = process.env.PDF_API_TOKEN;
-  const providedToken = req.headers['x-pdf-token'];
-  const isAuthenticated = PDF_TOKEN && providedToken === PDF_TOKEN;
+  const providedToken = String(req.headers['x-pdf-token'] || '');
+  const isAuthenticated = Boolean(PDF_TOKEN) && safeEqual(providedToken, PDF_TOKEN);
   if (!isAuthenticated && !checkVercelRateLimit(req, res, pdfLimiter)) return;
 
   // ── 인증 ────────────────────────────────────────────────────────────
   if (PDF_TOKEN) {
-    const provided = req.headers['x-pdf-token'];
-    if (provided !== PDF_TOKEN) {
+    if (!safeEqual(providedToken, PDF_TOKEN)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
   }
