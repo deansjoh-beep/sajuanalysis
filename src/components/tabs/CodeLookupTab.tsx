@@ -12,7 +12,10 @@ import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 import LifeIndexCard from '../lifeIndex/LifeIndexCard';
-import { BirthTimeQuiz } from '../BirthTimeQuiz';
+import { BirthInputFields, userDataToBirthForm } from '../BirthInputFields';
+import { DEFAULT_USER_DATA, type UserData } from '../../types/app';
+import { isValidBirthDate } from '../../utils/birthDate';
+import { getSeoulTodayParts } from '../../lib/seoulDateGanji';
 import type { ReviewSource } from '../ReviewModal';
 
 // 생성 파이프(무거운 프롬프트·LLM 코드)는 필요 시에만 로드한다.
@@ -180,65 +183,43 @@ function MonthCalendar({ content, sajuYear }: { content: string; sajuYear: numbe
 }
 
 // ─── 생년월일 입력 공용 필드 (선물 리딤 · 미생성 복구 공유) ─────────────────
+// 랜딩·결제와 동일한 공용 컴포넌트(BirthInputFields)를 그대로 사용한다 —
+// 결제 때 입력한 값을 같은 UI로 재현할 수 있고, 음력 윤달도 입력 가능하다.
 
-const EMPTY_BIRTH: BirthFormInput = { dateStr: '', timeStr: '12:00', isLunar: false, gender: 'M', unknownTime: false };
-
-function BirthFields({ birth, onChange }: { birth: BirthFormInput; onChange: (b: BirthFormInput) => void }) {
-  const field = 'w-full rounded-xl border border-ink-300/40 bg-white px-3 py-2 text-[14px] text-ink-900';
-  const set = <K extends keyof BirthFormInput>(key: K, value: BirthFormInput[K]) => onChange({ ...birth, [key]: value });
+function BirthFields({ birth, onChange }: { birth: UserData; onChange: (u: UserData) => void }) {
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="space-y-1">
-          <span className="text-[12px] text-ink-500">생년월일</span>
-          <input type="date" value={birth.dateStr} onChange={(e) => set('dateStr', e.target.value)} className={field} />
-        </label>
-        <label className="space-y-1">
-          <span className="text-[12px] text-ink-500">태어난 시간</span>
-          <input type="time" value={birth.timeStr} onChange={(e) => set('timeStr', e.target.value)} disabled={birth.unknownTime} className={`${field} disabled:opacity-40`} />
-        </label>
-      </div>
-      <div className="flex flex-wrap items-center gap-4 text-[14px] text-ink-700">
-        <label className="flex items-center gap-2">
-          <input type="radio" checked={birth.gender === 'M'} onChange={() => set('gender', 'M')} /> 남성
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" checked={birth.gender === 'F'} onChange={() => set('gender', 'F')} /> 여성
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={birth.isLunar} onChange={(e) => set('isLunar', e.target.checked)} /> 음력
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={birth.unknownTime} onChange={(e) => set('unknownTime', e.target.checked)} /> 시간 모름
-        </label>
-      </div>
-      {birth.unknownTime && (
-        <BirthTimeQuiz
-          onSelect={(hour) =>
-            onChange({ ...birth, timeStr: `${String(hour).padStart(2, '0')}:00`, unknownTime: false })
-          }
-        />
-      )}
-    </>
+    <BirthInputFields value={birth} onChange={onChange} currentSeoulYear={getSeoulTodayParts().year} />
   );
 }
 
 // ─── 선물 코드 등록 폼 ──────────────────────────────────────────────────────
 
 function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth: BirthFormInput) => void }) {
-  const [birth, setBirth] = useState<BirthFormInput>(EMPTY_BIRTH);
+  const [birth, setBirth] = useState<UserData>(DEFAULT_USER_DATA);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth.dateStr)) {
-      setError('생년월일을 입력해 주세요.');
+    if (!isValidBirthDate(Number(birth.birthYear), Number(birth.birthMonth), Number(birth.birthDay), birth.calendarType)) {
+      setError('존재하지 않는 날짜입니다. 생년월일을 확인해 주세요.');
       return;
     }
+    // 등록은 되돌릴 수 없으므로(코드당 1회) 선택값을 한 번 확인받는다 — 셀렉트 폼은 기본값 그대로 제출될 수 있다.
+    const calLabel = birth.calendarType === 'solar' ? '양력' : birth.calendarType === 'lunar' ? '음력(평)' : '음력(윤)';
+    if (
+      !window.confirm(
+        `${calLabel} ${birth.birthYear}년 ${birth.birthMonth}월 ${birth.birthDay}일` +
+          `${birth.unknownTime ? ' (생시 모름)' : ` ${birth.birthHour}시 ${birth.birthMinute}분`}, ` +
+          `${birth.gender === 'M' ? '남자' : '여자'} 사주로 등록합니다. 한 번 등록하면 변경할 수 없습니다. 맞습니까?`
+      )
+    ) {
+      return;
+    }
+    const birthForm = userDataToBirthForm(birth);
     setBusy(true);
     setError(null);
     try {
-      const myeongsik = buildMyeongsikFromBirth(birth);
+      const myeongsik = buildMyeongsikFromBirth(birthForm);
       const res = await fetch('/api/code/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -247,7 +228,7 @@ function GiftRedeemForm({ code, onRedeemed }: { code: string; onRedeemed: (birth
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || '등록에 실패했습니다.');
       // 생년월일이 메모리에 있는 유일한 시점 — 생성 파이프로 그대로 넘긴다.
-      onRedeemed(birth);
+      onRedeemed(birthForm);
     } catch (e) {
       setError(e instanceof Error ? e.message : '등록에 실패했습니다.');
     } finally {
@@ -291,18 +272,19 @@ function RecoverGenerationForm({
   storedMyeongsik: MyeongsikParams;
   onVerified: (birth: BirthFormInput) => void;
 }) {
-  const [birth, setBirth] = useState<BirthFormInput>(EMPTY_BIRTH);
+  const [birth, setBirth] = useState<UserData>(DEFAULT_USER_DATA);
   const [error, setError] = useState<string | null>(null);
 
   const submit = () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth.dateStr)) {
-      setError('생년월일을 입력해 주세요.');
+    if (!isValidBirthDate(Number(birth.birthYear), Number(birth.birthMonth), Number(birth.birthDay), birth.calendarType)) {
+      setError('존재하지 않는 날짜입니다. 생년월일을 확인해 주세요.');
       return;
     }
     setError(null);
+    const birthForm = userDataToBirthForm(birth);
     let entered: MyeongsikParams;
     try {
-      entered = buildMyeongsikFromBirth(birth);
+      entered = buildMyeongsikFromBirth(birthForm);
     } catch {
       setError('사주 계산에 실패했습니다. 입력을 확인해 주세요.');
       return;
@@ -311,7 +293,7 @@ function RecoverGenerationForm({
       setError('입력한 생년월일이 이 코드에 등록된 명식과 일치하지 않습니다. 결제 때 입력한 정보와 동일하게 입력해 주세요.');
       return;
     }
-    onVerified(birth);
+    onVerified(birthForm);
   };
 
   return (

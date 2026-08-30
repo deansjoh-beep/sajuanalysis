@@ -7,9 +7,8 @@ test.describe('앱 전체 스모크 E2E', () => {
     await expect(page.getByText('유아이 사주상담').first()).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole('button', { name: 'HOME' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: '만세력' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: '오늘의 운세' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: '상담' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: '프리미엄리포트' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: '리포트 구매' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: '리포트 조회' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: '블로그' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'HELP' }).first()).toBeVisible();
@@ -26,7 +25,7 @@ test.describe('앱 전체 스모크 E2E', () => {
     await page.getByRole('button', { name: '리포트 조회' }).first().click();
     await expect(page.getByText('구매 시 받은 사주 코드로 리포트를 다시 열람하세요', { exact: false }).first()).toBeVisible();
 
-    await page.getByRole('button', { name: '오늘의 운세' }).first().click();
-    await expect(page.getByRole('heading', { name: '오늘의 운세' }).first()).toBeVisible();
+    await page.getByRole('button', { name: '리포트 구매' }).first().click();
+    await expect(page.getByRole('heading', { name: '리포트 받기' }).first()).toBeVisible();
   });
 });

@@ -1,5 +1,4 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 import { TAB_TRANSITION } from '../../constants/styles';
 import { PaperBackground } from '../welcome/PaperBackground';
@@ -11,7 +10,6 @@ import { IljinCalendarPromo } from '../welcome/IljinCalendarPromo';
 import { FinalCTASection } from '../welcome/FinalCTASection';
 import { WelcomeFooter } from '../welcome/WelcomeFooter';
 import { ReviewsSection } from '../ReviewsSection';
-import { BirthInputFields } from '../BirthInputFields';
 import type { TeaserInput } from '../../lib/landingTeaser';
 import type { ReviewSource } from '../ReviewModal';
 
@@ -49,12 +47,7 @@ interface BlogPostLite {
 }
 
 interface WelcomeTabProps {
-  showInputForm: boolean;
-  setShowInputForm: (v: boolean) => void;
   userData: UserData;
-  setUserData: (u: UserData) => void;
-  isAgreed: boolean;
-  setIsAgreed: (v: boolean) => void;
   setActiveTab: (t: ActiveTab) => void;
   setOrderProductType: (t: ProductType) => void;
   /** 후기 작성 모달 열기 — 진입점을 sourcePage로 남겨 동선별 유입을 집계한다 */
@@ -64,20 +57,16 @@ interface WelcomeTabProps {
   recommendedPosts: BlogPostLite[];
   onPostClick: (post: BlogPostLite) => void;
   currentSeoulYear: number;
-  handleStart: () => void;
   /** 랜딩 티저 → 만세력 직행 (이름 없이) */
   onTeaserManse: (input: TeaserInput) => void;
+  /** 티저 입력을 전역 userData로 머지 — 제출 시·결제 직행 시 공용 (결제 폼 프리필 + 브라우저 보관) */
+  onTeaserCheckout: (input: TeaserInput) => void;
   /** 푸터 약관·정책 링크 → 가이드 서브페이지로 이동 */
   onOpenPolicy: (page: 'terms' | 'privacy' | 'refund') => void;
 }
 
 export default function WelcomeTab({
-  showInputForm,
-  setShowInputForm,
   userData,
-  setUserData,
-  isAgreed,
-  setIsAgreed,
   setActiveTab,
   setOrderProductType,
   openReviewModal,
@@ -85,8 +74,8 @@ export default function WelcomeTab({
   recommendedPosts,
   onPostClick,
   currentSeoulYear,
-  handleStart,
   onTeaserManse,
+  onTeaserCheckout,
   onOpenPolicy,
 }: WelcomeTabProps) {
   // 첫 섹션 다음으로 스크롤할 때 사용
@@ -104,8 +93,9 @@ export default function WelcomeTab({
     setActiveTab('checkout');
   };
 
-  // 티저 [리포트로 깊이 보기] → 체크아웃.
-  const handleOpenCheckout = () => {
+  // 티저 [리포트로 깊이 보기] → 체크아웃. 티저 입력을 먼저 전역 머지해 결제 폼에 프리필한다.
+  const handleOpenCheckout = (input: TeaserInput) => {
+    onTeaserCheckout(input);
     setActiveTab('checkout');
   };
 
@@ -132,13 +122,15 @@ export default function WelcomeTab({
           <PaperBackground />
         </div>
 
-        {!showInputForm ? (
-          <div className="relative">
+        <div className="relative">
             <HeroSection
               onScrollClick={handleScrollDown}
               currentSeoulYear={currentSeoulYear}
+              initialBirth={userData}
+              onSubmitted={onTeaserCheckout}
               onOpenManse={onTeaserManse}
               onOpenCheckout={handleOpenCheckout}
+              onOpenPrivacy={() => onOpenPolicy('privacy')}
               onWriteReview={() => openReviewModal('welcome-teaser')}
             />
 
@@ -182,96 +174,6 @@ export default function WelcomeTab({
               onOpenPolicy={onOpenPolicy}
             />
           </div>
-        ) : (
-          <div className="relative px-4 py-10 md:py-16">
-            <div className="max-w-2xl mx-auto pb-16 md:pb-20 space-y-5 md:space-y-7">
-              <button
-                onClick={() => setShowInputForm(false)}
-                className="relative inline-flex items-center gap-2 min-h-[44px] px-2 text-[13px] font-bold text-ink-500 hover:text-ink-900 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                랜딩페이지로 돌아가기
-              </button>
-
-              <section
-                className="relative rounded-3xl border border-ink-300/30 bg-paper-50/70 backdrop-blur-sm p-5 md:p-8 space-y-5 md:space-y-6"
-                style={{ boxShadow: '0 1px 0 rgba(168, 138, 74, 0.1), 0 12px 28px -12px rgba(58, 53, 48, 0.12)' }}
-              >
-                <div className="text-center space-y-2">
-                  <h2 className="font-serif text-2xl sm:text-3xl md:text-[34px] font-bold text-ink-900 leading-tight">
-                    당신의 생년월일시를 입력해 주세요
-                  </h2>
-                </div>
-
-                <div
-                  className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
-                    isAgreed
-                      ? 'bg-paper-100/70 border-ink-300/40'
-                      : 'bg-paper-100/40 border-ink-300/20'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    id="privacyAgree"
-                    checked={isAgreed}
-                    onChange={(e) => setIsAgreed(e.target.checked)}
-                    className="w-5 h-5 rounded border-ink-500 text-ink-900 focus:ring-ink-500 cursor-pointer"
-                  />
-                  <label
-                    htmlFor="privacyAgree"
-                    className="text-[13px] font-bold text-ink-700 cursor-pointer"
-                  >
-                    개인정보 이용에 동의합니다
-                  </label>
-                </div>
-
-                <div
-                  className={`space-y-5 transition-all ${
-                    !isAgreed ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-widest ml-1 text-ink-500">
-                      사용자 이름
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="이름을 입력하세요"
-                      value={userData.name}
-                      disabled={!isAgreed}
-                      onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                      className="w-full px-4 py-3 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 focus:ring-2 focus:ring-ink-500/40 outline-none transition-all text-base text-ink-900"
-                    />
-                  </div>
-
-                  <BirthInputFields
-                    value={userData}
-                    onChange={setUserData}
-                    disabled={!isAgreed}
-                    currentSeoulYear={currentSeoulYear}
-                  />
-
-                  <button
-                    onClick={handleStart}
-                    disabled={!isAgreed}
-                    className={`w-full py-4 min-h-[44px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold shadow-lg shadow-ink-700/20 flex items-center justify-center gap-2 active:scale-95 transition-all ${
-                      !isAgreed ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    운세 분석 시작
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </section>
-
-              <p className="text-center text-[11px] tracking-tight text-ink-500/80">
-                생시를 알면 더 정확한 운세 분석이 가능합니다. 몰라도 상담은 가능합니다.
-                <br />
-                유아이는 사용자의 개인 정보를 저장하지 않습니다.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </motion.div>
   );

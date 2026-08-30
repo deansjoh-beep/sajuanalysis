@@ -105,6 +105,7 @@ import type {
   SuggestionSource,
 } from "./types/app";
 import { DEFAULT_USER_DATA } from "./types/app";
+import { loadStoredUserData, saveStoredUserData, clearStoredUserData } from "./lib/userDataStorage";
 import type { TeaserInput } from "./lib/landingTeaser";
 import { renderChatPlainText } from "./components/chat/renderChatPlainText";
 
@@ -147,7 +148,13 @@ const App: React.FC = () => {
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   // State
-  const [userData, setUserData] = useState<UserData>({ ...DEFAULT_USER_DATA });
+  // 재방문 시 이전에 입력한 생년월일시 복원 (이 브라우저 localStorage에만 보관 — 서버 미전송)
+  const [userData, setUserData] = useState<UserData>(() => loadStoredUserData() ?? { ...DEFAULT_USER_DATA });
+  // 기본값 그대로면 저장하지 않는다 — 실제 입력만 보관 (StrictMode 이중 실행에도 안전).
+  useEffect(() => {
+    if (JSON.stringify(userData) === JSON.stringify(DEFAULT_USER_DATA)) return;
+    saveStoredUserData(userData);
+  }, [userData]);
   const [sajuResult, setSajuResult] = useState<any[]>([]);
   const [daeunResult, setDaeunResult] = useState<any[]>([]);
   const [selectedDaeunIdx, setSelectedDaeunIdx] = useState<number | null>(null);
@@ -252,8 +259,6 @@ const App: React.FC = () => {
     }
   }, [activeTab, daeunResult, scrollDaeunToCenter]);
 
-  const [showInputForm, setShowInputForm] = useState(false);
-  const [isAgreed, setIsAgreed] = useState(false);
   const [showInlineSuggestions, setShowInlineSuggestions] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const allowedAdminEmails = getAllowedAdminEmails();
@@ -280,7 +285,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 외부 진입 처리: 푸시 딥링크(?tab=daily) + 정책 페이지 딥링크(?policy=refund) + 카카오 로그인 콜백(?code=)
+  // 외부 진입 처리: 탭 딥링크(?tab=...) + 정책 페이지 딥링크(?policy=refund) + 카카오 로그인 콜백(?code=)
   // ⚠️ ?tab=checkout(상품 페이지)·?policy=refund(취소·환불 정책)는 PG 심사에서 요구하는 직접 접속 URL이다.
   //    탭 이름을 바꾸거나 허용 목록에서 빼면 심사 제출 URL이 깨진다.
   useEffect(() => {
@@ -311,8 +316,10 @@ const App: React.FC = () => {
       }
 
       // 푸시 알림 딥링크 + 외부 제출용 직접 접속 URL
+      // 'daily'(오늘의 운세)는 탭 미배선 상태 — 렌더 분기가 생기기 전까지 허용하면 빈 화면이 되므로 제외.
+      // (과거 푸시의 ?tab=daily 링크는 기본 탭인 랜딩으로 폴백된다)
       const tab = params.get('tab');
-      const allowed = ['welcome', 'dashboard', 'chat', 'report', 'guide', 'blog', 'checkout', 'lookup', 'taekil', 'daily'];
+      const allowed = ['welcome', 'dashboard', 'chat', 'report', 'guide', 'blog', 'checkout', 'lookup', 'taekil'];
       if (tab && allowed.includes(tab)) {
         setActiveTab(tab as any);
       }
@@ -363,6 +370,7 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     if (window.confirm("상담을 종료하고 모든 입력 데이터를 삭제하시겠습니까? (이 작업은 되돌릴 수 없습니다)")) {
+      clearStoredUserData();
       setUserData({ ...DEFAULT_USER_DATA });
       setMessages([]);
       setSajuResult([]);
@@ -459,7 +467,7 @@ const App: React.FC = () => {
     [d.birthYear, d.birthMonth, d.birthDay, d.unknownTime ? 'x' : `${d.birthHour}:${d.birthMinute}`, d.calendarType, d.gender].join('|');
   const lastAnalyzedRef = useRef<string>('');
 
-  // Saju Calculation Trigger — 입력 폼(handleStart)·랜딩 티저(handleTeaserToManse)·리포트 구매(silent)가 공유.
+  // Saju Calculation Trigger — 랜딩 티저(handleTeaserToManse)·리포트 구매(silent)가 공유.
   // silent: 연출·탭 이동 없이 계산만 수행(리포트 구매에서 입력한 생년월일시를 상담·만세력에 재사용).
   const runAnalysis = async (data: UserData, opts: { silent?: boolean } = {}) => {
     const silent = opts.silent === true;
@@ -527,7 +535,6 @@ const App: React.FC = () => {
       consultationModeRef.current = 'basic';
       if (!silent) {
         setActiveTab("dashboard");
-        setShowInputForm(false);
       }
 
       // Reset chat with context
@@ -549,24 +556,31 @@ const App: React.FC = () => {
     }
   };
 
-  const handleStart = () => runAnalysis(userData);
+  // 랜딩 티저 입력 → 전역 UserData 머지 (이름은 선택 입력 — 비어 있으면 기존 값 유지)
+  const mergeTeaserInput = (t: TeaserInput): UserData => ({
+    ...userData,
+    name: t.name.trim() || userData.name,
+    birthYear: t.birthYear,
+    birthMonth: t.birthMonth,
+    birthDay: t.birthDay,
+    birthHour: t.unknownTime ? userData.birthHour : t.birthHour,
+    birthMinute: '0',
+    calendarType: t.calendarType,
+    gender: t.gender,
+    unknownTime: t.unknownTime,
+  });
 
-  // 랜딩 티저 → 만세력 직행 (이름은 선택 입력 — 비어 있으면 기존 값 유지)
+  // 랜딩 티저 → 만세력 직행
   const handleTeaserToManse = (t: TeaserInput) => {
-    const merged: UserData = {
-      ...userData,
-      name: t.name.trim() || userData.name,
-      birthYear: t.birthYear,
-      birthMonth: t.birthMonth,
-      birthDay: t.birthDay,
-      birthHour: t.unknownTime ? userData.birthHour : t.birthHour,
-      birthMinute: '0',
-      calendarType: t.calendarType,
-      gender: t.gender,
-      unknownTime: t.unknownTime,
-    };
+    const merged = mergeTeaserInput(t);
     setUserData(merged);
     void runAnalysis(merged);
+  };
+
+  // 티저 입력 전역 머지 (제출 시·결제 직행 시 공용) — 결제 폼 프리필과 브라우저 보관의 소스.
+  // 사주 계산은 하지 않는다 (만세력 직행은 handleTeaserToManse, 결제는 onBirthConfirmed가 silent 수행).
+  const handleTeaserToCheckout = (t: TeaserInput) => {
+    setUserData(mergeTeaserInput(t));
   };
 
   // 리포트 구매에서 생년월일시 확정 → 상담·만세력에서 재입력 없이 그대로 사용.
@@ -1233,12 +1247,7 @@ const App: React.FC = () => {
           <AnimatePresence mode="wait">
           {activeTab === "welcome" && (
             <WelcomeTab
-              showInputForm={showInputForm}
-              setShowInputForm={setShowInputForm}
               userData={userData}
-              setUserData={setUserData}
-              isAgreed={isAgreed}
-              setIsAgreed={setIsAgreed}
               setActiveTab={setActiveTab}
               setOrderProductType={setOrderProductType}
               openReviewModal={openReviewModal}
@@ -1246,8 +1255,8 @@ const App: React.FC = () => {
               recommendedPosts={recommendedPosts}
               onPostClick={blogTab.handlePostClick}
               currentSeoulYear={currentSeoulYear}
-              handleStart={handleStart}
               onTeaserManse={handleTeaserToManse}
+              onTeaserCheckout={handleTeaserToCheckout}
               onOpenPolicy={(page) => {
                 setGuideSubPage(page);
                 setActiveTab('guide');
@@ -1298,6 +1307,10 @@ const App: React.FC = () => {
                   currentSeoulYear={currentSeoulYear}
                   onBirthConfirmed={handleCheckoutBirthConfirmed}
                   onReportReady={handleReportReady}
+                  onOpenPrivacy={() => {
+                    setGuideSubPage('privacy');
+                    setActiveTab('guide');
+                  }}
                   memberUid={user?.uid ?? null}
                 />
               </Suspense>

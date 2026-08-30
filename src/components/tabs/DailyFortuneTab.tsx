@@ -14,7 +14,7 @@ import {
 import type { User as FirebaseUser } from 'firebase/auth';
 
 type ActiveTab =
-  | 'welcome' | 'dashboard' | 'taekil' | 'chat' | 'report' | 'guide' | 'blog' | 'premium' | 'order';
+  | 'welcome' | 'dashboard' | 'taekil' | 'chat' | 'report' | 'guide' | 'blog' | 'premium' | 'checkout';
 type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
 
 interface DailyFortuneTabProps {
@@ -69,7 +69,7 @@ const SECTION_META: { key: keyof DailyFortuneResponse['fortune']['sections']; la
 export default function DailyFortuneTab({ user, onLoginClick, setActiveTab, setOrderProductType }: DailyFortuneTabProps) {
   const goToProduct = (type: ProductType) => {
     setOrderProductType(type);
-    setActiveTab('order');
+    setActiveTab('checkout');
   };
   const [data, setData] = useState<DailyFortuneResponse | null>(null);
   const [loading, setLoading] = useState(false);

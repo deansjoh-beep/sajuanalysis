@@ -7,7 +7,8 @@ import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
 import type { BirthFormInput, ReportAskInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth } from '../../lib/buildMyeongsik';
 import { addSavedCode } from '../../lib/memberStore';
-import { BirthInputFields, userDataToBirthStrings } from '../BirthInputFields';
+import { BirthInputFields, userDataToBirthForm } from '../BirthInputFields';
+import { isValidBirthDate } from '../../utils/birthDate';
 import type { UserData } from '../../types/app';
 import { PRODUCT_ACCESS, FREE_OPEN } from '@/db/productAccess';
 import { TossTestModeNotice, isTossTestMode } from '../TossTestModeNotice';
@@ -40,18 +41,8 @@ interface PendingCheckout {
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 const isOpen = (p: ProductType) => PRODUCT_ACCESS[p] === 'open';
 
-/** 전역 userData(랜딩·상담과 공유) → 생성/명식 파이프 입력. */
-function birthFromUserData(u: UserData): BirthFormInput {
-  const { dateStr, timeStr } = userDataToBirthStrings(u);
-  return {
-    dateStr,
-    timeStr,
-    isLunar: u.calendarType !== 'solar',
-    isLeap: u.calendarType === 'leap',
-    gender: u.gender,
-    unknownTime: u.unknownTime,
-  };
-}
+/** 전역 userData(랜딩·상담과 공유) → 생성/명식 파이프 입력. 공용 헬퍼 별칭(호출부 최소 변경). */
+const birthFromUserData = userDataToBirthForm;
 
 // ─── 코드 표시 + 클립보드 복사 ────────────────────────────────────────────────
 
@@ -243,6 +234,8 @@ interface CheckoutTabProps {
   onBirthConfirmed?: (u: UserData) => void;
   /** 리포트 생성 완료 시 — App이 조회 탭으로 자동 이동해 코드를 자동 조회한다. */
   onReportReady?: (code: string) => void;
+  /** 개인정보 처리방침 페이지 열기 (가이드 서브페이지) */
+  onOpenPrivacy?: () => void;
   /** 로그인한 회원의 uid — 코드 보관(옵트인) 기능 노출 조건 */
   memberUid?: string | null;
 }
@@ -255,6 +248,7 @@ export default function CheckoutTab({
   currentSeoulYear,
   onBirthConfirmed,
   onReportReady,
+  onOpenPrivacy,
   memberUid,
 }: CheckoutTabProps) {
   const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY as string | undefined;
@@ -409,6 +403,11 @@ export default function CheckoutTab({
 
   const goPay = () => {
     setError(null);
+    // 결제 전 최종 날짜 검증 — 잘못된 날짜로 결제 후 생성이 실패하는 사고를 막는다.
+    if (!isValidBirthDate(Number(userData.birthYear), Number(userData.birthMonth), Number(userData.birthDay), userData.calendarType)) {
+      setError('존재하지 않는 날짜입니다. 생년월일을 확인해 주세요.');
+      return;
+    }
     // 입력한 생년월일시를 상담·만세력에도 즉시 재사용할 수 있도록 App에 알린다.
     onBirthConfirmed?.(userData);
     setStep('pay');
@@ -520,7 +519,7 @@ export default function CheckoutTab({
               <p className="text-[14px] text-ink-500 leading-relaxed">
                 생년월일과 태어난 시간을 확인해 주세요. 사이트에서 이미 입력하셨다면 그대로 채워져
                 있습니다. 여기서 입력한 정보는 상담·만세력에서도 다시 입력할 필요 없이 그대로 사용되며,
-                사주 계산에만 쓰이고 저장되지 않습니다.
+                사주 계산에만 쓰이고 서버에는 저장되지 않습니다.
               </p>
 
               <BirthInputFields value={userData} onChange={setUserData} currentSeoulYear={currentSeoulYear} />
@@ -556,6 +555,17 @@ export default function CheckoutTab({
               <button onClick={goPay} className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold">
                 {FREE_OPEN ? '다음' : `결제 단계로 (${won(catalogItem.price)})`}
               </button>
+              <p className="text-[12px] text-ink-500 leading-relaxed">
+                버튼을 누르면{' '}
+                {onOpenPrivacy ? (
+                  <button type="button" onClick={onOpenPrivacy} className="underline underline-offset-2 hover:text-ink-900">
+                    개인정보 처리방침
+                  </button>
+                ) : (
+                  '개인정보 처리방침'
+                )}
+                에 동의한 것으로 봅니다.
+              </p>
             </section>
           )}
 
