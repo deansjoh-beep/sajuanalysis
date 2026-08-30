@@ -4,20 +4,27 @@ import { BrushText } from './BrushText';
 import { InkRevealText } from './InkRevealText';
 import { HeroSajuTeaser } from './HeroSajuTeaser';
 import type { TeaserInput } from '../../lib/landingTeaser';
+import type { UserData } from '../../types/app';
 
 interface HeroSectionProps {
   onScrollClick: () => void;
   currentSeoulYear: number;
+  initialBirth: UserData;
+  onSubmitted: (input: TeaserInput) => void;
   onOpenManse: (input: TeaserInput) => void;
-  onOpenCheckout: () => void;
+  onOpenCheckout: (input: TeaserInput) => void;
+  onOpenPrivacy: () => void;
   onWriteReview: () => void;
 }
 
 export function HeroSection({
   onScrollClick,
   currentSeoulYear,
+  initialBirth,
+  onSubmitted,
   onOpenManse,
   onOpenCheckout,
+  onOpenPrivacy,
   onWriteReview,
 }: HeroSectionProps) {
   return (
@@ -59,8 +66,11 @@ export function HeroSection({
         >
           <HeroSajuTeaser
             currentSeoulYear={currentSeoulYear}
+            initialBirth={initialBirth}
+            onSubmitted={onSubmitted}
             onOpenManse={onOpenManse}
             onOpenCheckout={onOpenCheckout}
+            onOpenPrivacy={onOpenPrivacy}
             onWriteReview={onWriteReview}
           />
 

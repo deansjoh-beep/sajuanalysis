@@ -1,5 +1,7 @@
 import type { UserData } from '../types/app';
+import type { BirthFormInput } from '../lib/runReportGeneration';
 import { BirthTimeQuiz } from './BirthTimeQuiz';
+import { maxDayOfBirthMonth } from '../utils/birthDate';
 
 /**
  * 생년월일시 공용 입력 필드 — 랜딩 무료운세 입력 폼(WelcomeTab)에서 추출.
@@ -19,7 +21,15 @@ export function BirthInputFields({
   disabled?: boolean;
   currentSeoulYear: number;
 }) {
-  const set = (patch: Partial<UserData>) => onChange({ ...value, ...patch });
+  // 년/월/달력종류가 바뀌어 선택된 일(日)이 그 달의 말일을 넘으면 말일로 자동 보정한다.
+  const set = (patch: Partial<UserData>) => {
+    const next = { ...value, ...patch };
+    const maxDay = maxDayOfBirthMonth(Number(next.birthYear), Number(next.birthMonth), next.calendarType);
+    if (Number(next.birthDay) > maxDay) next.birthDay = String(maxDay);
+    onChange(next);
+  };
+
+  const maxDay = maxDayOfBirthMonth(Number(value.birthYear), Number(value.birthMonth), value.calendarType);
 
   return (
     <div className="space-y-5">
@@ -63,7 +73,7 @@ export function BirthInputFields({
               onChange={(e) => set({ birthDay: e.target.value })}
               className="w-full px-2 py-2.5 min-h-[44px] rounded-xl border border-ink-300/40 bg-paper-50/80 text-[13px] outline-none text-ink-900"
             >
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+              {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
                 <option key={d} value={d}>
                   {d}일
                 </option>
@@ -198,5 +208,18 @@ export function userDataToBirthStrings(u: UserData): { dateStr: string; timeStr:
   return {
     dateStr: `${u.birthYear}-${p(u.birthMonth)}-${p(u.birthDay)}`,
     timeStr: `${p(u.birthHour)}:${p(u.birthMinute)}`,
+  };
+}
+
+/** UserData(공용 폼) → BirthFormInput(생성/명식 파이프). 결제(CheckoutTab)·조회(CodeLookupTab)가 공유. */
+export function userDataToBirthForm(u: UserData): BirthFormInput {
+  const { dateStr, timeStr } = userDataToBirthStrings(u);
+  return {
+    dateStr,
+    timeStr,
+    isLunar: u.calendarType !== 'solar',
+    isLeap: u.calendarType === 'leap',
+    gender: u.gender,
+    unknownTime: u.unknownTime,
   };
 }

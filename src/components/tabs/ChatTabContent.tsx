@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { MessageCircle, RefreshCw, Mic, Send } from 'lucide-react';
+import { RefreshCw, Mic, Send } from 'lucide-react';
 import { ChatTab } from './ChatTab';
 import { TAB_TRANSITION, GLASS_TAB_BG_CLASS } from '../../constants/styles';
 import { BASIC_CHAT_CATEGORIES, CATEGORIES } from '../../constants/questions';
@@ -108,7 +108,7 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
 
   const onGoToOrder = () => {
     setOrderProductType('premium');
-    setActiveTab('order');
+    setActiveTab('checkout');
   };
 
   return (
@@ -183,13 +183,22 @@ export const ChatTabContent: React.FC<ChatTabContentProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
-                  <MessageCircle className="w-14 h-14" />
-                  <p>
-                    {consultationMode === 'basic'
-                      ? '무엇이 궁금하신가요?\n아래 추천 질문을 선택하거나 음성/직접 입력해 주세요.'
-                      : '궁금한 점을 물어보세요.\n당신의 사주를 기반으로 답변해 드립니다.'}
-                  </p>
+                // 사주 입력 없이 상담 탭에 직행한 경우 — 질문을 유도하지 말고 입력 화면으로 안내한다.
+                <div className="h-full flex flex-col items-center justify-center text-center px-6 space-y-5">
+                  <div className="space-y-2">
+                    <h3 className="font-serif text-[18px] font-bold text-ink-900">아직 사주 정보가 없습니다</h3>
+                    <p className="text-[14px] text-ink-500 leading-relaxed">
+                      생년월일시를 입력하시면 내 사주를 바탕으로
+                      <br />
+                      1:1 상담을 시작할 수 있습니다.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('welcome')}
+                    className="inline-flex min-h-[44px] items-center justify-center px-8 py-3 rounded-full bg-ink-900 text-paper-50 font-bold text-[14px] shadow-md hover:bg-ink-700 transition-all"
+                  >
+                    생년월일 입력하러 가기
+                  </button>
                 </div>
               )
             )}

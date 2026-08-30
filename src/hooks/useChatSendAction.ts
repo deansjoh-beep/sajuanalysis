@@ -576,7 +576,7 @@ export const useChatSendAction = ({
     }
 
     if (sajuResult.length === 0) {
-      alert('먼저 사주 분석을 완료해 주세요.');
+      alert('먼저 생년월일시를 입력해 주세요. 입력 화면으로 이동합니다.');
       setActiveTab('welcome');
       return;
     }
@@ -726,7 +726,7 @@ export const useChatSendAction = ({
     }
 
     if (sajuResult.length === 0) {
-      alert('먼저 사주 분석을 완료해 주세요.');
+      alert('먼저 생년월일시를 입력해 주세요. 입력 화면으로 이동합니다.');
       setActiveTab('welcome');
       return;
     }

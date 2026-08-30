@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { buildTeaserSummary, fetchTeaserComment, teaserInputToDateStrings, type TeaserInput, type TeaserSummary } from '../../lib/landingTeaser';
 import { toOhaengChartData } from '../../constants/ohaengColors';
 import { getSajuData, getDaeunData, calculateYongshin, calculateGyeok } from '../../utils/saju';
-import { DEFAULT_USER_DATA } from '../../types/app';
+import type { UserData } from '../../types/app';
 import { getPreferredGeminiModels } from '../../lib/geminiClient';
 import { generateBasicReport } from '../../lib/generateBasicReport';
 import { generateReportKeywords } from '../../lib/generateReportKeywords';
@@ -11,8 +11,10 @@ import { isRetryableModelError } from '../../lib/modelUtils';
 import { parseReport, type ParsedReport } from '../manse/reportSectionUtils';
 import { selectCoreHook, formatHookPct, type CoreHook } from '../../lib/hookEngine';
 import { buildMyeongsikFromBirth, type MyeongsikParams } from '../../lib/buildMyeongsik';
+import { isValidBirthDate, maxDayOfBirthMonth } from '../../utils/birthDate';
 import { computeLifeIndices, summarizeLifeIndexPeaks } from '../../lib/analysis/lifeIndex';
 import { ReportAccordion } from './ReportAccordion';
+import { BirthTimeQuiz } from '../BirthTimeQuiz';
 
 const FiveElementsPieChart = React.lazy(() => import('../FiveElementsPieChart'));
 const LazyLifeIndexChart = React.lazy(() => import('../lifeIndex/LifeIndexChart'));
@@ -25,8 +27,14 @@ const LazyLifeIndexChart = React.lazy(() => import('../lifeIndex/LifeIndexChart'
 
 export interface HeroSajuTeaserProps {
   currentSeoulYear: number;
+  /** 전역 userData — 이 브라우저에 보관된 이전 입력값으로 폼을 프리필한다 */
+  initialBirth: UserData;
+  /** 제출 성공 시 입력값을 전역 userData로 머지 — 결제·상담 프리필과 브라우저 보관의 소스가 된다 */
+  onSubmitted: (input: TeaserInput) => void;
   onOpenManse: (input: TeaserInput) => void;
-  onOpenCheckout: () => void;
+  onOpenCheckout: (input: TeaserInput) => void;
+  /** 개인정보 처리방침 페이지 열기 (가이드 서브페이지) */
+  onOpenPrivacy: () => void;
   /** 무료 요약을 다 읽은 직후 공개 후기 작성 모달을 연다 (리포트 조회 탭과 동일 동선) */
   onWriteReview: () => void;
 }
@@ -37,16 +45,16 @@ const FIELD =
 const SEG_ON = 'bg-ink-900 text-paper-50 shadow-md';
 const SEG_OFF = 'text-ink-500';
 
-export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, onWriteReview }: HeroSajuTeaserProps) {
+export function HeroSajuTeaser({ currentSeoulYear, initialBirth, onSubmitted, onOpenManse, onOpenCheckout, onOpenPrivacy, onWriteReview }: HeroSajuTeaserProps) {
   const [input, setInput] = useState<TeaserInput>({
-    name: DEFAULT_USER_DATA.name,
-    birthYear: DEFAULT_USER_DATA.birthYear,
-    birthMonth: DEFAULT_USER_DATA.birthMonth,
-    birthDay: DEFAULT_USER_DATA.birthDay,
-    birthHour: DEFAULT_USER_DATA.birthHour,
-    calendarType: DEFAULT_USER_DATA.calendarType,
-    gender: DEFAULT_USER_DATA.gender,
-    unknownTime: DEFAULT_USER_DATA.unknownTime,
+    name: initialBirth.name,
+    birthYear: initialBirth.birthYear,
+    birthMonth: initialBirth.birthMonth,
+    birthDay: initialBirth.birthDay,
+    birthHour: initialBirth.birthHour,
+    calendarType: initialBirth.calendarType,
+    gender: initialBirth.gender,
+    unknownTime: initialBirth.unknownTime,
   });
   const [summary, setSummary] = useState<TeaserSummary | null>(null);
   // 엔진 선정 핵심 훅 — AI 호출 없이 제출 즉시 결정론적으로 계산·노출.
@@ -72,11 +80,23 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, 
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // 년/월/달력종류가 바뀌어 선택된 일(日)이 그 달의 말일을 넘으면 말일로 자동 보정한다.
   const set = <K extends keyof TeaserInput>(key: K, value: TeaserInput[K]) =>
-    setInput((prev) => ({ ...prev, [key]: value }));
+    setInput((prev) => {
+      const next = { ...prev, [key]: value };
+      const maxDay = maxDayOfBirthMonth(Number(next.birthYear), Number(next.birthMonth), next.calendarType);
+      if (Number(next.birthDay) > maxDay) next.birthDay = String(maxDay);
+      return next;
+    });
+
+  const maxDay = maxDayOfBirthMonth(Number(input.birthYear), Number(input.birthMonth), input.calendarType);
 
   const handleSubmit = () => {
     setError(null);
+    if (!isValidBirthDate(Number(input.birthYear), Number(input.birthMonth), Number(input.birthDay), input.calendarType)) {
+      setError('존재하지 않는 날짜입니다. 생년월일을 확인해 주세요.');
+      return;
+    }
     let built: TeaserSummary;
     try {
       built = buildTeaserSummary(input);
@@ -86,6 +106,8 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, 
       return;
     }
     setSummary(built);
+    // 제출된 입력을 전역으로 머지 — 결제·상담·만세력 프리필과 브라우저 보관(재방문 복원)의 소스.
+    onSubmitted(input);
 
     // 핵심 훅 — 희소성 통계 기반 결정론 선정. 실패해도 요약 표시는 계속.
     try {
@@ -246,7 +268,7 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, 
                 ))}
               </select>
               <select value={input.birthDay} onChange={(e) => set('birthDay', e.target.value)} className={FIELD} aria-label="일">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>{d}일</option>
                 ))}
               </select>
@@ -274,6 +296,17 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, 
                 생시 몰라요
               </label>
             </div>
+
+            {/* 시간 모름 사용자용 생시추정 퀴즈 — 공용 입력 폼(BirthInputFields)과 동일 동선 */}
+            {input.unknownTime && (
+              <div className="text-left">
+                <BirthTimeQuiz
+                  onSelect={(hour) =>
+                    setInput((prev) => ({ ...prev, birthHour: String(hour), unknownTime: false }))
+                  }
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-paper-100/60 border border-ink-300/30">
@@ -315,7 +348,11 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, 
 
             {/* 캘린더 무료 제공 안내는 바로 아래 IljinCalendarPromo 섹션이 담당한다(문구 중복 방지). */}
             <p className="text-center text-[12px] text-ink-500">
-              입력 정보는 저장되지 않습니다.
+              버튼을 누르면{' '}
+              <button type="button" onClick={onOpenPrivacy} className="underline underline-offset-2 hover:text-ink-900">
+                개인정보 처리방침
+              </button>
+              에 동의한 것으로 봅니다. 입력 정보는 서버로 전송·저장되지 않으며, 다음 방문을 위해 이 브라우저에만 보관됩니다.
             </p>
           </>
         ) : (
@@ -444,7 +481,7 @@ export function HeroSajuTeaser({ currentSeoulYear, onOpenManse, onOpenCheckout, 
                 만세력 자세히 보기
               </button>
               <button
-                onClick={onOpenCheckout}
+                onClick={() => onOpenCheckout(input)}
                 className="flex-1 py-3 min-h-[44px] rounded-full bg-ink-900 hover:bg-ink-700 text-paper-50 font-bold text-[14px] shadow-lg shadow-ink-700/20 transition-all"
               >
                 내 인생 깊이 보기 - 사주리포트 유료 결제
