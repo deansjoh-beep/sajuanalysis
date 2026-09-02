@@ -8,7 +8,7 @@ import type { BirthFormInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from '../../lib/buildMyeongsik';
 import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildJeolipIcs } from '../../lib/jeolipIcs';
-import { PDF_SERIF_FONT_LINKS, PDF_SERIF_STACK } from '../../lib/pdfFonts';
+import { buildReportPdfFileName, buildReportPdfHtml, stripMarkers } from '../../lib/reportPdf';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 import LifeIndexCard from '../lifeIndex/LifeIndexCard';
@@ -77,25 +77,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const CODE_INPUT_PATTERN = /^[A-Za-z0-9]{2}-?[A-Za-z0-9]{6}$/;
 
-// ─── 리포트 본문 렌더 헬퍼 (구조 마커 제거) ─────────────────────────────────
-
-const MARKER_PATTERNS: RegExp[] = [
-  /\[\s*\/?\s*(?:SECTION|TITLE|SUMMARY|CONTENT|END)\s*\]/gi,
-  /\[\s*\/?\s*DAEUN_(?:START|CONTENT|END)\s*\]/gi,
-  /\[\s*DAEUN_TRANSITION\s*\]/gi,
-  /\[\s*\/?\s*FIELD_[^\]]*\]/gi,
-  /\[\s*\/?\s*ACTION_PLAN\s*\]/gi,
-  /\[\s*\/?\s*EASY_(?:START|END)\s*\]/gi,
-  /\[\s*\/?\s*MONTH_(?:START|CONTENT|END)\s*\]/gi,
-  /\[\s*SEUN_BLOCK\s*\]/gi,
-  /\[\s*\/?\s*SUB(?:\s+[^\]]*)?\s*\]/gi,
-];
-
-function stripMarkers(input: string): string {
-  let out = input;
-  for (const p of MARKER_PATTERNS) out = out.replace(p, '\n');
-  return out.replace(/\n{3,}/g, '\n\n').trim();
-}
+// ─── 리포트 본문 렌더 헬퍼 (구조 마커 제거는 lib/reportPdf의 stripMarkers 공용) ──
 
 /** **강조** 만 지원하는 단순 텍스트 렌더 */
 function TextBlock({ text }: { text: string }) {
@@ -454,62 +436,21 @@ function FeedbackForm({
   );
 }
 
-// ─── PDF ────────────────────────────────────────────────────────────────────
-
-function buildPdfHtml(code: string, myeongsik: MyeongsikParams | null, report: LookupReport, sections: ReportSection[]): string {
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const pillars = myeongsik
-    ? `${myeongsik.pillars.year}년 ${myeongsik.pillars.month}월 ${myeongsik.pillars.day}일 ${myeongsik.pillars.hour ?? '시간 미상'}`
-    : '';
-  const body = sections
-    .map(
-      (s) => `
-      <section>
-        <h2>${esc(s.title)}</h2>
-        ${s.summary ? `<p class="summary">${esc(stripMarkers(s.summary))}</p>` : ''}
-        ${stripMarkers(s.content)
-          .split(/\n{2,}/)
-          .map((p) => `<p>${esc(p).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>')}</p>`)
-          .join('')}
-      </section>`,
-    )
-    .join('');
-  // 표지: 명식(간지 8자)·코드만 — 생년월일 원문은 표기하지 않는다 (2-4 원칙)
-  // 폰트 링크는 반드시 실어 보낸다 — 서버리스 Chromium에는 한글 시스템 폰트가 없다(pdfFonts.ts 참고).
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
-${PDF_SERIF_FONT_LINKS}
-<style>
-  @page { size: A4 portrait; margin: 18mm 16mm; }
-  body { font-family: ${PDF_SERIF_STACK}; color: #1f2430; font-size: 11pt; line-height: 1.75; }
-  .cover { text-align: center; padding: 120px 0 60px; page-break-after: always; }
-  .cover h1 { font-size: 24pt; margin-bottom: 24px; }
-  .cover .pillars { font-size: 14pt; letter-spacing: 2px; }
-  .cover .code { margin-top: 40px; font-size: 11pt; color: #6b6f7c; }
-  section { page-break-inside: avoid; margin-bottom: 28px; }
-  h2 { font-size: 14pt; border-bottom: 1px solid #c9c4b4; padding-bottom: 6px; }
-  .summary { font-weight: bold; }
-</style></head><body>
-  <div class="cover">
-    <h1>${esc(PRODUCT_LABEL[report.product] ?? '사주 리포트')}</h1>
-    <p class="pillars">${esc(pillars)}</p>
-    <p class="code">사주 코드 ${esc(code)}</p>
-  </div>
-  ${body}
-</body></html>`;
-}
-
 // ─── 메인 탭 ────────────────────────────────────────────────────────────────
 
 export default function CodeLookupTab({
   initialCode,
   onWriteReview,
   memberUid,
+  memberName,
   onRequestLogin,
 }: {
   initialCode?: string;
   onWriteReview?: (source: ReviewSource) => void;
   /** 로그인한 회원의 uid — 코드 보관(옵트인) 기능 노출 조건 */
   memberUid?: string | null;
+  /** 로그인한 회원의 표시 이름 — PDF 저장 파일명에만 쓰인다(서버로 전송하지 않음) */
+  memberName?: string | null;
   onRequestLogin?: () => void;
 } = {}) {
   const [codeInput, setCodeInput] = useState('');
@@ -681,7 +622,13 @@ export default function CodeLookupTab({
     setPdfBusy(true);
     setPdfSaved(false);
     try {
-      const html = buildPdfHtml(code, result.myeongsik, activeReport, sections);
+      const html = buildReportPdfHtml({
+        code,
+        productLabel: PRODUCT_LABEL[activeReport.product] ?? '사주 리포트',
+        myeongsik: result.myeongsik,
+        sections,
+      });
+      // 서버로 보내는 fileName은 종전대로 코드 기반 — 회원 이름은 서버·스토리지에 남기지 않는다.
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -692,7 +639,7 @@ export default function CodeLookupTab({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `사주리포트_${code}.pdf`;
+      a.download = buildReportPdfFileName(memberName, result.myeongsik, code);
       a.click();
       URL.revokeObjectURL(url);
       setPdfSaved(true);

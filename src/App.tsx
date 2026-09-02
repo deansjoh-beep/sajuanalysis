@@ -1288,6 +1288,7 @@ const App: React.FC = () => {
                   initialCode={lookupAutoCode ?? undefined}
                   onWriteReview={openReviewModal}
                   memberUid={user?.uid ?? null}
+                  memberName={user?.displayName ?? null}
                   onRequestLogin={() => setLoginModalOpen(true)}
                 />
               </Suspense>

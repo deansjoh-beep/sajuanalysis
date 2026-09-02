@@ -54,7 +54,7 @@ describe('PDF 한글 폰트 규칙', () => {
 
 describe('PDF HTML 생성 경로가 한글 폰트를 실어 보낸다', () => {
   const pdfHtmlSources = [
-    'src/components/tabs/CodeLookupTab.tsx',
+    'src/lib/reportPdf.ts',
     'src/lib/iljinCalendar.ts',
     'src/components/admin/PremiumReportPreview.tsx',
     'api/generate-pdf.ts',
