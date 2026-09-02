@@ -37,8 +37,8 @@ const TAG_TO_PRODUCT: Record<string, ProductType> = {
 const PRODUCT_CTA: Record<ProductType, { title: string; desc: string; cta: string }> = {
   jobCareer: {
     title: '직업·재물의 흐름이 두드러지는 날',
-    desc: '오늘의 기운을 넘어, 직업운 리포트로 다가올 1년의 커리어·재물 흐름을 짚어보세요.',
-    cta: '직업운 리포트 보기',
+    desc: '오늘의 기운을 넘어, 직업·재물운 리포트로 다가올 1년의 커리어·재물 흐름을 짚어보세요.',
+    cta: '직업·재물운 리포트 보기',
   },
   loveMarriage: {
     title: '인연과 관계의 기운이 움직이는 날',

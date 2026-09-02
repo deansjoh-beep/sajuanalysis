@@ -91,7 +91,7 @@ export function ReportTabContent({
     },
     {
       badge: 'Career & Job',
-      title: '직업운 리포트',
+      title: '직업·재물운 리포트',
       hanja: '職業運報告',
       tagline: '나는 어떤 환경에서 가장 빛나는 사람인가',
       description:
@@ -103,7 +103,7 @@ export function ReportTabContent({
         '함께할 때 시너지 나는 동료/상사 유형',
       ],
       price: '4,900원',
-      cta: '직업운 리포트 주문하기',
+      cta: '직업·재물운 리포트 주문하기',
       icon: Briefcase,
       onClick: onGoToJobCareer,
     },
