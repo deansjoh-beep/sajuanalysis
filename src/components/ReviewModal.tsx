@@ -14,7 +14,7 @@ export type ReviewSource =
   | 'header'           // 헤더 상시 '후기 남기기' 버튼 (어느 탭에서든)
   | 'welcome-teaser'   // 랜딩 무료 사주 요약 통독 직후 카드
   | 'welcome-reviews'  // 랜딩 후기 섹션 자체의 작성 버튼
-  | 'lookup-report'    // 리포트 조회 탭 — 리포트 본문 직후 카드
+  | 'lookup-report'    // (퇴역 2026-09-02) 리포트 본문 직후 카드 — 익명 피드백과 중복돼 제거, 기존 저장 데이터 해석용으로만 유지
   | 'lookup-feedback'; // 리포트 조회 탭 — 익명 피드백 제출 완료 후
 
 interface ReviewModalProps {

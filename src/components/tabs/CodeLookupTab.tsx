@@ -6,8 +6,7 @@ import { parseLifeNavSections } from '../../lib/premiumReportCore';
 import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
 import type { BirthFormInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from '../../lib/buildMyeongsik';
-import { getCurrentWolun, getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
-import { buildJeolipIcs } from '../../lib/jeolipIcs';
+import { getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { buildReportPdfFileName, buildReportPdfHtml, stripMarkers } from '../../lib/reportPdf';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
@@ -24,7 +23,8 @@ const LazyReportGenerationProgress = lazy(() => import('../report/ReportGenerati
 /**
  * 사주 코드 열람 탭 (Phase 2-4).
  * 코드 하나로 명식·주문·리포트를 조회하고(재열람), 선물 코드를 등록하며,
- * 리포트를 섹션 탭 + 월운 캘린더로 열람한다. PDF 저장·절입 달력(.ics) 포함.
+ * 리포트를 섹션 탭 + 월운 캘린더로 열람한다. PDF 저장 포함.
+ * (절입일 .ics 카드는 고객에게 의미가 전달되지 않아 제거 — lib/jeolipIcs는 보존, 2026-09-02)
  */
 
 const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
@@ -606,17 +606,6 @@ export default function CodeLookupTab({
     sectionRefs.current[i]?.scrollIntoView({ block: 'start' });
   };
 
-  const downloadIcs = () => {
-    const nextYear = getCurrentWolun().sajuYear + 1;
-    const blob = new Blob([buildJeolipIcs(nextYear)], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `절입달력_${nextYear}.ics`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const downloadPdf = async () => {
     if (!result || !activeReport) return;
     setPdfBusy(true);
@@ -992,25 +981,8 @@ export default function CodeLookupTab({
                 </section>
               )}
 
-              {/* 후기 요청 — 리포트 통독 직후 바로 노출 (익명 피드백과 별개) */}
-              {activeReport && onWriteReview && (
-                <section className={`${PAPER_CARD} p-6 flex flex-wrap items-center justify-between gap-3`}>
-                  <div className="flex-1 min-w-60">
-                    <p className="text-[14px] text-ink-900 leading-relaxed">
-                      리포트가 도움이 되셨나요? 짧은 한 줄 후기가 다음 분들께 큰 도움이 됩니다.
-                    </p>
-                    <p className="text-[12px] text-ink-500 mt-1">
-                      후기는 닉네임과 함께 첫 화면에 실립니다.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onWriteReview('lookup-report')}
-                    className="px-5 py-2.5 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold"
-                  >
-                    후기 남기기
-                  </button>
-                </section>
-              )}
+              {/* 공개 후기 유도는 리포트 말미 익명 피드백 제출 완료 후 한 곳에서만 한다
+                  (FeedbackForm 참고 — 단독 카드와 중복돼 제거, 2026-09-02) */}
 
               {/* 이번 달·다음 달 일진 캘린더 — 구매 이력 보유 코드 무료 부가 서비스, 고객이 월 선택 */}
               {iljinEligible && (
@@ -1064,21 +1036,6 @@ export default function CodeLookupTab({
             <FeedbackForm code={code} product={activeReport.product} onWriteReview={onWriteReview} />
           )}
 
-          {/* 절입 달력 — 코드 없이도 받을 수 있는 공용 달력 */}
-          <section className={`${PAPER_CARD} p-6 flex flex-wrap items-center justify-between gap-3`}>
-            <div>
-              <p className="text-[14px] text-ink-900">절입일 달력 (.ics)</p>
-              <p className="text-[12px] text-ink-500 mt-1">
-                내년 입춘과 12절입, "신년운세 보는 날"을 캘린더 앱에 추가하세요.
-              </p>
-            </div>
-            <button
-              onClick={downloadIcs}
-              className="px-4 py-2 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold"
-            >
-              달력 내려받기
-            </button>
-          </section>
         </div>
       </div>
     </motion.div>
