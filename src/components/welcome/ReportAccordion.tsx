@@ -7,9 +7,12 @@ import type { ParsedReport } from '../manse/reportSectionUtils';
 /**
  * 랜딩 기본 운세 리포트 아코디언.
  *
- * 헤더는 1단계에서 받은 키워드만 표시(빠름·저렴). 사용자가 아무 섹션이나 처음 펼치면
+ * 헤더는 1단계에서 받은 키워드만 표시(빠름·저렴). 사용자가 열람 가능한 섹션을 처음 펼치면
  * onFirstExpand로 본문 전체(2단계)를 한 번 생성한다 — 둘러보고 이탈하는 방문자는 본문
  * 생성 비용을 아예 지불하지 않는다. 본문 카드는 만세력과 동일한 백색 AIReportSection.
+ *
+ * freeSectionCount로 무료 열람 범위를 제한할 수 있다 — 항목(라벨·키워드)은 모두 보여주되,
+ * 범위 밖 섹션은 펼치면 본문 대신 유료 안내만 나오고 본문 생성도 트리거하지 않는다.
  */
 
 interface ReportAccordionProps {
@@ -23,6 +26,8 @@ interface ReportAccordionProps {
   reportError: string | null;
   /** 첫 펼침 시 본문 생성을 시작(캐시됨 — 재호출은 호출측에서 무시). */
   onFirstExpand: () => void;
+  /** 앞에서부터 무료로 열람 가능한 섹션 수. 미지정 시 전체 열람. */
+  freeSectionCount?: number;
 }
 
 export function ReportAccordion({
@@ -31,13 +36,16 @@ export function ReportAccordion({
   reportLoading,
   reportError,
   onFirstExpand,
+  freeSectionCount,
 }: ReportAccordionProps) {
   const [openSet, setOpenSet] = useState<Set<number>>(new Set());
 
+  const isLocked = (i: number) => freeSectionCount != null && i >= freeSectionCount;
+
   const toggle = (i: number) => {
     const willOpen = !openSet.has(i);
-    // 펼칠 때 + 본문이 아직 없고 진행 중도 아니면 생성 시작(에러 뒤 재클릭 = 재시도).
-    if (willOpen && !report && !reportLoading) onFirstExpand();
+    // 펼칠 때 + 열람 가능 섹션 + 본문이 아직 없고 진행 중도 아니면 생성 시작(에러 뒤 재클릭 = 재시도).
+    if (willOpen && !isLocked(i) && !report && !reportLoading) onFirstExpand();
     setOpenSet((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
@@ -67,6 +75,7 @@ export function ReportAccordion({
               <span className="flex-1 text-[14px] font-bold text-ink-900 leading-snug">
                 {keyword}
               </span>
+              {isLocked(i) && <span className="text-[12px] text-ink-500 shrink-0">유료</span>}
               <ChevronDown
                 className={`w-4 h-4 shrink-0 text-ink-500 transition-transform ${open ? 'rotate-180' : ''}`}
               />
@@ -74,7 +83,13 @@ export function ReportAccordion({
 
             {open && (
               <div className="px-2 pb-2">
-                {section ? (
+                {isLocked(i) ? (
+                  <div className="rounded-2xl border border-ink-300/30 bg-paper-50/80 px-4 py-4">
+                    <p className="text-[14px] text-ink-700 leading-relaxed">
+                      이 항목의 풀이는 유료 사주 리포트에서 확인할 수 있습니다.
+                    </p>
+                  </div>
+                ) : section ? (
                   // 헤더에 이미 키워드가 있으므로 본문 카드에서는 키워드를 숨긴다.
                   <AIReportSection section={{ ...section, keyword: '' }} />
                 ) : reportError ? (

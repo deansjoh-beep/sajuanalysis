@@ -442,7 +442,7 @@ export function HeroSajuTeaser({ currentSeoulYear, initialBirth, onSubmitted, on
 
             {(keywordsLoading || keywords || keywordsError) && (
               <div className="border-t border-ink-300/20 pt-3 space-y-3">
-                <p className="text-[12px] text-ink-500">기본 운세 리포트 · 키워드를 눌러 펼쳐보세요</p>
+                <p className="text-[12px] text-ink-500">기본 운세 리포트 · 사주 원국 풀이는 무료로 펼쳐볼 수 있어요</p>
                 {keywordsError ? (
                   <p className="text-[13px] text-ink-500">{keywordsError}</p>
                 ) : keywords ? (
@@ -452,6 +452,7 @@ export function HeroSajuTeaser({ currentSeoulYear, initialBirth, onSubmitted, on
                     reportLoading={reportLoading}
                     reportError={reportError}
                     onFirstExpand={() => { void generateReport(); }}
+                    freeSectionCount={1} // 사주 원국만 무료 열람 — 나머지 항목은 유료 안내
                   />
                 ) : (
                   <div className="space-y-2">
