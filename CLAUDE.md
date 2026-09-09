@@ -24,7 +24,7 @@ Run a single e2e test: `npx playwright test e2e/app.smoke.spec.ts`.
 
 Verification scripts (manse-력 sanity checks): `node scripts/verify-month-pillars-2026.mjs`, `node scripts/verify-year-pillars-range.mjs`.
 
-Node **20.x** is required (`engines` in package.json).
+Node **24.x** is required (`engines` in package.json).
 
 ## Environment
 
