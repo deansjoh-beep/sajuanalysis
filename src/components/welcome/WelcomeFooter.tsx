@@ -165,12 +165,17 @@ export function WelcomeFooter({
             <CompanyInfoRow label="대표자" value="오세진" />
             <CompanyInfoRow label="사업자등록번호" value="446-09-01872" />
             <CompanyInfoRow label="통신판매업신고" value="신고 예정" />
-            <CompanyInfoRow label="업태 / 종목" value="전문, 과학 및 기술서비스업 / 경영 컨설팅업" />
             <CompanyInfoRow label="고객센터" value="010-2037-5296 · dean.uitrading@gmail.com" />
             <div className="sm:col-span-2">
               <CompanyInfoRow
+                label="업태 / 종목"
+                value="전문, 과학 및 기술서비스업 · 도매 및 소매업 · 정보통신업 / 경영 컨설팅업 · 전자상거래 소매업 · 포털 및 기타 인터넷 정보 매개 서비스업"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <CompanyInfoRow
                 label="주소"
-                value="서울특별시 강남구 개포로 310, 159동 1003호 (개포동, 디에이치퍼스티어아이파크)"
+                value="서울특별시 마포구 마포대로 195, 108동 1403호 (아현동, 마포래미안푸르지오아파트)"
               />
             </div>
           </dl>
