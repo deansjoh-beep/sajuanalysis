@@ -323,12 +323,91 @@ export const checkForbiddenExpressions = (text: string): string[] => {
   return violations;
 };
 
-/** 상품 유형별 품질 평가 디스패처(+ 금칙어 검사). 미지정/premium은 인생네비 기준. */
+// ─────────────────────────────────────────────────────────────────────────────
+// 사주 용어 밀도 검사 — OWNER 지시(2026-09-09) "고등학교 선생님이 학생에게 설명하는 수준"
+// 서술 원칙 v2(report-writing-style.ts)의 "본문 금지" 용어가 본문(표지·용어사전 제외)
+// 1,000자당 상한을 넘으면 품질 이슈로 계상한다(-12점). 초급 모드에만 적용 — 고급 모드는
+// 전문 용어 사용이 지침이므로 검사하지 않는다. 이슈 문구는 보정 재생성 프롬프트에 그대로
+// 실리므로, 상위 용어를 함께 적어 모델이 어디를 고칠지 알게 한다.
+// 실측 기준(2026-09-09, 저장 리포트 2건 본문): 인생네비(고급 모드) 12.1회, 일년운세 7.8회.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 본문 금지 전문 용어. 두 글자 이상만 — 해·사·충·병 같은 한 글자는 일반어와 겹쳐 제외.
+ * 일반어와 겹치는 것(성격(性格)·인성(人性)·지지(支持)·관대·목욕·망신·장성)도 제외하고
+ * '상관'은 "상관없다"를 빼기 위해 패턴으로 처리한다. ※ 추가는 여기에.
+ */
+export const JARGON_TERMS: ReadonlyArray<string> = [
+  // 십성·묶음
+  '비견', '겁재', '식신', '편재', '정재', '편관', '정관', '편인', '정인',
+  '비겁', '식상', '재성', '관성', '관살', '칠살',
+  // 희기신·강약·격국·판정 과정
+  '희신', '기신', '구신', '한신', '신강', '신약', '격국', '득령', '득지', '득세',
+  '투출', '통근', '설기', '합거', '회국', '취격', '억부', '조후', '통관',
+  // 십이운성
+  '십이운성', '장생', '건록', '제왕',
+  // 신살
+  '십이신살', '신살', '겁살', '재살', '천살', '지살', '월살', '망신살', '장성살', '반안살', '반안',
+  '역마살', '역마', '육해살', '화개살', '화개', '도화살', '도화', '홍염살', '홍염',
+  '천을귀인', '괴강', '양인', '백호', '귀문', '원진',
+  // 구조·위치
+  '공망', '지장간', '천간', '월지', '일지', '년지', '시지',
+];
+
+const JARGON_PATTERNS: ReadonlyArray<{ label: string; pattern: RegExp }> = [
+  ...JARGON_TERMS.map((t) => ({ label: t, pattern: new RegExp(t, 'g') })),
+  { label: '상관', pattern: /상관(?!없)/g },
+];
+
+export type JargonDensity = {
+  /** 공백 제거 본문 글자 수(표지·용어사전 제외) */
+  bodyChars: number;
+  hits: number;
+  per1000: number;
+  /** 상위 용어 [용어, 횟수] */
+  top: Array<[string, number]>;
+};
+
+/** 본문(cover·glossary 제외)의 전문 용어 밀도. 섹션 파싱이 안 된 원문은 전체를 본문으로 본다. */
+export const measureJargonDensity = (sections: ReportSection[], fallbackText: string): JargonDensity => {
+  const body = sections.length > 0
+    ? sections.filter((s) => s.id !== 'cover' && s.id !== 'glossary').map((s) => s.content).join('\n')
+    : fallbackText;
+  const bodyChars = body.replace(/\s+/g, '').length;
+  const counts: Array<[string, number]> = [];
+  for (const rule of JARGON_PATTERNS) {
+    const n = (body.match(rule.pattern) || []).length;
+    if (n > 0) counts.push([rule.label, n]);
+  }
+  counts.sort((a, b) => b[1] - a[1]);
+  const hits = counts.reduce((sum, [, n]) => sum + n, 0);
+  const per1000 = bodyChars > 0 ? (hits / bodyChars) * 1000 : 0;
+  return { bodyChars, hits, per1000, top: counts.slice(0, 8) };
+};
+
+/** 본문 1,000자당 상한. 서술 원칙 v2의 자체 점검 기준(3회)보다 여유를 둔 기계 검사 기준. */
+export const JARGON_DENSITY_LIMIT_PER_1000 = 5;
+/** 짧은 본문의 우연한 초과를 막는 최소 등장 횟수. */
+const JARGON_MIN_HITS = 12;
+
+/** 밀도 상한 초과 시 이슈 문구(보정 프롬프트용), 아니면 null. */
+export const checkJargonDensity = (sections: ReportSection[], fallbackText: string): string | null => {
+  const d = measureJargonDensity(sections, fallbackText);
+  if (d.hits < JARGON_MIN_HITS || d.per1000 <= JARGON_DENSITY_LIMIT_PER_1000) return null;
+  const top = d.top.map(([t, n]) => `${t}×${n}`).join(', ');
+  return `사주 용어 과다: 본문 1,000자당 ${d.per1000.toFixed(1)}회 (상한 ${JARGON_DENSITY_LIMIT_PER_1000}) — ${top} → 서술 원칙의 번역표대로 생활 언어로 고쳐 쓸 것`;
+};
+
+/**
+ * 상품 유형별 품질 평가 디스패처(+ 금칙어 검사 + 용어 밀도 검사). 미지정/premium은 인생네비 기준.
+ * opts.reportLevel이 'advanced'|'both'면 용어 밀도 검사를 생략한다(고급 모드는 전문 용어가 지침).
+ */
 export const evaluatePremiumReportQuality = (
   productType: ProductType | undefined,
   rawText: string,
   lifeEvents: LifeEvent[],
   expectedDaeunCount: number,
+  opts?: { reportLevel?: ReportInputData['reportLevel'] },
 ): PremiumReportQuality => {
   const quality =
     productType === 'loveMarriage' ? evaluateLoveMarriageQuality(rawText)
@@ -340,6 +419,14 @@ export const evaluatePremiumReportQuality = (
   if (violations.length > 0) {
     quality.issues.push(...violations.map((v) => `금칙어(단정 표현) 위반: ${v} — 경향·주의 서술로 완화 필요`));
     quality.score = Math.max(0, quality.score - violations.length * 12);
+  }
+
+  if (opts?.reportLevel !== 'advanced' && opts?.reportLevel !== 'both') {
+    const jargonIssue = checkJargonDensity(quality.sections, quality.normalizedText);
+    if (jargonIssue) {
+      quality.issues.push(jargonIssue);
+      quality.score = Math.max(0, quality.score - 12);
+    }
   }
   return quality;
 };
@@ -549,9 +636,11 @@ export const assemblePremiumReportPrompt = (
     system += [
       '',
       '',
-      '[골든셋 모범 예시 — 형식·톤·깊이 기준]',
-      '아래는 모범 리포트 예시다. 문체·비유 수준·섹션별 구성과 깊이를 이 예시에 맞춰라.',
-      '단, 간지·오행·십성·대운 등 모든 해석 내용은 예시가 아니라 위에 제공된 이번 고객의 사주 데이터에서만 도출하고,',
+      '[골든셋 모범 예시 — 구성·분량·깊이 기준]',
+      '아래는 섹션 구성·분량·깊이·비유의 밀도를 보여주는 예시다. 구성과 깊이는 이 예시에 맞춰라.',
+      '단, 예시의 문체와 용어 사용은 옛 기준이므로 따르지 마라. 예시에 나오는 십성 이름·신강/신약·희신/기신·살 이름·십이운성 이름은',
+      '말미 [유료 리포트 공통 서술 원칙]의 번역표대로 생활 언어로 바꿔 써야 한다.',
+      '또한 간지·오행·십성·대운 등 모든 해석 내용은 예시가 아니라 위에 제공된 이번 고객의 사주 데이터에서만 도출하고,',
       '고객 이름은 반드시 이번 고객의 실제 이름을 사용하라. 예시 속 ○○○ 명식·해석을 절대 복사하지 마라.',
       '',
       '<모범예시>',
@@ -560,7 +649,7 @@ export const assemblePremiumReportPrompt = (
     ].join('\n');
   }
 
-  // 서술 3원칙(OWNER 승인 2026-08-17)은 유료 4종 공통. 상품별 지침·골든셋 예시와
-  // 문체 규정이 충돌할 때 이 원칙이 이기도록 system 말미에 배치한다.
+  // 서술 원칙 v2(OWNER 지시 2026-09-09, v1은 2026-08-17)는 유료 4종 공통. 상품별 지침·골든셋
+  // 예시·데이터 블록 라벨과 문체 규정이 충돌할 때 이 원칙이 이기도록 system 말미에 배치한다.
   return { system: `${SAJU_GUIDELINE}\n\n${system}\n\n${REPORT_WRITING_STYLE_GUIDELINE}`, user, analysis };
 };

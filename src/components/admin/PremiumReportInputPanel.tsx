@@ -20,7 +20,7 @@ const SAMPLE_DATA: ReportInputData = {
   unknownTime: false,
   concern: '지금 이직 타이밍이 맞는지, 주요 의사결정에 사주 흐름이 어떻게 연결되는지 궁금합니다.',
   interest: '직업, 재물, 건강',
-  reportLevel: 'advanced',
+  reportLevel: 'basic',
   lifeEvents: [{ year: 2010, description: '첫 직장 입사' }],
   adminNotes: '검증용 가상 샘플. 시기별 전략 중심으로 언급 요망.',
 };
@@ -80,7 +80,7 @@ export const PremiumReportInputPanel: React.FC<PremiumReportInputPanelProps> = (
       unknownTime: false,
       concern: '',
       interest: '',
-      reportLevel: 'advanced',
+      reportLevel: 'basic',
       lifeEvents: [],
       adminNotes: '',
     }

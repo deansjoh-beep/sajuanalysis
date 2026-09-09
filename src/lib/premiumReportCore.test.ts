@@ -7,7 +7,13 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { assemblePremiumReportPrompt, checkForbiddenExpressions, evaluatePremiumReportQuality } from './premiumReportCore';
+import {
+  assemblePremiumReportPrompt,
+  checkForbiddenExpressions,
+  checkJargonDensity,
+  evaluatePremiumReportQuality,
+  measureJargonDensity,
+} from './premiumReportCore';
 import type { ReportInputData } from './premiumOrderStore';
 
 describe('checkForbiddenExpressions — 단정 표현은 위반', () => {
@@ -72,5 +78,54 @@ describe('assemblePremiumReportPrompt — 골든셋 few-shot 주입 (D-2-4)', ()
   test('타 상품(yearly2026)에는 골든셋 예시가 포함되지 않는다', () => {
     const { system } = assemblePremiumReportPrompt({ ...baseInput, productType: 'yearly2026' });
     expect(system).not.toContain('[골든셋 모범 예시');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 사주 용어 밀도 검사 — 서술 원칙 v2(OWNER 지시 2026-09-09, 고등학교 선생님 눈높이)
+// ─────────────────────────────────────────────────────────────────────────────
+const DENSE = '이 사주는 신강하며 용신은 정재, 희신은 식신, 기신은 편인, 구신은 정인으로 판정됩니다. '.repeat(6);
+const PLAIN = '결론부터 말씀드리면, 돈이 들어와도 그대로 쌓이기보다 활동과 소비로 먼저 빠져나가기 쉬운 구조입니다. '.repeat(10);
+const wrap = (id: string, content: string) =>
+  `[SECTION] ${id} [TITLE] 제목 [SUMMARY] 요약 [CONTENT]\n${content}\n[END]`;
+
+describe('checkJargonDensity — 전문 용어 밀도', () => {
+  test('전문 용어가 촘촘한 본문은 이슈(상위 용어 포함)', () => {
+    const issue = checkJargonDensity([], DENSE);
+    expect(issue).toMatch(/사주 용어 과다/);
+    expect(issue).toContain('정재');
+  });
+
+  test('생활 언어 본문은 통과', () => {
+    expect(checkJargonDensity([], PLAIN)).toBeNull();
+  });
+
+  test('일반어 오탐 방지: 상관없다·지지하다·성격·인성은 세지 않는다', () => {
+    const text = '상관없이 밀고 나가는 성격입니다. 주변이 지지해 주면 인성이 빛납니다. '.repeat(20);
+    expect(measureJargonDensity([], text).hits).toBe(0);
+  });
+
+  test('표지·용어사전 섹션은 밀도 계산에서 제외', () => {
+    const raw = [wrap('cover', ''), wrap('fourpillars', PLAIN), wrap('glossary', DENSE)].join('\n');
+    const q = evaluatePremiumReportQuality(undefined, raw, [], 0);
+    expect(q.issues.some((i) => i.includes('사주 용어 과다'))).toBe(false);
+  });
+});
+
+describe('evaluatePremiumReportQuality — 용어 밀도 통합', () => {
+  const raw = [wrap('cover', ''), wrap('fourpillars', DENSE)].join('\n');
+
+  test('초급(기본)은 이슈 추가 + 감점', () => {
+    const basic = evaluatePremiumReportQuality(undefined, raw, [], 0, { reportLevel: 'basic' });
+    const none = evaluatePremiumReportQuality(undefined, raw, [], 0);
+    expect(basic.issues.some((i) => i.includes('사주 용어 과다'))).toBe(true);
+    expect(none.issues.some((i) => i.includes('사주 용어 과다'))).toBe(true);
+  });
+
+  test('고급·병행 모드는 검사 생략(전문 용어가 지침)', () => {
+    const adv = evaluatePremiumReportQuality(undefined, raw, [], 0, { reportLevel: 'advanced' });
+    const both = evaluatePremiumReportQuality(undefined, raw, [], 0, { reportLevel: 'both' });
+    expect(adv.issues.some((i) => i.includes('사주 용어 과다'))).toBe(false);
+    expect(both.issues.some((i) => i.includes('사주 용어 과다'))).toBe(false);
   });
 });

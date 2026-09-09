@@ -29,7 +29,7 @@ Node **24.x** is required (`engines` in package.json).
 ## Environment
 
 - `.env` / `.env.local` are loaded by `server.ts` via dotenv (`.env.local` does not override existing values).
-- `GEMINI_API_KEY` — exposed to the browser at build time via `vite.config.ts` `define` as `process.env.GEMINI_API_KEY`, and also served at runtime from `/api/runtime-config`.
+- `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` — server-side only. The browser calls the `/api/gemini/generate` and `/api/claude/generate` proxies; no key is shipped to the client (`/api/runtime-config` now returns `{}`).
 - `service-account.json` at repo root enables Firebase Admin (Firestore DB id is hardcoded to `ai-studio-fbfb1881-9f6e-4c3b-9700-cb6640ef2eb9`). Without it, Firebase Admin features (PDF report upload to Storage, blog admin) degrade.
 - `FIREBASE_STORAGE_BUCKET`, `PDF_API_TOKEN`, `CHROME_PATH`, `KASI_API_KEY`, `APP_URL` — see server.ts and `.env.example`.
 - `DISABLE_HMR=true` disables Vite HMR (used inside AI Studio to stop file-watch flicker during agent edits — see `vite.config.ts`).
@@ -70,6 +70,9 @@ When editing these modules, keep `src/utils/saju.test.ts` passing and check beha
 | `consulting-common.ts` / `-basic.ts` / `-advanced.ts` | Chat tab prompt tiers |
 | `report-common.ts` / `-basic.ts` / `-advanced.ts` | Report tab prompt tiers |
 | `yearly-fortune-2026.ts` | 2026 일년운세 premium report |
+| `job-career.ts` / `love-marriage.ts` | 직업·재물운 / 연애·결혼운 premium reports |
+| `report-writing-style.ts` | 유료 4종 공통 서술 원칙 v2 — 고등학생 눈높이, 본문 전문 용어 금지 + 생활 언어 번역표. system 말미 주입(상품 지침·골든셋보다 우선). `premiumReportCore.checkJargonDensity`가 본문 1,000자당 5회 초과를 품질 이슈로 잡는다(초급 모드) |
+| `golden-lifenav.ts` | 인생네비 few-shot 예시 — 구성·깊이 기준으로만 주입(문체는 v2 원칙이 우선) |
 | `index.ts` | barrel — re-export only; never author content here |
 
 These are treated as product content, not code comments. Edits to tone, section order, section markers, or file-name conventions are feature changes — see recent commits (e.g. `feat(saju-guideline): ...`, `feat(yearly-fortune): ...`) for the style. Accompanying spec tests: `src/constants/guidelines.test.ts`.

@@ -277,7 +277,7 @@ const runCase = async (
     const first = await callWithModelChain(system, user, { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 });
     allUsages.push(...first.usages);
     let modelUsed = first.modelUsed;
-    let quality = evaluatePremiumReportQuality(input.productType, first.text, input.lifeEvents, analysis.daeun.length);
+    let quality = evaluatePremiumReportQuality(input.productType, first.text, input.lifeEvents, analysis.daeun.length, { reportLevel: input.reportLevel });
     let repaired = false;
 
     // 프로덕션과 동일한 1회 보정 루프
@@ -294,7 +294,7 @@ const runCase = async (
       try {
         const second = await callWithModelChain(`${system}\n\n${repairInstruction}`, user, { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 });
         allUsages.push(...second.usages);
-        const repairedQuality = evaluatePremiumReportQuality(input.productType, second.text, input.lifeEvents, analysis.daeun.length);
+        const repairedQuality = evaluatePremiumReportQuality(input.productType, second.text, input.lifeEvents, analysis.daeun.length, { reportLevel: input.reportLevel });
         if (repairedQuality.score >= quality.score) {
           quality = repairedQuality;
           modelUsed = second.modelUsed;

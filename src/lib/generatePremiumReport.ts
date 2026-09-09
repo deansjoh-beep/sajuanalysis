@@ -155,7 +155,7 @@ export const generateLifeNavReport = async (
     { maxOutputTokens: 32768, temperature: 0.5, topP: 0.9 }
   );
 
-  let quality = evaluatePremiumReportQuality(inputData.productType, rawText, inputData.lifeEvents, daeun.length);
+  let quality = evaluatePremiumReportQuality(inputData.productType, rawText, inputData.lifeEvents, daeun.length, { reportLevel: inputData.reportLevel });
 
   // 품질 점수가 낮으면 1회 보정 생성 시도
   if (quality.score < 80) {
@@ -175,7 +175,7 @@ export const generateLifeNavReport = async (
         user,
         { maxOutputTokens: 32768, temperature: 0.3, topP: 0.85 }
       );
-      const repairedQuality = evaluatePremiumReportQuality(inputData.productType, repairedRawText, inputData.lifeEvents, daeun.length);
+      const repairedQuality = evaluatePremiumReportQuality(inputData.productType, repairedRawText, inputData.lifeEvents, daeun.length, { reportLevel: inputData.reportLevel });
       if (repairedQuality.score >= quality.score) {
         quality = repairedQuality;
       }

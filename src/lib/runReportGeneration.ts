@@ -48,8 +48,9 @@ export function buildReportInputFromBirth(
     unknownTime: birth.unknownTime,
     concern: (ask.concern ?? '').trim(),
     interest: (ask.interest ?? '').trim(),
-    // premium 이외 상품은 reportLevel 무관. 기본값 advanced.
-    reportLevel: 'advanced',
+    // premium(인생네비)만 사용. 고객 리포트는 초급 모드 — 고등학교 선생님이 학생에게
+    // 설명하는 수준(OWNER 지시 2026-09-09). 고급 모드는 관리자 패널에서만 선택한다.
+    reportLevel: 'basic',
     lifeEvents: [],
     adminNotes: '',
     productType: product,

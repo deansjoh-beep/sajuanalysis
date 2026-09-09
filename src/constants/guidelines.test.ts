@@ -186,7 +186,7 @@ describe('지침 핵심 규칙 내용 검증', () => {
     expect(ADVANCED_REPORT_GUIDELINE).toContain('결론');
   });
 
-  // REPORT_WRITING_STYLE_GUIDELINE — 유료 리포트 서술 3원칙 (OWNER 승인 2026-08-17)
+  // REPORT_WRITING_STYLE_GUIDELINE — 유료 리포트 서술 원칙 v2 (OWNER 승인 2026-08-17)
   test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 1 — 결론 선행 규칙 포함', () => {
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('결론 먼저');
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('결론부터 말씀드리면');
@@ -199,8 +199,10 @@ describe('지침 핵심 규칙 내용 검증', () => {
   });
 
   test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 3 — 용어 최소화·괄호 해설 부기 포함', () => {
-    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('괄호로 짧은 해설을 부기');
-    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('용신(사주의 균형을 잡는 데 가장 필요한 기운)');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('괄호 해설을 달아서 쓰는 것도 금지');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('번역표');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('고등학교 선생님');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('조항 번호(§)는 어떤 경우에도 본문에 쓰지 않는다');
   });
 
   test('REPORT_WRITING_STYLE_GUIDELINE: 최우선 규칙 선언 + 구조 규칙 예외 명시', () => {
@@ -214,8 +216,8 @@ describe('지침 핵심 규칙 내용 검증', () => {
   });
 });
 
-// ─── 유료 리포트 4종: 서술 3원칙 주입 검증 ────────────────────────────────────
-describe('assemblePremiumReportPrompt: 서술 3원칙 주입', () => {
+// ─── 유료 리포트 4종: 서술 원칙 v2 주입 검증 ────────────────────────────────────
+describe('assemblePremiumReportPrompt: 서술 원칙 v2 주입', () => {
   const baseInput: ReportInputData = {
     name: '테스트',
     gender: 'M',
@@ -236,27 +238,27 @@ describe('assemblePremiumReportPrompt: 서술 3원칙 주입', () => {
 
   const productTypes: ProductType[] = ['premium', 'yearly2026', 'jobCareer', 'loveMarriage'];
 
-  test.each(productTypes)('%s: system 프롬프트에 서술 3원칙이 포함됨', (productType) => {
+  test.each(productTypes)('%s: system 프롬프트에 서술 원칙 v2이 포함됨', (productType) => {
     const { system } = assemblePremiumReportPrompt({ ...baseInput, productType });
-    expect(system).toContain('[유료 리포트 공통 서술 3원칙 — 최우선 문체 규칙]');
+    expect(system).toContain('[유료 리포트 공통 서술 원칙 v2 — 최우선 문체 규칙]');
     expect(system).toContain('결론부터 말씀드리면');
   });
 
-  test('premium(인생네비): 서술 3원칙이 골든셋 예시보다 뒤에 배치됨 (충돌 시 우선권 확보)', () => {
+  test('premium(인생네비): 서술 원칙 v2이 골든셋 예시보다 뒤에 배치됨 (충돌 시 우선권 확보)', () => {
     const { system } = assemblePremiumReportPrompt({ ...baseInput, productType: 'premium' });
     const goldenIdx = system.indexOf('[골든셋 모범 예시');
-    const styleIdx = system.indexOf('[유료 리포트 공통 서술 3원칙');
+    const styleIdx = system.indexOf('[유료 리포트 공통 서술 원칙 v2');
     expect(goldenIdx).toBeGreaterThan(-1);
     expect(styleIdx).toBeGreaterThan(goldenIdx);
   });
 
-  test('advanced 모드에서도 서술 3원칙이 주입됨', () => {
+  test('advanced 모드에서도 서술 원칙 v2이 주입됨', () => {
     const { system } = assemblePremiumReportPrompt({
       ...baseInput,
       productType: 'premium',
       reportLevel: 'advanced',
     });
-    expect(system).toContain('[유료 리포트 공통 서술 3원칙 — 최우선 문체 규칙]');
+    expect(system).toContain('[유료 리포트 공통 서술 원칙 v2 — 최우선 문체 규칙]');
   });
 });
 
