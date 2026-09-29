@@ -16,6 +16,7 @@ import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '.
 import { getAdminStats } from '../db/admin.js';
 import { getFeedbackStats } from '../db/feedback.js';
 import { isAdminRequest } from './code.js';
+import { resolveSiteUrl, sendCodeEmail } from './_lib/code-email.js';
 
 /**
  * 결제 통합 엔드포인트 (함수 12개 한도 대응 — vercel.json rewrite가
@@ -84,7 +85,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       assertNoPersonalKeys(myeongsik as unknown as Record<string, unknown>);
       const db = await getDb();
       const result = await issueFreeOrder(db, product, myeongsik);
-      return res.status(200).json({ ok: true, code: result.code, orderId: result.orderId });
+      // 선택 입력 이메일로 코드 안내 — 주소는 저장·로그 없이 발송 후 폐기. 실패해도 발급은 성공.
+      const emailSent = await sendCodeEmail({
+        to: body.email,
+        code: result.code,
+        product,
+        siteUrl: resolveSiteUrl(req.headers),
+      });
+      return res.status(200).json({ ok: true, code: result.code, orderId: result.orderId, emailSent });
     } catch (error: unknown) {
       if (error instanceof PersonalDataError) {
         return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
@@ -132,12 +140,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         product,
         myeongsik: myeongsik ?? null,
       });
-      // 리포트 생성 큐 진입은 후속(2-4 산출물 파이프라인)에서 이 지점에 연결한다.
+      // 선택 입력 이메일로 코드 안내 — 주소는 저장·로그 없이 발송 후 폐기. 실패해도 결제는 성공.
+      // 이미 처리된 주문(새로고침 재승인)은 중복 발송하지 않는다.
+      const emailSent = result.alreadyProcessed
+        ? false
+        : await sendCodeEmail({ to: body.email, code: result.code, product, siteUrl: resolveSiteUrl(req.headers) });
       return res.status(200).json({
         ok: true,
         alreadyProcessed: result.alreadyProcessed,
         code: result.code,
         orderId: result.orderId,
+        emailSent,
       });
     }
 

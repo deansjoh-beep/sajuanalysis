@@ -36,7 +36,13 @@ interface PendingCheckout {
   birth: BirthFormInput;
   product: ProductType;
   ask?: ReportAskInput;
+  /** 코드 안내 메일 수신 주소(선택). 서버는 발송 후 폐기하고 저장하지 않는다. */
+  email?: string;
 }
+
+// 서버 api/_lib/code-email.ts 검증과 같은 수준의 형식 확인(오타 방지용).
+const EMAIL_RE = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:"]{2,}$/;
+const isValidEmail = (v: string) => v.length <= 254 && EMAIL_RE.test(v);
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 const isOpen = (p: ProductType) => PRODUCT_ACCESS[p] === 'open';
@@ -100,6 +106,8 @@ function CheckoutDone({
   ask,
   onReportReady,
   memberUid,
+  email,
+  emailSent,
 }: {
   code: string;
   orderId: string;
@@ -108,6 +116,8 @@ function CheckoutDone({
   ask?: ReportAskInput;
   onReportReady?: (code: string) => void;
   memberUid?: string | null;
+  email?: string;
+  emailSent?: boolean;
 }) {
   const [sections, setSections] = useState<ReportSection[] | null>(null);
   // 코드 보관(옵트인) — 로그인 회원만. 실패해도 발급 흐름을 막지 않는다.
@@ -143,6 +153,13 @@ function CheckoutDone({
           지나거나 기기를 바꿔도, ‘리포트 조회’에 이 코드를 붙여넣으면 언제든 다시 찾을 수 있습니다.
         </p>
         <CodeWithCopy code={code} />
+        {email && (
+          <p className="text-[12px] text-ink-500 leading-relaxed text-center">
+            {emailSent
+              ? `같은 코드를 ${email} 로도 보내 드렸습니다. 메일이 보이지 않으면 스팸함을 확인해 주세요.`
+              : `${email} 로 코드 메일을 보내지 못했습니다. 위 코드를 꼭 복사해 두세요.`}
+          </p>
+        )}
         <p className="text-[12px] text-ink-500 leading-relaxed">
           개인정보는 저장되지 않으므로 코드를 분실하면 복구할 수 없습니다. 생성이 끝나면 리포트 조회
           화면으로 자동 이동해 바로 표시됩니다. 생성 도중 창이 닫혀도 괜찮습니다 — ‘리포트 조회’에서
@@ -258,6 +275,8 @@ export default function CheckoutTab({
   // 가장 알고 싶은 것·가장 큰 고민 — 선택 입력, 리포트 프롬프트에만 사용.
   const [interest, setInterest] = useState('');
   const [concern, setConcern] = useState('');
+  // 코드 안내 메일 수신 주소 — 선택 입력. 서버는 발송 직후 폐기(저장·로그 없음).
+  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{
@@ -266,10 +285,14 @@ export default function CheckoutTab({
     product: ProductType;
     birth: BirthFormInput;
     ask?: ReportAskInput;
+    email?: string;
+    emailSent?: boolean;
   } | null>(null);
 
   const catalogItem = PRODUCT_CATALOG.find((p) => p.id === product) ?? null;
   const ask: ReportAskInput = { interest, concern };
+  const trimmedEmail = email.trim();
+  const emailInvalid = trimmedEmail !== '' && !isValidEmail(trimmedEmail);
 
   const selectProduct = (id: ProductType) => {
     if (!isOpen(id)) return; // 준비중 상품은 진행 불가
@@ -311,19 +334,20 @@ export default function CheckoutTab({
 
   // ── 무료 개방 발급 (토스 없이 코드+주문 → 즉시 자동 생성) ──
   const requestFree = async () => {
-    if (!product || !catalogItem || busy) return;
+    if (!product || !catalogItem || busy || emailInvalid) return;
     setError(null);
     setBusy(true);
     const birth = birthFromUserData(userData);
+    const sendTo = trimmedEmail || undefined;
     try {
       const res = await fetch('/api/payment/free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product, myeongsik: buildMyeongsikFromBirth(birth) }),
+        body: JSON.stringify({ product, myeongsik: buildMyeongsikFromBirth(birth), email: sendTo }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || '발급에 실패했습니다.');
-      setDone({ code: data.code, orderId: data.orderId, product, birth, ask });
+      setDone({ code: data.code, orderId: data.orderId, product, birth, ask, email: sendTo, emailSent: Boolean(data.emailSent) });
       setStep('done');
     } catch (e) {
       setStep('error');
@@ -360,13 +384,23 @@ export default function CheckoutTab({
           product: pending.product,
           gift: false,
           myeongsik: buildMyeongsikFromBirth(pending.birth),
+          email: pending.email,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || '결제 승인에 실패했습니다.');
       sessionStorage.removeItem(SESSION_KEY);
       cleanUrl();
-      setDone({ code: data.code, orderId: data.orderId, product: pending.product, birth: pending.birth, ask: pending.ask });
+      setDone({
+        code: data.code,
+        orderId: data.orderId,
+        product: pending.product,
+        birth: pending.birth,
+        ask: pending.ask,
+        email: pending.email,
+        // 새로고침 재승인(alreadyProcessed)은 서버가 재발송하지 않으므로 첫 발송 성공으로 간주한다.
+        emailSent: Boolean(data.emailSent || data.alreadyProcessed),
+      });
       setStep('done');
     } catch (e) {
       setStep('error');
@@ -376,11 +410,12 @@ export default function CheckoutTab({
   };
 
   const requestPay = async () => {
-    if (!clientKey || !product || !catalogItem || busy) return;
+    if (!clientKey || !product || !catalogItem || busy || emailInvalid) return;
     setError(null);
     setBusy(true);
     const orderNo = `sj-${crypto.randomUUID()}`;
-    const pending: PendingCheckout = { birth: birthFromUserData(userData), product, ask };
+    const sendTo = trimmedEmail || undefined;
+    const pending: PendingCheckout = { birth: birthFromUserData(userData), product, ask, email: sendTo };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(pending));
     try {
       const toss = await loadTossPayments(clientKey);
@@ -390,6 +425,8 @@ export default function CheckoutTab({
         amount: { currency: 'KRW', value: catalogItem.price },
         orderId: orderNo,
         orderName: catalogItem.label,
+        // 토스 결제창의 이메일 칸을 미리 채워 두 번 입력하지 않게 한다.
+        ...(sendTo ? { customerEmail: sendTo } : {}),
         successUrl: `${window.location.origin}${window.location.pathname}?checkout=return`,
         failUrl: `${window.location.origin}${window.location.pathname}?checkout=fail`,
         card: { useEscrow: false, flowMode: 'DEFAULT', useCardPoint: false, useAppCardOnly: false },
@@ -576,6 +613,26 @@ export default function CheckoutTab({
                 <h3 className="font-serif text-[18px] font-bold text-ink-900">{catalogItem.label}</h3>
                 <span className="text-[14px] font-bold text-ink-900">{FREE_OPEN ? '무료' : won(catalogItem.price)}</span>
               </div>
+              <label className="block space-y-1">
+                <span className="text-[12px] text-ink-500">코드 받을 이메일 (선택)</span>
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  maxLength={254}
+                  className={askField}
+                />
+                {emailInvalid ? (
+                  <span className="block text-[12px] text-red-600">이메일 형식을 확인해 주세요.</span>
+                ) : (
+                  <span className="block text-[12px] text-ink-500 leading-relaxed">
+                    입력하시면 발급된 사주 코드를 메일로도 보내 드립니다. 주소는 발송에만 쓰이고 저장되지 않습니다.
+                  </span>
+                )}
+              </label>
               {FREE_OPEN ? (
                 <>
                   <p className="text-[14px] text-ink-500 leading-relaxed">
@@ -589,7 +646,7 @@ export default function CheckoutTab({
                   </p>
                   <button
                     onClick={() => void requestFree()}
-                    disabled={busy}
+                    disabled={busy || emailInvalid}
                     className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
                   >
                     {busy ? '발급 중...' : '무료로 리포트 받기'}
@@ -611,7 +668,7 @@ export default function CheckoutTab({
                   </p>
                   <button
                     onClick={() => void requestPay()}
-                    disabled={busy}
+                    disabled={busy || emailInvalid}
                     className="w-full px-5 py-3 rounded-xl bg-ink-900 text-paper-50 text-[14px] font-bold disabled:opacity-40"
                   >
                     {busy ? '결제창 여는 중...' : `${won(catalogItem.price)} 결제하기`}
@@ -641,6 +698,8 @@ export default function CheckoutTab({
               ask={done.ask}
               onReportReady={onReportReady}
               memberUid={memberUid}
+              email={done.email}
+              emailSent={done.emailSent}
             />
           )}
 

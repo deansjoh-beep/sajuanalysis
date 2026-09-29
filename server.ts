@@ -33,6 +33,7 @@ import { FREE_OPEN, isOpenProduct } from "./db/productAccess.ts";
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { safeEqual } from "./api/_lib/safe-compare.ts";
+import { resolveSiteUrl, sendCodeEmail } from "./api/_lib/code-email.ts";
 import { generateDailyFortuneForSaju } from "./api/_lib/dailyFortune.ts";
 import { claudeStreamAggregate } from "./api/_lib/claude-stream.ts";
 import { getSeoulTodayYmd } from "./src/lib/seoulDateGanji.ts";
@@ -807,7 +808,14 @@ async function startServer() {
       assertNoPersonalKeys(myeongsik as unknown as Record<string, unknown>);
       const db = await getDb();
       const result = await issueFreeOrder(db, product, myeongsik);
-      return res.status(200).json({ ok: true, code: result.code, orderId: result.orderId });
+      // 선택 입력 이메일로 코드 안내 — api/payment.ts와 동일(저장·로그 없이 발송 후 폐기).
+      const emailSent = await sendCodeEmail({
+        to: body.email,
+        code: result.code,
+        product,
+        siteUrl: resolveSiteUrl(req.headers),
+      });
+      return res.status(200).json({ ok: true, code: result.code, orderId: result.orderId, emailSent });
     } catch (error) {
       return handlePaymentError(res, 'free', error);
     }
@@ -840,11 +848,15 @@ async function startServer() {
       const result = await confirmPaymentAndPersist(db, toss, {
         orderNo, paymentKey, amount, product, myeongsik: myeongsik ?? null,
       });
+      const emailSent = result.alreadyProcessed
+        ? false
+        : await sendCodeEmail({ to: body.email, code: result.code, product, siteUrl: resolveSiteUrl(req.headers) });
       return res.status(200).json({
         ok: true,
         alreadyProcessed: result.alreadyProcessed,
         code: result.code,
         orderId: result.orderId,
+        emailSent,
       });
     } catch (error) {
       return handlePaymentError(res, 'confirm', error);
