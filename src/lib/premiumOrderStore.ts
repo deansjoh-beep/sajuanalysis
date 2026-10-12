@@ -6,7 +6,7 @@ export interface LifeEvent {
   description: string;
 }
 
-export type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
+export type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | 'yearly2027';
 
 export interface ReportInputData {
   name: string;

@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { InkRevealText } from './InkRevealText';
 import { TossTestModeNotice } from '../TossTestModeNotice';
 
-type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
+type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | 'yearly2027';
 
 interface ProductData {
   type: ProductType;
@@ -24,10 +24,10 @@ const PRODUCTS: ProductData[] = [
     meta: '종합 리포트 · 1회 결제',
   },
   {
-    type: 'yearly2026',
-    title: '2026 일년운세',
-    forWhom: '내년 한 해를 미리 준비하고 싶은 분께',
-    body: '2026년 한 해를 사주 원국·대운·세운·월별 흐름으로 통합 분석한 10페이지 맞춤 리포트. 가장 큰 고민에 먼저 직답한 뒤 월별 상세까지 짚어드립니다.',
+    type: 'yearly2027',
+    title: '2027 신년운세',
+    forWhom: '다가오는 2027년을 미리 준비하고 싶은 분께',
+    body: '2027년 정미년 한 해를 사주 원국·대운·세운·월별 흐름으로 통합 분석한 10페이지 맞춤 리포트. 가장 큰 고민에 먼저 직답한 뒤 열두 달의 흐름을 달마다 짚어드립니다.',
     price: '4,900원',
     meta: '연간 리포트 · 10p',
   },

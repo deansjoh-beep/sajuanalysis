@@ -133,7 +133,7 @@ const App: React.FC = () => {
   // 랜딩 상품 카드에서 고른 상품 — "사용자가 명시적으로 고른 것"만 담는다(1회성).
   // ⚠️ 기본값을 특정 상품으로 두면 안 된다. 그러면 아무것도 고르지 않고 네비 '리포트 구매'로
   //    들어온 경우와 구분되지 않아 구매 탭이 선택 화면을 건너뛴다(2026-07 평생 사주 무료 오픈 때 발생).
-  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | null>(null);
+  const [orderProductType, setOrderProductType] = useState<'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | 'yearly2027' | null>(null);
   // 리포트 생성 완료 시 조회 탭이 자동 조회할 코드 (CheckoutTab onReportReady → CodeLookupTab initialCode)
   const [lookupAutoCode, setLookupAutoCode] = useState<string | null>(null);
   const [guideSubPage, setGuideSubPage] = useState<"main" | "privacy" | "terms" | "refund" | "about" | "contact" | "taekil">("main");
@@ -1381,7 +1381,7 @@ const App: React.FC = () => {
                 setReportContent={setReportContent}
                 handleGenerateReport={handleGenerateReport}
                 onGoToOrder={() => { setOrderProductType('premium'); setActiveTab("checkout"); }}
-                onGoToYearlyOrder={() => { setOrderProductType('yearly2026'); setActiveTab("checkout"); }}
+                onGoToYearlyOrder={() => { setOrderProductType('yearly2027'); setActiveTab("checkout"); }}
                 onGoToJobCareer={() => { setOrderProductType('jobCareer'); setActiveTab("checkout"); }}
                 onGoToLoveMarriage={() => { setOrderProductType('loveMarriage'); setActiveTab("checkout"); }}
               />

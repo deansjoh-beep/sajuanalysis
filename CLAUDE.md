@@ -69,7 +69,8 @@ When editing these modules, keep `src/utils/saju.test.ts` passing and check beha
 | `saju.ts` | 간명 해석 기본 규칙 (SAJU_GUIDELINE) |
 | `consulting-common.ts` / `-basic.ts` / `-advanced.ts` | Chat tab prompt tiers |
 | `report-common.ts` / `-basic.ts` / `-advanced.ts` | Report tab prompt tiers |
-| `yearly-fortune-2026.ts` | 2026 일년운세 premium report |
+| `yearly-fortune-2026.ts` | 2026 일년운세 premium report (판매 종료 — 재열람·재생성용으로 유지) |
+| `yearly-fortune-2027.ts` | 2027 신년운세 premium report (정미 丁未년). 섹션 마커·분량은 2026과 동일, "다가오는 해" 시제·전년 연결 규칙 추가 |
 | `job-career.ts` / `love-marriage.ts` | 직업·재물운 / 연애·결혼운 premium reports |
 | `report-writing-style.ts` | 유료 4종 공통 서술 원칙 v2 — 고등학생 눈높이, 본문 전문 용어 금지 + 생활 언어 번역표. system 말미 주입(상품 지침·골든셋보다 우선). `premiumReportCore.checkJargonDensity`가 본문 1,000자당 5회 초과를 품질 이슈로 잡는다(초급 모드) |
 | `golden-lifenav.ts` | 인생네비 few-shot 예시 — 구성·깊이 기준으로만 주입(문체는 v2 원칙이 우선) |
@@ -93,6 +94,7 @@ These are treated as product content, not code comments. Edits to tone, section 
 - Viewer (Phase 2-4): `src/components/tabs/CodeLookupTab.tsx` (lazy `lookup` tab) — code lookup → 명식/orders summary, report section tabs, 월운 캘린더 (절입 구간 from `getWolunData`), gift-redeem form (builds `MyeongsikParams` client-side via `buildSajuAnalysis`), PDF via existing `/api/generate-pdf` (cover shows 간지+code only — never raw birth data), 절입 `.ics` download (`src/lib/jeolipIcs.ts`, pure client). Local PGlite dir `.pglite/` can go stale after a killed dev server or migration rewrite — delete it and re-run.
 - Migrations: `npx drizzle-kit generate` (offline) → SQL in `drizzle/`; apply with `npx drizzle-kit migrate` once a DB is provisioned. If the local PGlite dev DB predates a migration rewrite, delete `.pglite/` and let it re-migrate.
 - Payments (Phase 2-2): `api/_lib/toss.ts` (Toss confirm/cancel client, needs `TOSS_SECRET_KEY` — 503 until set), `db/payment.ts` (server-side price table `PRODUCT_PRICES` — placeholder until OWNER pricing lands; confirm flow = amount check → idempotent order_no guard → Toss confirm → issue code + insert order, auto-cancel on persistence failure), `db/code.ts` (saju code generator, charset excludes I/O/L/0/1). Endpoint: `api/payment.ts` (`/api/payment/confirm|refund` via rewrite; refund needs `x-admin-token` = `ADMIN_ACCESS_TOKEN`; post-generation refunds are denied by policy (403 `REFUND_NOT_ALLOWED`, OWNER 확정 2026-07-17) — 하자·오류 예외만 `force: true`로 환불). Express twins live in `server.ts`.
+- 연간(신년) 운세 상품 (2026-10-12 2027 론치): 상품 ↔ 대상 연도는 `src/lib/yearlyFortuneProducts.ts`(`YEARLY_FORTUNE_TARGET_YEAR`)가 단일 소스 — `premiumReportCore`는 **오늘 연도가 아니라 상품 연도**의 세운·월주로 프롬프트를 조립하고(`buildYearlyFortunePrompt`, 대상 연도가 미래면 "다가오는 해" 시제 블록), `CodeLookupTab` 월운 캘린더·관리자 프리뷰 표지도 같은 표를 본다. 새해 상품 추가 체크리스트: enum(`db/schema.ts` + `drizzle-kit generate`) → `PRODUCT_PRICES` → `PRODUCT_ACCESS` → `YEARLY_FORTUNE_TARGET_YEAR` → 전용 지침 파일 → 라벨 맵(`code-email.ts`, `CodeLookupTab`, `SalesReviewPanel`, `CheckoutTab` 카탈로그, `PremiumProductsSection`, `ReportTabContent`, `DailyFortuneTab`). 지난 해 상품은 `PRODUCT_ACCESS`를 `'closed'`로 — 구매 화면에서 숨고 서버는 무료 발급·결제 승인(`PRODUCT_CLOSED` 410) 모두 거부하되 기존 코드의 재열람·재생성은 유지된다.
 - ⚠️ Vercel Hobby caps serverless functions at **12**. Removing the legacy premium-order/premium-report functions freed several slots, but stay mindful of the cap: prefer consolidating new endpoints into existing function files via a `vercel.json` rewrite (see `api/member.ts`, `api/payment.ts`, `api/code.ts` for the `?action=` dispatch pattern) rather than adding new files.
 
 ### Security layer

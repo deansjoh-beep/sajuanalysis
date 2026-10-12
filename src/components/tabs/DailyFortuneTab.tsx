@@ -15,7 +15,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 
 type ActiveTab =
   | 'welcome' | 'dashboard' | 'taekil' | 'chat' | 'report' | 'guide' | 'blog' | 'premium' | 'checkout';
-type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
+type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | 'yearly2027';
 
 interface DailyFortuneTabProps {
   user: FirebaseUser | null;
@@ -31,7 +31,7 @@ const TAG_TO_PRODUCT: Record<string, ProductType> = {
   연애: 'loveMarriage',
   인간관계: 'loveMarriage',
   건강: 'premium',
-  변화: 'yearly2026',
+  변화: 'yearly2027',
 };
 
 const PRODUCT_CTA: Record<ProductType, { title: string; desc: string; cta: string }> = {
@@ -45,6 +45,12 @@ const PRODUCT_CTA: Record<ProductType, { title: string; desc: string; cta: strin
     desc: '연애·결혼운 리포트로 당신의 인연 흐름과 만남의 시기를 깊이 있게 분석해 드립니다.',
     cta: '연애·결혼운 리포트 보기',
   },
+  yearly2027: {
+    title: '큰 흐름의 전환이 느껴지는 날',
+    desc: '2027 신년운세 리포트로 다가오는 한 해 전체의 운세 지도를 미리 받아보세요.',
+    cta: '신년운세 리포트 보기',
+  },
+  // 판매 종료 상품 — 타입 완결성용(TAG_TO_PRODUCT에서 더 이상 가리키지 않음).
   yearly2026: {
     title: '큰 흐름의 전환이 느껴지는 날',
     desc: '2026 일년운세 리포트로 올 한 해 전체의 운세 지도를 미리 받아보세요.',

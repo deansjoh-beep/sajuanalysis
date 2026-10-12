@@ -30,6 +30,7 @@ export const productEnum = pgEnum('product', [
   'yearly2026',
   'jobCareer',
   'loveMarriage',
+  'yearly2027',
 ]);
 
 /** 주문 상태 — paid(결제승인) → generated(리포트 생성됨) / refunded(환불) */

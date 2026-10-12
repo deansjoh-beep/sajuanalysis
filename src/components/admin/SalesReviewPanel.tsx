@@ -67,6 +67,7 @@ const FEEDBACK_QUESTION_LABEL: Record<string, string> = {
 
 const PRODUCT_LABEL: Record<string, string> = {
   premium: '평생 사주',
+  yearly2027: '2027 신년운세',
   yearly2026: '2026 일년운세',
   jobCareer: '직업·재물운',
   loveMarriage: '연애·결혼운',

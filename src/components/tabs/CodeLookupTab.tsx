@@ -7,6 +7,7 @@ import type { ProductType, ReportSection } from '../../lib/premiumOrderStore';
 import type { BirthFormInput } from '../../lib/runReportGeneration';
 import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from '../../lib/buildMyeongsik';
 import { getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
+import { getYearlyFortuneTargetYear } from '../../lib/yearlyFortuneProducts';
 import { buildReportPdfFileName, buildReportPdfHtml, stripMarkers } from '../../lib/reportPdf';
 import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
@@ -64,6 +65,7 @@ interface LookupResult {
 
 const PRODUCT_LABEL: Record<string, string> = {
   premium: '평생 사주 리포트',
+  yearly2027: '2027 신년운세 리포트',
   yearly2026: '2026 일년운세 리포트',
   jobCareer: '직업·재물운 리포트',
   loveMarriage: '연애·결혼운 리포트',
@@ -967,8 +969,8 @@ export default function CodeLookupTab({
                               {stripMarkers(s.summary)}
                             </p>
                           )}
-                          {s.id === 'monthly' && activeReport!.product === 'yearly2026' ? (
-                            <MonthCalendar content={s.content} sajuYear={2026} />
+                          {s.id === 'monthly' && getYearlyFortuneTargetYear(activeReport!.product) !== null ? (
+                            <MonthCalendar content={s.content} sajuYear={getYearlyFortuneTargetYear(activeReport!.product)!} />
                           ) : (
                             <TextBlock text={s.content} />
                           )}

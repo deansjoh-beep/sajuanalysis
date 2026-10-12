@@ -19,6 +19,8 @@ describe('buildCodeEmail', () => {
   it('코드·상품명·조회 링크를 담고 주소를 링크에 넣지 않는다', () => {
     const mail = buildCodeEmail({ code: 'ABC234', product: 'yearly2026', siteUrl: 'https://site.test' });
     expect(mail.subject).toContain('2026 일년운세 리포트');
+    const mail2027 = buildCodeEmail({ code: 'ABC234', product: 'yearly2027', siteUrl: 'https://site.test' });
+    expect(mail2027.subject).toContain('2027 신년운세 리포트');
     expect(mail.text).toContain('ABC234');
     expect(mail.html).toContain('ABC234');
     expect(mail.html).toContain('https://site.test/?tab=lookup');

@@ -9,6 +9,7 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Db } from './client.js';
 import { codes, feedback } from './schema.js';
+import type { PaidProduct } from './payment.js';
 
 /** 객관식 허용값 (임시안) — 키/값이 곧 폼의 문항/선택지 */
 export const FEEDBACK_QUESTIONS: Record<string, readonly string[]> = {
@@ -45,7 +46,7 @@ export async function submitFeedback(
   db: Db,
   input: {
     code: string;
-    product: 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
+    product: PaidProduct;
     rating: number;
     answers: Record<string, string>;
     comment: string;

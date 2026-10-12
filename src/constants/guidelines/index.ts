@@ -12,6 +12,8 @@
  *   리포트지침(기본) → report-basic.ts
  *   리포트지침(고급) → report-advanced.ts
  *   유료 리포트 서술 3원칙 → report-writing-style.ts
+ *   일년운세(2026)   → yearly-fortune-2026.ts
+ *   신년운세(2027)   → yearly-fortune-2027.ts
  *   직업운 리포트    → job-career.ts
  *   연애결혼운 리포트 → love-marriage.ts
  *   골든셋 모범예시(인생네비) → golden-lifenav.ts
@@ -26,6 +28,7 @@ export { BASIC_REPORT_GUIDELINE } from './report-basic';
 export { ADVANCED_REPORT_GUIDELINE } from './report-advanced';
 export { REPORT_WRITING_STYLE_GUIDELINE } from './report-writing-style';
 export { YEARLY_FORTUNE_2026_GUIDELINE } from './yearly-fortune-2026';
+export { YEARLY_FORTUNE_2027_GUIDELINE } from './yearly-fortune-2027';
 export { JOB_CAREER_GUIDELINE } from './job-career';
 export { LOVE_MARRIAGE_GUIDELINE } from './love-marriage';
 export { GOLDEN_LIFENAV_EXAMPLE } from './golden-lifenav';

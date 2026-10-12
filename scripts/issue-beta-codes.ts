@@ -2,7 +2,7 @@
  * 베타 무료 코드 일괄 발급 스크립트 (IMPLEMENTATION_PLAN 3-2).
  *
  * 사용:
- *   npx tsx scripts/issue-beta-codes.ts [--count 300] [--product yearly2026] [--out FILE]
+ *   npx tsx scripts/issue-beta-codes.ts [--count 300] [--product yearly2027] [--out FILE]
  *
  * - DATABASE_URL 설정 시 해당 DB(Neon 프로덕션 등), 미설정 시 로컬 PGlite(.pglite/).
  *   ⚠️ 프로덕션 발급은 DATABASE_URL을 명시해 실행할 것.
@@ -21,9 +21,9 @@ const getArg = (name: string, fallback: string): string => {
 };
 
 const count = Math.max(1, Math.min(1000, Number(getArg('count', '300'))));
-const product = getArg('product', 'yearly2026');
+const product = getArg('product', 'yearly2027');
 if (!isPaidProduct(product)) {
-  console.error(`알 수 없는 상품: ${product} (premium|yearly2026|jobCareer|loveMarriage)`);
+  console.error(`알 수 없는 상품: ${product} (premium|yearly2026|yearly2027|jobCareer|loveMarriage)`);
   process.exit(1);
 }
 

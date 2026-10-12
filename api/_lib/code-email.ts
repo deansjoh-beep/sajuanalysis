@@ -10,6 +10,7 @@
  */
 
 const PRODUCT_LABELS: Record<string, string> = {
+  yearly2027: '2027 신년운세 리포트',
   yearly2026: '2026 일년운세 리포트',
   premium: '평생 사주 리포트',
   jobCareer: '직업·재물운 리포트',

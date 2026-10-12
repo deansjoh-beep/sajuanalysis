@@ -13,7 +13,7 @@ import { ReviewsSection } from '../ReviewsSection';
 import type { TeaserInput } from '../../lib/landingTeaser';
 import type { ReviewSource } from '../ReviewModal';
 
-type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage';
+type ProductType = 'premium' | 'yearly2026' | 'jobCareer' | 'loveMarriage' | 'yearly2027';
 type ActiveTab =
   | 'welcome'
   | 'dashboard'

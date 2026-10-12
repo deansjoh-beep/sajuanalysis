@@ -29,7 +29,7 @@ import {
   refundOrder,
   RefundNotAllowedError,
 } from "./db/payment.ts";
-import { FREE_OPEN, isOpenProduct } from "./db/productAccess.ts";
+import { FREE_OPEN, isClosedProduct, isOpenProduct } from "./db/productAccess.ts";
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from "./db/schema.ts";
 import { serializeTimestamps } from "./api/_lib/serialize.ts";
 import { safeEqual } from "./api/_lib/safe-compare.ts";
@@ -837,6 +837,10 @@ async function startServer() {
       }
       if (!isPaidProduct(product)) {
         return res.status(400).json({ error: 'INVALID_PRODUCT', message: `알 수 없는 상품: ${product}` });
+      }
+      // 판매 종료 상품(예: 지난 해 신년운세)은 토스 승인 전에 거부 — api/payment.ts와 동일.
+      if (isClosedProduct(product)) {
+        return res.status(410).json({ error: 'PRODUCT_CLOSED', message: '판매가 종료된 상품입니다.' });
       }
       if (!gift && !myeongsik) {
         return res.status(400).json({ error: 'MYEONGSIK_REQUIRED', message: '일반 상품 결제에는 myeongsik(명식 파라미터)이 필요합니다.' });

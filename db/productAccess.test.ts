@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { FREE_OPEN, PRODUCT_ACCESS, isOpenProduct } from './productAccess';
+import { FREE_OPEN, PRODUCT_ACCESS, isClosedProduct, isOpenProduct } from './productAccess';
 import { PRODUCT_PRICES } from './payment';
 
 describe('productAccess — 상품 개방 설정 단일 소스', () => {
@@ -9,21 +9,31 @@ describe('productAccess — 상품 개방 설정 단일 소스', () => {
     expect(Object.keys(PRODUCT_ACCESS).sort()).toEqual(Object.keys(PRODUCT_PRICES).sort());
   });
 
-  it('모든 값은 open | soon 중 하나다', () => {
+  it('모든 값은 open | soon | closed 중 하나다', () => {
     for (const status of Object.values(PRODUCT_ACCESS)) {
-      expect(['open', 'soon']).toContain(status);
+      expect(['open', 'soon', 'closed']).toContain(status);
     }
   });
 
   it("isOpenProduct는 'open' 상품만 통과시킨다", () => {
-    // 개방 상품 (1차: 일년운세, 2차: 평생 사주)
-    expect(isOpenProduct('yearly2026')).toBe(true);
+    // 판매 중 상품 (2027 신년운세 론치 2026-10-12, 평생 사주)
+    expect(isOpenProduct('yearly2027')).toBe(true);
     expect(isOpenProduct('premium')).toBe(true);
+    // 판매 종료 상품은 거부 (2026 일년운세 — 재열람만 유지)
+    expect(isOpenProduct('yearly2026')).toBe(false);
     // 아직 준비중인 상품은 거부
     expect(isOpenProduct('jobCareer')).toBe(false);
     expect(isOpenProduct('loveMarriage')).toBe(false);
     // 알 수 없는 상품
     expect(isOpenProduct('bogus')).toBe(false);
+  });
+
+  it("isClosedProduct는 'closed' 상품만 참이다(결제 승인 경로 가드)", () => {
+    expect(isClosedProduct('yearly2026')).toBe(true);
+    expect(isClosedProduct('yearly2027')).toBe(false);
+    expect(isClosedProduct('premium')).toBe(false);
+    expect(isClosedProduct('jobCareer')).toBe(false);
+    expect(isClosedProduct('bogus')).toBe(false);
   });
 
   it('적어도 하나의 상품은 개방되어 있다(구매 탭이 비지 않도록)', () => {
@@ -57,5 +67,15 @@ describe('FREE_OPEN — 무료 개방 스위치는 프론트·서버 공용', ()
     expect(gateIndex).toBeGreaterThan(-1);
     expect(issueIndex).toBeGreaterThan(-1);
     expect(gateIndex).toBeLessThan(issueIndex);
+  });
+
+  // 판매 종료 상품은 결제창을 우회한 직접 confirm 호출로도 승인되면 안 된다.
+  it.each(['api/payment.ts', 'server.ts'])('%s의 결제 승인 경로는 판매 종료 상품을 토스 승인 전에 거부한다', (file) => {
+    const src = read(file);
+    const closedIndex = src.indexOf('PRODUCT_CLOSED');
+    const confirmIndex = src.indexOf('confirmPaymentAndPersist(db');
+    expect(closedIndex).toBeGreaterThan(-1);
+    expect(confirmIndex).toBeGreaterThan(-1);
+    expect(closedIndex).toBeLessThan(confirmIndex);
   });
 });

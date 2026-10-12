@@ -22,6 +22,8 @@ export const PRODUCT_PRICES = {
   yearly2026: 4900,
   jobCareer: 4900,
   loveMarriage: 4900,
+  // 2027 신년운세 — 2026 일년운세와 동일가(OWNER 별도 확정 전 잠정, 2026-10-12 론치 준비).
+  yearly2027: 4900,
 } as const;
 
 export type PaidProduct = keyof typeof PRODUCT_PRICES;

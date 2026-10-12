@@ -29,6 +29,13 @@
       "when": 1786258632718,
       "tag": "0003_usage-events",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791768518373,
+      "tag": "0004_yearly-2027",
+      "breakpoints": true
     }
   ]
 }

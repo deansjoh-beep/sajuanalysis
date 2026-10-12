@@ -8,6 +8,8 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { ReportInputData, ReportSection, DaeunBlock } from '../../lib/premiumOrderStore';
 import { elementMap, yinYangMap, hanjaToHangul } from '../../utils/saju';
 import { PDF_SERIF_FONT_LINKS } from '../../lib/pdfFonts';
+import { getYearlyFortuneTargetYear } from '../../lib/yearlyFortuneProducts';
+import { getYearPillarsForRange } from '../../lib/seoulDateGanji';
 // ─── 오행 데이터 유틸리티 ──────────────────────────────────────────────────
 const ELEM_KO: Record<string, string> = { wood: '목(木)', fire: '화(火)', earth: '토(土)', metal: '금(金)', water: '수(水)' };
 const ELEM_COLORS: Record<string, string> = { wood: '#22c55e', fire: '#ef4444', earth: '#d97706', metal: '#a1a1aa', water: '#3b82f6' };
@@ -680,7 +682,9 @@ const getYongshinCoverPalette = (yongshinText: string) => {
 
 // ─── 표지 페이지 ──────────────────────────────────────────────────────────────
 const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinData: any }> = ({ inputData, saju, yongshinData }) => {
-  const isYearly = inputData.productType === 'yearly2026';
+  const yearlyYear = getYearlyFortuneTargetYear(inputData.productType);
+  const isYearly = yearlyYear !== null;
+  const yearlyGanji = isYearly ? getYearPillarsForRange(yearlyYear, yearlyYear)[0].yearPillarHanja : '';
   const isJobCareer = inputData.productType === 'jobCareer';
   const isLoveMarriage = inputData.productType === 'loveMarriage';
   const levelLabel = isLoveMarriage
@@ -688,7 +692,7 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     : isJobCareer
     ? '직업운 리포트'
     : isYearly
-    ? '프리미엄 2026 운세'
+    ? `프리미엄 ${yearlyYear} 운세`
     : inputData.reportLevel === 'advanced' ? '고급 분석'
       : inputData.reportLevel === 'both' ? '초급+고급 병행'
       : '초급 분석';
@@ -705,10 +709,10 @@ const CoverPage: React.FC<{ inputData: ReportInputData; saju: any[]; yongshinDat
     : isJobCareer
       ? '당신을 위한 JOB, 커리어 가이드'
       : isYearly
-        ? '2026 연 운세'
+        ? `${yearlyYear} 연 운세`
         : '당신을 위한 인생가이드북';
-  const subLineTop = isLoveMarriage ? 'LOVE · MARRIAGE GUIDE' : isJobCareer ? 'JOB · CAREER GUIDE' : isYearly ? 'PREMIUM · 2026' : '운명의 로드맵';
-  const subLineChinese = isLoveMarriage ? '戀愛·結婚運 分析書' : isJobCareer ? '職業運 分析書' : isYearly ? '丙午年 年運 分析書' : '四柱命理 分析書';
+  const subLineTop = isLoveMarriage ? 'LOVE · MARRIAGE GUIDE' : isJobCareer ? 'JOB · CAREER GUIDE' : isYearly ? `PREMIUM · ${yearlyYear}` : '운명의 로드맵';
+  const subLineChinese = isLoveMarriage ? '戀愛·結婚運 分析書' : isJobCareer ? '職業運 分析書' : isYearly ? `${yearlyGanji}年 年運 分析書` : '四柱命理 分析書';
 
   return (
     <div
@@ -831,7 +835,8 @@ export const PremiumReportPreview: React.FC<PremiumReportPreviewProps> = ({
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const isYearlyProduct = inputData.productType === 'yearly2026';
+  const yearlyProductYear = getYearlyFortuneTargetYear(inputData.productType);
+  const isYearlyProduct = yearlyProductYear !== null;
   const isJobCareerProduct = inputData.productType === 'jobCareer';
   const isLoveMarriageProduct = inputData.productType === 'loveMarriage';
   const activeSectionNav = isLoveMarriageProduct
@@ -921,7 +926,7 @@ ${printRef.current.outerHTML}
         : isJobCareerProduct
           ? `직업운_리포트_${safeName}_${inputData.birthDate}`
           : isYearlyProduct
-            ? `프리미엄_2026_운세_${safeName}_${inputData.birthDate}`
+            ? `프리미엄_${yearlyProductYear}_운세_${safeName}_${inputData.birthDate}`
             : `인생네비게이션_${safeName}_${inputData.birthDate}`;
 
       const pdfToken = import.meta.env.VITE_PDF_API_TOKEN ?? '';
@@ -1130,7 +1135,7 @@ ${printRef.current.outerHTML}
             {/* 하단 저작권 */}
             <div data-pdf-block="footer" className="text-center py-6 border-t border-amber-300/40 space-y-1">
               <p className="text-[11px] font-serif text-amber-800/50">
-                {isLoveMarriageProduct ? '연애·결혼운 가이드북' : isJobCareerProduct ? '직업운 리포트' : isYearlyProduct ? '프리미엄 2026 운세' : '인생 네비게이션 사주명리 분석서'}
+                {isLoveMarriageProduct ? '연애·결혼운 가이드북' : isJobCareerProduct ? '직업운 리포트' : isYearlyProduct ? `프리미엄 ${yearlyProductYear} 운세` : '인생 네비게이션 사주명리 분석서'}
               </p>
               <p className="text-[11px] text-amber-700/40">본 분석서는 AI 기반 사주명리 시스템으로 제작되었습니다. 참고용으로만 활용하세요.</p>
               <p className="text-[11px] text-amber-700/30">© {new Date().getFullYear()} UI Saju · {user.email}</p>

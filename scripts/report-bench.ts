@@ -14,7 +14,7 @@
  * 실행:
  *   npx tsx scripts/report-bench.ts                          # 50건, lifeNav
  *   npx tsx scripts/report-bench.ts --count 5                # 5건만
- *   npx tsx scripts/report-bench.ts --product yearly2026     # 상품 선택
+ *   npx tsx scripts/report-bench.ts --product yearly2027     # 상품 선택 (yearly2026|yearly2027|jobCareer|loveMarriage)
  *   npx tsx scripts/report-bench.ts --no-repair              # 보정 1회 재시도 없이 단발
  *   npx tsx scripts/report-bench.ts --out bench-output/my-run
  *   npx tsx scripts/report-bench.ts --engine v1.5            # 자평 규칙 엔진 컨텍스트(v1.5)로 생성

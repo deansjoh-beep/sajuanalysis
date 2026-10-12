@@ -236,12 +236,55 @@ describe('assemblePremiumReportPrompt: 서술 원칙 v2 주입', () => {
     relationshipStatus: '',
   };
 
-  const productTypes: ProductType[] = ['premium', 'yearly2026', 'jobCareer', 'loveMarriage'];
+  const productTypes: ProductType[] = ['premium', 'yearly2026', 'yearly2027', 'jobCareer', 'loveMarriage'];
 
   test.each(productTypes)('%s: system 프롬프트에 서술 원칙 v2이 포함됨', (productType) => {
     const { system } = assemblePremiumReportPrompt({ ...baseInput, productType });
     expect(system).toContain('[유료 리포트 공통 서술 원칙 v2 — 최우선 문체 규칙]');
     expect(system).toContain('결론부터 말씀드리면');
+  });
+
+  // 연간 운세는 "오늘 연도"가 아니라 상품이 가리키는 연도의 세운·월주로 생성한다
+  // (2027 신년운세는 2026년 10월부터 판매 — 생성 시점과 대상 연도가 다름).
+  describe('연간 운세 상품 — 대상 연도 고정', () => {
+    test('yearly2027: 2027 정미년 세운·월주와 2027 전용 지침이 주입된다', () => {
+      const { system, user } = assemblePremiumReportPrompt({ ...baseInput, productType: 'yearly2027' });
+      expect(system).toContain('「프리미엄 신년운세 2027」');
+      expect(system).toContain('2027 정미년(丁未年)');
+      expect(system).not.toContain('「프리미엄 일년운세 2026」');
+      expect(user).toContain('[2027 세운]\n2027년 정미(丁未)');
+      expect(user).toContain('[2027 월별 간지]');
+      expect(user).toContain('1월: 辛丑(신축)');
+      expect(user).toContain('2월: 壬寅(임인)');
+      expect(user).toContain('12월: 壬子(임자)');
+      // 향후 세운 흐름은 대상 연도 기준 전년~5년 후
+      expect(user).toContain('2026년: 丙午(병오) (대상 연도로부터 1년 전)');
+      expect(user).toContain('2027년: 丁未(정미) (대상 연도)');
+      expect(user).toContain('2032년: 壬子(임자) (대상 연도로부터 5년 후)');
+    });
+
+    test('yearly2026: 기존과 동일하게 2026 병오년 세운·월주가 주입된다', () => {
+      const { system, user } = assemblePremiumReportPrompt({ ...baseInput, productType: 'yearly2026' });
+      expect(system).toContain('「프리미엄 일년운세 2026」');
+      expect(user).toContain('[2026 세운]\n2026년 병오(丙午)');
+      expect(user).toContain('[2026 월별 간지]');
+      expect(user).toContain('1월: 己丑(기축)');
+      expect(user).toContain('2월: 庚寅(경인)');
+    });
+
+    test('대상 연도가 아직 오지 않았으면 "다가오는 해" 시제 규칙을, 대상 연도 안이면 "올해" 시제 규칙을 쓴다', () => {
+      const thisYear = Number(
+        new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric' }).format(new Date()),
+      );
+      const { user: u27 } = assemblePremiumReportPrompt({ ...baseInput, productType: 'yearly2027' });
+      if (thisYear < 2027) {
+        expect(u27).toContain('오늘은 아직');
+        expect(u27).toContain('2027년 기준');
+        expect(u27).not.toContain('올해는 이미 진행 중입니다');
+      } else {
+        expect(u27).toContain('올해는 이미 진행 중입니다');
+      }
+    });
   });
 
   test('premium(인생네비): 서술 원칙 v2이 골든셋 예시보다 뒤에 배치됨 (충돌 시 우선권 확보)', () => {

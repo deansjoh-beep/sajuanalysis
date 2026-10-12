@@ -15,6 +15,7 @@ import {
   BASIC_REPORT_GUIDELINE,
   ADVANCED_REPORT_GUIDELINE,
   YEARLY_FORTUNE_2026_GUIDELINE,
+  YEARLY_FORTUNE_2027_GUIDELINE,
   JOB_CAREER_GUIDELINE,
   LOVE_MARRIAGE_GUIDELINE,
   GOLDEN_LIFENAV_EXAMPLE,
@@ -23,10 +24,11 @@ import {
 import { getCurrentYearPillarKST, getMonthPillarsForYear, getYearPillarsForRange } from './seoulDateGanji';
 import {
   buildLifeNavReportPrompt,
-  buildYearlyFortune2026Prompt,
+  buildYearlyFortunePrompt,
   buildJobCareerPrompt,
   buildLoveMarriagePrompt,
 } from './promptBuilders';
+import { getYearlyFortuneTargetYear, isYearlyFortuneProduct } from './yearlyFortuneProducts';
 import { buildSajuAnalysis, type SajuAnalysis } from './analysis/schema';
 import { sajuAnalysisToPromptContext } from './analysis/promptContext';
 import type { ReportInputData, ReportSection, DaeunBlock, LifeEvent, ProductType } from './premiumOrderStore';
@@ -412,7 +414,7 @@ export const evaluatePremiumReportQuality = (
   const quality =
     productType === 'loveMarriage' ? evaluateLoveMarriageQuality(rawText)
     : productType === 'jobCareer' ? evaluateJobCareerQuality(rawText)
-    : productType === 'yearly2026' ? evaluateYearlyFortuneQuality(rawText)
+    : isYearlyFortuneProduct(productType) ? evaluateYearlyFortuneQuality(rawText)
     : evaluateLifeNavReportQuality(rawText, lifeEvents, expectedDaeunCount);
 
   const violations = checkForbiddenExpressions(quality.normalizedText);
@@ -486,7 +488,9 @@ export const assemblePremiumReportPrompt = (
   const todayD = seoulNow.find(p => p.type === 'day')?.value ?? '01';
   const todayDateText = `${todayY}년 ${parseInt(todayM)}월 ${parseInt(todayD)}일`;
 
-  const isYearlyFortune = inputData.productType === 'yearly2026';
+  // 연간 운세는 "오늘 연도"가 아니라 상품이 가리키는 연도(2026 일년운세 → 2026, 2027 신년운세 → 2027)로 생성한다.
+  const yearlyTargetYear = getYearlyFortuneTargetYear(inputData.productType);
+  const isYearlyFortune = yearlyTargetYear !== null;
   const isJobCareer = inputData.productType === 'jobCareer';
   const isLoveMarriage = inputData.productType === 'loveMarriage';
 
@@ -555,29 +559,38 @@ export const assemblePremiumReportPrompt = (
     system = built.system;
     user = built.user;
   } else if (isYearlyFortune) {
-    // 2026 월별 간지 텍스트
-    const monthPillars = getMonthPillarsForYear(currentYearPillar.year);
+    const targetYear = yearlyTargetYear;
+    // 대상 연도 세운 — 6월 1일 기준으로 계산해 입춘 전후 경계 문제를 피한다(getYearPillarsForRange 규약).
+    const [targetPillar] = getYearPillarsForRange(targetYear, targetYear);
+    const targetYearText = `${targetPillar.year}년 ${targetPillar.yearPillarHangul}(${targetPillar.yearPillarHanja})`;
+
+    // 대상 연도 월별 간지 텍스트 (양력 1~12월, 각 달 15일 기준)
+    const monthPillars = getMonthPillarsForYear(targetYear);
     const monthPillarsText = monthPillars
       .map((p) => `${p.month}월: ${p.monthPillarHanja}(${p.monthPillarHangul})`)
       .join('\n');
 
-    // 향후 세운 흐름 — 전년 1년 + 현재 + 미래 5년 = 총 7년치 (2년·3년 후 질문 대응)
-    const seunStart = currentYearPillar.year - 1;
-    const seunEnd = currentYearPillar.year + 5;
+    // 향후 세운 흐름 — 대상 연도 기준 전년 1년 + 대상 연도 + 미래 5년 = 총 7년치 (2년·3년 후 질문 대응)
+    const seunStart = targetYear - 1;
+    const seunEnd = targetYear + 5;
     const yearPillars = getYearPillarsForRange(seunStart, seunEnd);
     const seunRangeText = yearPillars
       .map((p) => {
         const relLabel =
-          p.year === currentYearPillar.year
-            ? ' (올해)'
-            : p.year > currentYearPillar.year
-              ? ` (${p.year - currentYearPillar.year}년 후)`
-              : ` (${currentYearPillar.year - p.year}년 전)`;
-        return `${p.year}년: ${p.yearPillarHanja}(${p.yearPillarHangul})${relLabel}`;
+          p.year === targetYear
+            ? ' (대상 연도)'
+            : p.year > targetYear
+              ? ` (대상 연도로부터 ${p.year - targetYear}년 후)`
+              : ` (대상 연도로부터 ${targetYear - p.year}년 전)`;
+        const nowLabel = p.year === currentYearPillar.year ? ' · 올해' : '';
+        return `${p.year}년: ${p.yearPillarHanja}(${p.yearPillarHangul})${relLabel}${nowLabel}`;
       })
       .join('\n');
 
-    const built = buildYearlyFortune2026Prompt({
+    const productTitle = targetYear === 2026 ? '프리미엄 일년운세 2026' : `프리미엄 신년운세 ${targetYear}`;
+    const yearlyFortuneGuideline = targetYear === 2027 ? YEARLY_FORTUNE_2027_GUIDELINE : YEARLY_FORTUNE_2026_GUIDELINE;
+
+    const built = buildYearlyFortunePrompt({
       userName: inputData.name,
       gender: inputData.gender,
       birthDate: inputData.birthDate,
@@ -589,6 +602,9 @@ export const assemblePremiumReportPrompt = (
       daeunContext,
       yongshinContext,
       currentAge,
+      ageInTargetYear: targetYear - birthYear,
+      targetYear,
+      targetYearText,
       currentYearText: `${currentYearPillar.year}년 ${currentYearPillar.yearPillarHangul}(${currentYearPillar.yearPillarHanja})`,
       todayDateText,
       monthPillarsText,
@@ -596,7 +612,8 @@ export const assemblePremiumReportPrompt = (
       currentJob: inputData.currentJob || '',
       concern: inputData.concern,
       interest: inputData.interest,
-      yearlyFortuneGuideline: YEARLY_FORTUNE_2026_GUIDELINE,
+      productTitle,
+      yearlyFortuneGuideline,
     });
     system = built.system;
     user = built.user;
