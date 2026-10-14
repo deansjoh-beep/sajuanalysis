@@ -16,14 +16,13 @@ describe('productAccess — 상품 개방 설정 단일 소스', () => {
   });
 
   it("isOpenProduct는 'open' 상품만 통과시킨다", () => {
-    // 판매 중 상품 (2027 신년운세 론치 2026-10-12, 평생 사주)
+    // 판매 중 상품 (2027 신년운세 론치 2026-10-12, 평생 사주, 직업·재물운·연애·결혼운 3차 오픈 2026-10-14)
     expect(isOpenProduct('yearly2027')).toBe(true);
     expect(isOpenProduct('premium')).toBe(true);
+    expect(isOpenProduct('jobCareer')).toBe(true);
+    expect(isOpenProduct('loveMarriage')).toBe(true);
     // 판매 종료 상품은 거부 (2026 일년운세 — 재열람만 유지)
     expect(isOpenProduct('yearly2026')).toBe(false);
-    // 아직 준비중인 상품은 거부
-    expect(isOpenProduct('jobCareer')).toBe(false);
-    expect(isOpenProduct('loveMarriage')).toBe(false);
     // 알 수 없는 상품
     expect(isOpenProduct('bogus')).toBe(false);
   });

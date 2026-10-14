@@ -8,6 +8,9 @@
 
 ## 확정 (Confirmed Decisions)
 
+### 2026-10-14
+- **직업·재물운·연애·결혼운 리포트 판매 개방 (3차 오픈)** — OWNER 지시("직업재물운리포트와 연애결혼운리포트도 마저 열어줘"). `PRODUCT_ACCESS` `jobCareer`·`loveMarriage`를 `'soon'` → `'open'`. 이로써 판매 상품은 2027 신년운세·평생 사주·직업·재물운·연애·결혼운 4종, 2026 일년운세만 `closed`. 가격은 기존 확정값(4,900원) 유지.
+
 ### 2026-10-12
 - **2027 신년운세 리포트 상품 론치 (`yearly2027`)** — OWNER 지시("2027년 신년운세리포트 상품을 론치"). 반영: ① DB `product` enum에 `yearly2027` 추가(`drizzle/0004_yearly-2027.sql` — Neon에 `npx drizzle-kit migrate` 적용 필요) ② 가격 4,900원(2026 일년운세와 동일 — OWNER 별도 확정 시 `PRODUCT_PRICES`·`CheckoutTab` 카탈로그·랜딩 카드 3곳 동기 수정) ③ `PRODUCT_ACCESS`: `yearly2027: 'open'`, `yearly2026: 'closed'`(신규 판매 종료, 재열람·재생성 유지 — 새 상태값 `closed` 도입, 서버 confirm 경로 `PRODUCT_CLOSED` 410 가드) ④ 연간 운세 생성 엔진을 "오늘 연도" 기준에서 **상품 연도** 기준으로 전환(`src/lib/yearlyFortuneProducts.ts` 단일 소스, `buildYearlyFortunePrompt` 연도 매개변수화 — 2026년 10~12월에 생성해도 2027 정미년 세운·월주 주입, "다가오는 해" 시제 규칙) ⑤ 전용 지침 `yearly-fortune-2027.ts`(섹션 마커·분량은 2026과 동일, 정미년 조후 분리 규칙 + 전년(병오) 연결 규칙 + 1월 辛丑 입춘 전 처리). 미결: 재구매 할인(`NEW_YEAR_DISCOUNT_PERCENT` 30%)은 현재 코드 조회 화면 **안내 문구만** 있고 결제 금액 검증(`confirmPaymentAndPersist`)에는 미적용 — 할인 결제 경로(코드 입력 → 서버가 구매 이력 확인 → 할인가 검증) 구현 여부·방식 OWNER 결정 대기.
 

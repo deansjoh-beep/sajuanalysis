@@ -35,8 +35,9 @@ export const PRODUCT_ACCESS: Record<CommerceProduct, ProductAccess> = {
   yearly2026: 'closed',
   // 2차 무료 개방 (2026-07-26~). 평생 사주 리포트 오픈.
   premium: 'open',
-  jobCareer: 'soon',
-  loveMarriage: 'soon',
+  // 3차 오픈 (2026-10-14). 직업·재물운·연애·결혼운 동시 개방 — 4종 전부 판매.
+  jobCareer: 'open',
+  loveMarriage: 'open',
 };
 
 /** 판매 중(개방된) 상품인지. 서버 무료 발급 경로에서 직접 게이트로 사용한다. */
