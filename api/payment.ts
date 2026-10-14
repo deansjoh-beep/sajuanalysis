@@ -12,6 +12,14 @@ import {
   RefundNotAllowedError,
 } from '../db/payment.js';
 import { FREE_OPEN, isClosedProduct, isOpenProduct } from '../db/productAccess.js';
+
+/**
+ * 예상 못 한 내부 오류의 고객용 문구. DB 쿼리 원문·파라미터·스택이 화면에 노출되던 사고(2026-10-14,
+ * enum 누락으로 주문 insert 실패) 재발 방지 — 상세는 console.error(Vercel 런타임 로그)에만 남긴다.
+ * server.ts handlePaymentError와 동일 문구 유지.
+ */
+const INTERNAL_ERROR_MESSAGE =
+  '결제 처리 중 서버 오류가 발생했습니다. 승인된 결제는 자동으로 취소되며, 문제가 계속되면 문의해 주세요.';
 import { assertNoPersonalKeys, PersonalDataError, type MyeongsikParams } from '../db/schema.js';
 import { getAdminStats } from '../db/admin.js';
 import { getFeedbackStats } from '../db/feedback.js';
@@ -97,9 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (error instanceof PersonalDataError) {
         return res.status(400).json({ error: 'FORBIDDEN_PERSONAL_DATA', message: error.message });
       }
-      const message = error instanceof Error ? error.message : 'free issue failed';
       console.error('[api/payment:free] error:', error);
-      return res.status(500).json({ error: 'FREE_ISSUE_FAILED', message });
+      return res.status(500).json({ error: 'FREE_ISSUE_FAILED', message: INTERNAL_ERROR_MESSAGE });
     }
   }
 
@@ -198,8 +205,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error(`[api/payment:${action}] toss error ${error.code}:`, error.message);
       return res.status(402).json({ error: error.code, message: error.message });
     }
-    const message = error instanceof Error ? error.message : 'payment failed';
+    // 내부 오류(DB 쿼리 원문·스택 등)는 고객 화면에 노출하지 않는다 — 상세는 서버 로그에만 남긴다.
     console.error(`[api/payment:${action}] error:`, error);
-    return res.status(500).json({ error: 'PAYMENT_FAILED', message });
+    return res.status(500).json({ error: 'PAYMENT_FAILED', message: INTERNAL_ERROR_MESSAGE });
   }
 }

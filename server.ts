@@ -761,9 +761,12 @@ async function startServer() {
       console.error(`[payment:${action}] toss error ${error.code}:`, error.message);
       return res.status(402).json({ error: error.code, message: error.message });
     }
-    const message = error instanceof Error ? error.message : 'payment failed';
+    // 내부 오류(DB 쿼리 원문·스택 등)는 고객 화면에 노출하지 않는다 — api/payment.ts와 동일 문구.
     console.error(`[payment:${action}] error:`, error);
-    return res.status(500).json({ error: 'PAYMENT_FAILED', message });
+    return res.status(500).json({
+      error: 'PAYMENT_FAILED',
+      message: '결제 처리 중 서버 오류가 발생했습니다. 승인된 결제는 자동으로 취소되며, 문제가 계속되면 문의해 주세요.',
+    });
   };
 
   const requirePaymentReady = (res: any): boolean => {
