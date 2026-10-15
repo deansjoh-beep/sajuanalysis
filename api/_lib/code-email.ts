@@ -41,9 +41,18 @@ export function resolveSiteUrl(headers: Record<string, string | string[] | undef
   return null;
 }
 
+/** 상품별 일진 캘린더 안내 — 조회 화면에서 같은 코드로 내려받는 무료 부가 서비스(CodeLookupTab). */
+function iljinCalendarNote(product: string): string {
+  const yearMatch = /^yearly(\d{4})$/.exec(product);
+  return yearMatch
+    ? `같은 화면에서 ${yearMatch[1]}년 열두 달 일진 캘린더 PDF(12p)와 이번 달·다음 달 일진 캘린더도 무료로 내려받을 수 있습니다.`
+    : '같은 화면에서 이번 달·다음 달 일진 캘린더 PDF도 무료로 내려받을 수 있습니다.';
+}
+
 export function buildCodeEmail(params: { code: string; product: string; siteUrl: string | null }) {
   const label = PRODUCT_LABELS[params.product] ?? '사주 리포트';
   const lookupUrl = params.siteUrl ? `${params.siteUrl}/?tab=lookup` : null;
+  const calendarNote = iljinCalendarNote(params.product);
   const subject = `[유아이 사주] ${label} 사주 코드 안내`;
   const text = [
     `${label}가 발급되었습니다.`,
@@ -54,6 +63,7 @@ export function buildCodeEmail(params: { code: string; product: string; siteUrl:
       ? `리포트 조회 화면(${lookupUrl})에서 위 코드를 입력하면 언제든 리포트를 다시 볼 수 있습니다.`
       : '사이트의 ‘리포트 조회’ 화면에서 위 코드를 입력하면 언제든 리포트를 다시 볼 수 있습니다.',
     '이 코드는 다음 리포트를 받으실 때도 그대로 쓰이니 이 메일을 보관해 주세요.',
+    calendarNote,
     '',
     '입력하신 이메일 주소는 이 메일 발송에만 사용되었으며 저장되지 않습니다.',
   ].join('\n');
@@ -64,6 +74,7 @@ export function buildCodeEmail(params: { code: string; product: string; siteUrl:
     <p style="font-size:26px;font-weight:bold;letter-spacing:4px;margin:0">${params.code}</p>
   </div>
   <p style="font-size:14px;line-height:1.6;margin:0 0 16px">‘리포트 조회’ 화면에서 위 코드를 입력하면 언제든 리포트를 다시 볼 수 있습니다. 이 코드는 다음 리포트를 받으실 때도 그대로 쓰이니 이 메일을 보관해 주세요.</p>
+  <p style="font-size:14px;line-height:1.6;margin:0 0 16px">${calendarNote}</p>
   ${lookupUrl ? `<p style="margin:0 0 24px"><a href="${lookupUrl}" style="display:inline-block;background:#1f1f1f;color:#fff;text-decoration:none;font-size:14px;font-weight:bold;padding:10px 20px;border-radius:10px">리포트 조회하러 가기</a></p>` : ''}
   <p style="font-size:12px;color:#777;line-height:1.6;margin:0">입력하신 이메일 주소는 이 메일 발송에만 사용되었으며 저장되지 않습니다.</p>
 </div>`;

@@ -27,6 +27,16 @@ describe('buildCodeEmail', () => {
     // 코드를 URL에 싣지 않는다(접속 로그·분석 도구 노출 방지)
     expect(mail.html).not.toContain('code=ABC234');
   });
+  it('일진 캘린더 안내 — 연간 상품은 열두 달 PDF, 나머지는 이번 달·다음 달만 언급한다', () => {
+    const yearly = buildCodeEmail({ code: 'ABC234', product: 'yearly2027', siteUrl: 'https://site.test' });
+    expect(yearly.text).toContain('2027년 열두 달 일진 캘린더');
+    expect(yearly.html).toContain('2027년 열두 달 일진 캘린더');
+    expect(yearly.text).toContain('이번 달·다음 달 일진 캘린더');
+    const job = buildCodeEmail({ code: 'ABC234', product: 'jobCareer', siteUrl: null });
+    expect(job.text).toContain('이번 달·다음 달 일진 캘린더');
+    expect(job.html).toContain('이번 달·다음 달 일진 캘린더');
+    expect(job.text).not.toContain('열두 달');
+  });
   it('사이트 주소가 없으면 링크 버튼을 생략한다', () => {
     const mail = buildCodeEmail({ code: 'ABC234', product: 'premium', siteUrl: null });
     expect(mail.html).not.toContain('<a ');
