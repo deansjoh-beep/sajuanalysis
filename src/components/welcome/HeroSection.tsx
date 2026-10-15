@@ -5,6 +5,7 @@ import { InkRevealText } from './InkRevealText';
 import { HeroSajuTeaser } from './HeroSajuTeaser';
 import type { TeaserInput } from '../../lib/landingTeaser';
 import type { UserData } from '../../types/app';
+import { PRODUCT_ACCESS } from '@/db/productAccess';
 
 interface HeroSectionProps {
   onScrollClick: () => void;
@@ -15,6 +16,8 @@ interface HeroSectionProps {
   onOpenCheckout: (input: TeaserInput) => void;
   onOpenPrivacy: () => void;
   onWriteReview: () => void;
+  /** 첫 화면 2027 신년운세 안내 → 체크아웃(상품 선택 상태로) */
+  onOpenYearly2027: () => void;
 }
 
 export function HeroSection({
@@ -26,6 +29,7 @@ export function HeroSection({
   onOpenCheckout,
   onOpenPrivacy,
   onWriteReview,
+  onOpenYearly2027,
 }: HeroSectionProps) {
   return (
     <section className="relative min-h-[88vh] flex flex-col items-center justify-center px-4 py-16 md:py-24">
@@ -56,6 +60,27 @@ export function HeroSection({
             천년을 내려온 명리학과 AI가 만나, 당신만의 인생 지도를 만듭니다.
           </InkRevealText>
         </div>
+
+        {/* 2027 신년운세 출시 안내 — 스크롤 없이 첫 화면에서 보이도록 입력창 위에 둔다.
+            판매 종료(PRODUCT_ACCESS) 시 자동 숨김. ⚠️ 가격은 db/payment.ts PRODUCT_PRICES·PremiumProductsSection과 동기화 */}
+        {PRODUCT_ACCESS.yearly2027 === 'open' && (
+          <motion.div
+            className="pt-5 md:pt-6"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 2.3, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <button
+              type="button"
+              onClick={onOpenYearly2027}
+              className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border border-ink-900/20 bg-paper-50/80 px-4 py-2 text-[13px] text-ink-700 hover:border-ink-900 hover:text-ink-900 transition-colors"
+            >
+              <span className="font-bold text-ink-900">2027 신년운세 리포트</span>
+              <span className="text-ink-500">새로 나왔습니다 · 열두 달 일진 캘린더 PDF(12p) 포함 · 4,900원</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </motion.div>
+        )}
 
         {/* 무료 사주 요약 티저 — 첫 화면 전환점 */}
         <motion.div

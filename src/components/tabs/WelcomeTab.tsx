@@ -132,6 +132,7 @@ export default function WelcomeTab({
               onOpenCheckout={handleOpenCheckout}
               onOpenPrivacy={() => onOpenPolicy('privacy')}
               onWriteReview={() => openReviewModal('welcome-teaser')}
+              onOpenYearly2027={() => handleProductClick('yearly2027')}
             />
 
             {/* 첫 화면 바로 아래 — 생년월일시 입력 직후에 무료 제공 혜택을 먼저 알린다. */}

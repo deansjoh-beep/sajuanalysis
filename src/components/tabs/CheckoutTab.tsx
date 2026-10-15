@@ -24,7 +24,7 @@ const PAPER_CARD = 'rounded-3xl border border-ink-300/30 bg-white shadow-sm';
 // ⚠️ 가격은 서버 db/payment.ts PRODUCT_PRICES와 반드시 동기화(OWNER 확정 2026-07-09). 개방 상태는
 //    db/productAccess.ts PRODUCT_ACCESS와 동기화. 무료 개방 중에는 가격 대신 '무료'로 표기한다.
 const PRODUCT_CATALOG: Array<{ id: ProductType; label: string; price: number; desc: string }> = [
-  { id: 'yearly2027', label: '2027 신년운세 리포트', price: 4900, desc: '2027년 정미년 열두 달의 흐름과 시기별 조언' },
+  { id: 'yearly2027', label: '2027 신년운세 리포트', price: 4900, desc: '2027년 정미년 열두 달의 흐름과 시기별 조언 + 2027년 열두 달 일진 캘린더 PDF(12p)' },
   // 2026 일년운세 — 판매 종료(PRODUCT_ACCESS 'closed'). 재열람·결제 복귀 라벨용으로만 유지한다.
   { id: 'yearly2026', label: '2026 일년운세 리포트', price: 4900, desc: '2026년 열두 달의 흐름과 시기별 조언' },
   { id: 'premium', label: '평생 사주 리포트', price: 9900, desc: '대운 전체를 관통하는 평생 인생 네비게이션' },

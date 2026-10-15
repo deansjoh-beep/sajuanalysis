@@ -490,11 +490,61 @@ const dayBlock = (m: IljinMonth, d: IljinDay, small: boolean): string => {
   </div>`;
 };
 
+const CALENDAR_CSS = `
+@page { size: A4 landscape; margin: 10mm 12mm; }
+* { box-sizing: border-box; }
+body { font-family: ${PDF_SANS_STACK}; margin: 0; color: #2a2a2a; }
+.page { page-break-after: always; }
+.page:last-child { page-break-after: auto; }
+.title-bar { display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 3px solid #8a1f1f; padding-bottom: 6px; margin-bottom: 8px; }
+.title-bar h1 { font-size: 21px; margin: 0; color: #8a1f1f; letter-spacing: 1px; }
+.title-bar .subtitle { font-size: 11px; color: #555; max-width: 55%; text-align: right; }
+.header-row { display: grid; grid-template-columns: repeat(7, 1fr); }
+.hcell { background: #8a1f1f; color: white; font-size: 12px; padding: 4px 0; font-weight: 600; text-align: center; }
+.hcell.sun, .hcell.sat { background: #6e1616; }
+.week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; }
+.daycell { border: 0.75px solid #bbb; margin: -0.375px; padding: 3px 4px; position: relative;
+  height: 30mm; display: flex; flex-direction: column; }
+.daycell.dual { padding: 2px 4px; }
+.daynum-block { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.daynum-block.sub { padding-top: 1px; }
+.cell-divider { border-top: 1px dashed #bbb; margin: 2px 0; }
+.daycell.empty { background: #fafafa; border-color: #eee; }
+.daycell.hazard { border: 1.6px solid #b02a2a; }
+.daycell.great { border: 1.6px solid #2f7d32; }
+.dnum { font-size: 11px; font-weight: 700; color: #333; flex: 0 0 auto; }
+.dnum.sun { color: #b02a2a; }
+.dnum.sat { color: #2a4fb0; }
+.wdtag { font-size: 7.5px; font-weight: 400; color: #888; margin-left: 2px; }
+.jeol { font-size: 7.5px; font-weight: 700; color: #8a1f1f; margin-left: 3px; }
+.rating { font-size: 10px; font-weight: 700; color: #8a1f1f; float: right; }
+.ganji-row { display: flex; align-items: baseline; gap: 5px; flex: 0 0 auto; margin-top: 1px; }
+.ganji { font-size: 15px; font-weight: 700; letter-spacing: 1px; color: #2a2a2a; }
+.daynum-block.sub .ganji { font-size: 12px; }
+.sipsin { font-size: 8px; color: #666; font-weight: 500; }
+.daynum-block.sub .sipsin { font-size: 7px; }
+.note-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 1px 0; }
+.note { font-size: 7.6px; color: #999; font-weight: 400; line-height: 1.25; text-align: center; }
+.daynum-block.sub .note { font-size: 6.6px; }
+.legend { margin-top: 6px; font-size: 9px; color: #555; display: flex; gap: 18px; }
+.legend span.mark { font-weight: 700; color: #8a1f1f; margin-right: 3px; }
+.footer-note { margin-top: 5px; font-size: 8.5px; color: #777; }
+`;
+
+/** 문서 껍데기 — 폰트 링크는 반드시 실어 보낸다(서버리스 Chromium에는 한글 시스템 폰트가 없다, pdfFonts.ts 참고). */
+const wrapCalendarDocument = (pages: string): string =>
+  `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
+${PDF_SANS_FONT_LINKS}
+<style>${CALENDAR_CSS}</style></head><body>
+${pages}
+</body></html>`;
+
 /**
- * 월 일진 캘린더 HTML — 기존 /api/generate-pdf(Puppeteer)로 렌더한다.
- * 표기: 일주 간지·사주 코드만. 생년월일 원문 미표기(2-4 원칙).
+ * 한 달치 페이지(A4 가로 1장) — 제목줄·요일·주 그리드·범례·주석.
+ * 표기: 일주 간지·사주 코드만. 생년월일 원문 미표기(2-4 원칙). pageLabel은 연간 묶음의 "n / 12".
  */
-export function buildIljinCalendarHtml(m: IljinMonth, dayPillar: string, code: string): string {
+function renderMonthPage(m: IljinMonth, dayPillar: string, code: string, pageLabel?: string): string {
   const byDay = new Map(m.days.map((d) => [d.day, d]));
   const grid = buildGrid(m.year, m.month, m.days.length);
 
@@ -536,48 +586,7 @@ export function buildIljinCalendarHtml(m: IljinMonth, dayPillar: string, code: s
     : '';
   const subtitle = `${esc(dayPillar)}(${esc(toHangul(dayPillar))}) 일주 기준${esc(jeolipText)}${esc(runText)} · 사주 코드 ${esc(code)}`;
 
-  // 폰트 링크는 반드시 실어 보낸다 — 서버리스 Chromium에는 한글 시스템 폰트가 없다(pdfFonts.ts 참고).
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
-${PDF_SANS_FONT_LINKS}
-<style>
-@page { size: A4 landscape; margin: 10mm 12mm; }
-* { box-sizing: border-box; }
-body { font-family: ${PDF_SANS_STACK}; margin: 0; color: #2a2a2a; }
-.title-bar { display: flex; justify-content: space-between; align-items: baseline;
-  border-bottom: 3px solid #8a1f1f; padding-bottom: 6px; margin-bottom: 8px; }
-.title-bar h1 { font-size: 21px; margin: 0; color: #8a1f1f; letter-spacing: 1px; }
-.title-bar .subtitle { font-size: 11px; color: #555; max-width: 55%; text-align: right; }
-.header-row { display: grid; grid-template-columns: repeat(7, 1fr); }
-.hcell { background: #8a1f1f; color: white; font-size: 12px; padding: 4px 0; font-weight: 600; text-align: center; }
-.hcell.sun, .hcell.sat { background: #6e1616; }
-.week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; }
-.daycell { border: 0.75px solid #bbb; margin: -0.375px; padding: 3px 4px; position: relative;
-  height: 30mm; display: flex; flex-direction: column; }
-.daycell.dual { padding: 2px 4px; }
-.daynum-block { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.daynum-block.sub { padding-top: 1px; }
-.cell-divider { border-top: 1px dashed #bbb; margin: 2px 0; }
-.daycell.empty { background: #fafafa; border-color: #eee; }
-.daycell.hazard { border: 1.6px solid #b02a2a; }
-.daycell.great { border: 1.6px solid #2f7d32; }
-.dnum { font-size: 11px; font-weight: 700; color: #333; flex: 0 0 auto; }
-.dnum.sun { color: #b02a2a; }
-.dnum.sat { color: #2a4fb0; }
-.wdtag { font-size: 7.5px; font-weight: 400; color: #888; margin-left: 2px; }
-.jeol { font-size: 7.5px; font-weight: 700; color: #8a1f1f; margin-left: 3px; }
-.rating { font-size: 10px; font-weight: 700; color: #8a1f1f; float: right; }
-.ganji-row { display: flex; align-items: baseline; gap: 5px; flex: 0 0 auto; margin-top: 1px; }
-.ganji { font-size: 15px; font-weight: 700; letter-spacing: 1px; color: #2a2a2a; }
-.daynum-block.sub .ganji { font-size: 12px; }
-.sipsin { font-size: 8px; color: #666; font-weight: 500; }
-.daynum-block.sub .sipsin { font-size: 7px; }
-.note-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 1px 0; }
-.note { font-size: 7.6px; color: #999; font-weight: 400; line-height: 1.25; text-align: center; }
-.daynum-block.sub .note { font-size: 6.6px; }
-.legend { margin-top: 6px; font-size: 9px; color: #555; display: flex; gap: 18px; }
-.legend span.mark { font-weight: 700; color: #8a1f1f; margin-right: 3px; }
-.footer-note { margin-top: 5px; font-size: 8.5px; color: #777; }
-</style></head><body>
+  return `<section class="page">
 <div class="title-bar">
   <h1>${m.year}년 ${m.month}월 일진 캘린더</h1>
   <div class="subtitle">${subtitle}</div>
@@ -595,6 +604,28 @@ ${rows}
     m.context
       ? `등급·해설은 원국(강약·용신)과 대운·세운·월운·일진을 함께 본 참고 정보입니다. 같은 오행이 과다하게 겹치는 날은 길신이라도 등급을 내립니다.`
       : `등급·해설은 일간 기준 십성과 합충 조견표에 따른 참고 정보입니다.`
-  } 간지와 사주 코드 외 개인정보는 포함되지 않습니다.</div>
-</body></html>`;
+  } 간지와 사주 코드 외 개인정보는 포함되지 않습니다.${pageLabel ? ` · ${esc(pageLabel)}` : ''}</div>
+</section>`;
+}
+
+/** 월 일진 캘린더 HTML(1장) — 기존 /api/generate-pdf(Puppeteer)로 렌더한다. */
+export function buildIljinCalendarHtml(m: IljinMonth, dayPillar: string, code: string): string {
+  return wrapCalendarDocument(renderMonthPage(m, dayPillar, code));
+}
+
+/** 한 해 열두 달의 일진 — 연간(신년) 운세 구매자 부가 제공용. 명식을 주면 달마다 대운·세운·월운이 반영된다. */
+export function getYearIljin(year: number, source: string | MyeongsikParams): IljinMonth[] {
+  return Array.from({ length: 12 }, (_, i) => getMonthIljin(year, i + 1, source));
+}
+
+/**
+ * 연간 일진 캘린더 HTML — 1월부터 12월까지 달마다 A4 가로 1장, 총 12장을 한 문서로 묶는다.
+ * 표기 원칙(일주 간지·코드만, 생년월일 원문 없음)은 월 캘린더와 같다. 2027 신년운세 구매자 제공분.
+ */
+export function buildIljinYearCalendarHtml(year: number, source: string | MyeongsikParams, code: string): string {
+  const dayPillar = typeof source === 'string' ? source : source.pillars.day;
+  const pages = getYearIljin(year, source)
+    .map((m) => renderMonthPage(m, dayPillar, code, `${m.month} / 12`))
+    .join('\n');
+  return wrapCalendarDocument(pages);
 }

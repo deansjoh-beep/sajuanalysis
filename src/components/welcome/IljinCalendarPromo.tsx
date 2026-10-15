@@ -35,6 +35,10 @@ export function IljinCalendarPromo({ onGetReport, onGoLookup }: IljinCalendarPro
             벽걸이 달력 형태의 PDF로 드립니다. 발급받은 사주 코드로 ‘리포트 조회’에서 이번 달·다음 달
             중 원하는 달을 골라 언제든 내려받을 수 있습니다.
           </p>
+          <p className="text-[13px] md:text-[14px] text-ink-700 max-w-xl mx-auto leading-relaxed">
+            2027 신년운세 리포트를 받으신 분께는 2027년 1월부터 12월까지 열두 달 전체 캘린더를
+            PDF 12장으로 한 번에 드립니다.
+          </p>
         </div>
 
         {/* 샘플 — 다음 달 첫 주 미리보기 */}

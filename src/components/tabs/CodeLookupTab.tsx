@@ -9,7 +9,7 @@ import { buildMyeongsikFromBirth, myeongsikMatches, type MyeongsikParams } from 
 import { getWolunData, type WolunMonth } from '../../lib/manseryeok/wolun';
 import { getYearlyFortuneTargetYear } from '../../lib/yearlyFortuneProducts';
 import { buildReportPdfFileName, buildReportPdfHtml, stripMarkers } from '../../lib/reportPdf';
-import { buildIljinCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
+import { buildIljinCalendarHtml, buildIljinYearCalendarHtml, getMonthIljin, getNextMonthKst, getThisMonthKst } from '../../lib/iljinCalendar';
 import { addSavedCode, getSavedCodes, removeSavedCode } from '../../lib/memberStore';
 import LifeIndexCard from '../lifeIndex/LifeIndexCard';
 import { BirthInputFields, userDataToBirthForm } from '../BirthInputFields';
@@ -466,6 +466,8 @@ export default function CodeLookupTab({
   const [pdfSaved, setPdfSaved] = useState(false);
   const [iljinBusy, setIljinBusy] = useState(false);
   const [iljinSaved, setIljinSaved] = useState(false);
+  const [yearIljinBusy, setYearIljinBusy] = useState(false);
+  const [yearIljinSaved, setYearIljinSaved] = useState<number | null>(null);
   // 계정에 보관한 코드 목록 (옵트인 — 로그인 회원만)
   const [savedCodes, setSavedCodes] = useState<string[]>([]);
   const [saveBusy, setSaveBusy] = useState(false);
@@ -648,6 +650,43 @@ export default function CodeLookupTab({
   );
   const [iljinTarget, setIljinTarget] = useState<'current' | 'next'>('next');
   const iljinTargetMonth = iljinTarget === 'current' ? getThisMonthKst() : getNextMonthKst();
+
+  // 연간(신년) 운세 구매 코드 — 상품이 가리키는 해의 열두 달 전체 일진 캘린더(12p)를 한 PDF로 제공 (환불 제외).
+  const yearIljinYears = useMemo(() => {
+    if (!result?.myeongsik) return [] as number[];
+    const years = result.orders
+      .filter((o) => o.status !== 'refunded')
+      .map((o) => getYearlyFortuneTargetYear(o.product))
+      .filter((y): y is number => y !== null);
+    return Array.from(new Set(years)).sort((a, b) => b - a);
+  }, [result]);
+
+  const downloadYearIljin = async (year: number) => {
+    if (!result?.myeongsik) return;
+    setYearIljinBusy(true);
+    setYearIljinSaved(null);
+    try {
+      const html = buildIljinYearCalendarHtml(year, result.myeongsik, code);
+      const res = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html, fileName: `일진캘린더_${year}년_12개월_${code.replace(/[^A-Z0-9-]/g, '')}` }),
+      });
+      if (!res.ok) throw new Error('연간 일진 캘린더 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `일진캘린더_${year}년_12개월_${code}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setYearIljinSaved(year);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '연간 일진 캘린더 생성에 실패했습니다.');
+    } finally {
+      setYearIljinBusy(false);
+    }
+  };
 
   const downloadIljin = async () => {
     if (!result?.myeongsik) return;
@@ -985,6 +1024,35 @@ export default function CodeLookupTab({
 
               {/* 공개 후기 유도는 리포트 말미 익명 피드백 제출 완료 후 한 곳에서만 한다
                   (FeedbackForm 참고 — 단독 카드와 중복돼 제거, 2026-09-02) */}
+
+              {/* 연간(신년) 운세 구매 코드 — 그 해 열두 달 일진 캘린더 전체(12p). 월별 카드보다 위에 둔다 */}
+              {yearIljinYears.map((year) => (
+                <section key={year} className={`${PAPER_CARD} p-6 space-y-3`}>
+                  <div>
+                    <h3 className="font-serif text-[18px] font-bold text-ink-900">{year}년 열두 달 일진 캘린더</h3>
+                    <p className="text-[12px] text-ink-500 mt-1">
+                      {year} 신년운세 리포트 구매자께 드리는 연간 캘린더입니다. 1월부터 12월까지 달마다 한 장씩,
+                      이 코드의 원국과 대운·세운·월운을 반영한 하루하루의 간지·십성·길흉을 벽걸이 달력 형태의
+                      PDF 12장에 담았습니다.
+                    </p>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => void downloadYearIljin(year)}
+                      disabled={yearIljinBusy}
+                      className="px-4 py-2 rounded-xl border border-ink-300/40 text-ink-700 text-[13px] font-bold disabled:opacity-40"
+                    >
+                      {yearIljinBusy ? '12장 생성 중...' : `${year}년 전체 PDF 내려받기 (12p)`}
+                    </button>
+                  </div>
+                  {yearIljinSaved === year && (
+                    <p className="text-[12px] text-ink-500 leading-relaxed border-t border-ink-300/20 pt-3">
+                      PDF를 내려받았습니다. PC는 ‘다운로드’ 폴더, 휴대폰은 ‘파일’ 또는 ‘다운로드’ 앱에서
+                      확인하실 수 있습니다. 달마다 한 장씩 인쇄해 벽에 걸어두시면 한 해 계획에 쓰기 좋습니다.
+                    </p>
+                  )}
+                </section>
+              ))}
 
               {/* 이번 달·다음 달 일진 캘린더 — 구매 이력 보유 코드 무료 부가 서비스, 고객이 월 선택 */}
               {iljinEligible && (
