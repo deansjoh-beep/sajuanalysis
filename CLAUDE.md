@@ -72,8 +72,8 @@ When editing these modules, keep `src/utils/saju.test.ts` passing and check beha
 | `yearly-fortune-2026.ts` | 2026 일년운세 premium report (판매 종료 — 재열람·재생성용으로 유지) |
 | `yearly-fortune-2027.ts` | 2027 신년운세 premium report (정미 丁未년). 섹션 마커·분량은 2026과 동일, "다가오는 해" 시제·전년 연결 규칙 추가 |
 | `job-career.ts` / `love-marriage.ts` | 직업·재물운 / 연애·결혼운 premium reports |
-| `report-writing-style.ts` | 유료 4종 공통 서술 원칙 v2 — 고등학생 눈높이, 본문 전문 용어 금지 + 생활 언어 번역표. system 말미 주입(상품 지침·골든셋보다 우선). `premiumReportCore.checkJargonDensity`가 본문 1,000자당 5회 초과를 품질 이슈로 잡는다(초급 모드) |
-| `golden-lifenav.ts` | 인생네비 few-shot 예시 — 구성·깊이 기준으로만 주입(문체는 v2 원칙이 우선) |
+| `report-writing-style.ts` | 유료 4종 공통 서술 원칙 v3 (OWNER 지시 2026-10-15) — 최우선 3원칙: ① 사주 용어를 전혀 모르는 독자(허용 기본어 사주·오행·대운·세운 4개뿐, 본문 전문 용어 금지 + 생활 언어 번역표) ② 비유 금지 → 실생활 행동·습관·선택·말투(스타일)로 구체 서술 ③ 섹션뿐 아니라 모든 문단이 결론 문장으로 시작. 같은 날 타사 AI 운세 결과물을 참조해 "쉬운 어휘 기준"(한자어→생활 어휘 치환표, "시사합니다"류 종결 금지, 월·연·대운 블록마다 생활 언어 한 줄 결론 제목, 직업명·숫자가 든 구체 조언, 독자 확인 문장, 잘 맞는 것/피할 것 양쪽 제시) 추가 — 유행어·한자 병기·단정은 가져오지 않고 합니다체 유지. system 말미 주입(간명 기본 규칙·상품 지침·골든셋의 "비유 사용" 지시보다 우선). `premiumReportCore.checkJargonDensity`가 본문 1,000자당 5회 초과를 품질 이슈로 잡는다(초급 모드; 비유·문단 결론은 기계 검사 없음) |
+| `golden-lifenav.ts` | 인생네비 few-shot 예시 — 구성·깊이 기준으로만 주입(문체·비유는 v3 원칙이 우선) |
 | `index.ts` | barrel — re-export only; never author content here |
 
 These are treated as product content, not code comments. Edits to tone, section order, section markers, or file-name conventions are feature changes — see recent commits (e.g. `feat(saju-guideline): ...`, `feat(yearly-fortune): ...`) for the style. Accompanying spec tests: `src/constants/guidelines.test.ts`.

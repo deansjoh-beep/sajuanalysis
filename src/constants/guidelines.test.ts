@@ -186,19 +186,53 @@ describe('지침 핵심 규칙 내용 검증', () => {
     expect(ADVANCED_REPORT_GUIDELINE).toContain('결론');
   });
 
-  // REPORT_WRITING_STYLE_GUIDELINE — 유료 리포트 서술 원칙 v2 (OWNER 승인 2026-08-17)
-  test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 1 — 결론 선행 규칙 포함', () => {
+  // REPORT_WRITING_STYLE_GUIDELINE — 유료 리포트 서술 원칙 v3 (OWNER 지시 2026-10-15; v1 2026-08-17, v2 2026-09-09)
+  test('REPORT_WRITING_STYLE_GUIDELINE: v3 최우선 3원칙 선언 — 용어 무지 독자·비유 금지·문단 결론 선행', () => {
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('【최우선 3원칙');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('사주 용어를 전혀 모르는 사람도 한 번 읽고 이해하게 쓴다');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('비유로 설명하지 않는다');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('모든 문단은 결론 한 문장으로 시작');
+  });
+
+  test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 1 — 결론 선행 규칙 포함(섹션 + 문단 단위)', () => {
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('결론 먼저');
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('결론부터 말씀드리면');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('모든 문단도 첫 문장이 그 문단의 결론');
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('섹션 말미에 요약을 반복하지 않는다');
   });
 
-  test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 2 — 사전지식 없는 독자 전제 포함', () => {
-    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('사주명리를 처음 접하는 사람');
-    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('비유');
+  test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 2 — 비유 금지 + 실생활·스타일 구체화', () => {
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('비유를 쓰지 않는다');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('마치 ~처럼');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('실생활과 스타일을 구체적으로');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('행동·습관·선택·말투');
+    // 앞선 지침(간명 기본 규칙·report-basic·골든셋)의 "비유 사용" 지시를 명시적으로 무효화해야 한다.
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('"비유를 사용하라"');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('따르지 않는다');
+    // v2의 "비유 먼저" 원칙은 폐기되었다.
+    expect(REPORT_WRITING_STYLE_GUIDELINE).not.toContain('비유 먼저');
   });
 
-  test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 3 — 용어 최소화·괄호 해설 부기 포함', () => {
+  test('REPORT_WRITING_STYLE_GUIDELINE: 쉬운 어휘 기준 — 한자어 치환표·금지 종결·한 줄 결론 제목·구체성(2026-10-15 참조 사례 반영)', () => {
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('【쉬운 어휘 기준');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('월급처럼 따박따박 들어오는 돈');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('"~을 시사합니다"');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('【한 줄 결론 제목');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('[MONTH_START]·[DAEUN_START]·[SEUN_BLOCK] 안의 내용 첫 줄도');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('독자 확인 문장');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('양쪽 제시');
+    // 참조 사례의 유행어·한자 병기·단정은 가져오지 않고 합니다체를 유지한다.
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('【참조 사례에서 가져오지 않는 것】');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('합니다체를 유지');
+  });
+
+  test('REPORT_WRITING_STYLE_GUIDELINE: 독자 기준 — 사전지식 없는 독자 전제 + 허용 기본어 4개로 축소', () => {
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('사주명리를 처음 접하는 사람');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('기본어는 4개뿐');
+    expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('원국·일간·음양·용신은 본문에 쓰지 않고 풀이말로만');
+  });
+
+  test('REPORT_WRITING_STYLE_GUIDELINE: 원칙 3 — 본문 용어 금지·괄호 해설 금지·번역표 포함', () => {
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('괄호 해설을 달아서 쓰는 것도 금지');
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('번역표');
     expect(REPORT_WRITING_STYLE_GUIDELINE).toContain('고등학교 선생님');
@@ -216,8 +250,8 @@ describe('지침 핵심 규칙 내용 검증', () => {
   });
 });
 
-// ─── 유료 리포트 4종: 서술 원칙 v2 주입 검증 ────────────────────────────────────
-describe('assemblePremiumReportPrompt: 서술 원칙 v2 주입', () => {
+// ─── 유료 리포트 4종: 서술 원칙 v3 주입 검증 ────────────────────────────────────
+describe('assemblePremiumReportPrompt: 서술 원칙 v3 주입', () => {
   const baseInput: ReportInputData = {
     name: '테스트',
     gender: 'M',
@@ -238,9 +272,9 @@ describe('assemblePremiumReportPrompt: 서술 원칙 v2 주입', () => {
 
   const productTypes: ProductType[] = ['premium', 'yearly2026', 'yearly2027', 'jobCareer', 'loveMarriage'];
 
-  test.each(productTypes)('%s: system 프롬프트에 서술 원칙 v2이 포함됨', (productType) => {
+  test.each(productTypes)('%s: system 프롬프트에 서술 원칙 v3이 포함됨', (productType) => {
     const { system } = assemblePremiumReportPrompt({ ...baseInput, productType });
-    expect(system).toContain('[유료 리포트 공통 서술 원칙 v2 — 최우선 문체 규칙]');
+    expect(system).toContain('[유료 리포트 공통 서술 원칙 v3 — 최우선 문체 규칙]');
     expect(system).toContain('결론부터 말씀드리면');
   });
 
@@ -287,21 +321,21 @@ describe('assemblePremiumReportPrompt: 서술 원칙 v2 주입', () => {
     });
   });
 
-  test('premium(인생네비): 서술 원칙 v2이 골든셋 예시보다 뒤에 배치됨 (충돌 시 우선권 확보)', () => {
+  test('premium(인생네비): 서술 원칙 v3이 골든셋 예시보다 뒤에 배치됨 (충돌 시 우선권 확보)', () => {
     const { system } = assemblePremiumReportPrompt({ ...baseInput, productType: 'premium' });
     const goldenIdx = system.indexOf('[골든셋 모범 예시');
-    const styleIdx = system.indexOf('[유료 리포트 공통 서술 원칙 v2');
+    const styleIdx = system.indexOf('[유료 리포트 공통 서술 원칙 v3');
     expect(goldenIdx).toBeGreaterThan(-1);
     expect(styleIdx).toBeGreaterThan(goldenIdx);
   });
 
-  test('advanced 모드에서도 서술 원칙 v2이 주입됨', () => {
+  test('advanced 모드에서도 서술 원칙 v3이 주입됨', () => {
     const { system } = assemblePremiumReportPrompt({
       ...baseInput,
       productType: 'premium',
       reportLevel: 'advanced',
     });
-    expect(system).toContain('[유료 리포트 공통 서술 원칙 v2 — 최우선 문체 규칙]');
+    expect(system).toContain('[유료 리포트 공통 서술 원칙 v3 — 최우선 문체 규칙]');
   });
 });
 
